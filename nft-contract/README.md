@@ -6,7 +6,7 @@ near create-account nft.trez.testnet --masterAccount trez.testnet
 yarn build
 
 #3. Deploy contract
-near deploy --wasmFile ../out/main.wasm --accountId nft.trez.testnet
+near deploy --wasmFile ./out/main.wasm --accountId nft.trez.testnet
 
 #4. Initialize contract
 near call nft.trez.testnet new_default_meta '{"owner_id": "nft.trez.testnet"}' --accountId nft.trez.testnet 
@@ -37,6 +37,20 @@ near call nft.trez.testnet nft_mint '{
         "trez.testnet": 2000      
     }
 }' --accountId nft.trez.testnet --amount 0.1
+
+near call nft.trez.testnet nft_mint '{
+    "token_id": "lecimy", 
+    "metadata": {
+        "title": "Lecimy!", 
+        "description": "Lecimy", 
+        "media": "https://eneftigo.s3.eu-central-1.amazonaws.com/rocket-lift-off.gif"
+    }, 
+    "receiver_id": "patka.testnet",
+    "perpetual_royalties": {
+        "trez.testnet": 2000      
+    }
+}' --accountId nft.trez.testnet --amount 0.1
+
 
 #NOTE: May need logging in as hubi.testnet and patka.testnet
 

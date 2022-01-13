@@ -1,10 +1,10 @@
 {
-    "name": "nft-tutorial",
-    "version": "1.0.0",
-    "description": "Zero to Hero NFT Tutorial",
-    "author": "Ben Kurrek",
+    "name": "eneftigo",
+    "version": "0.1.0",
+    "description": "Eneftigo Music NFT Marketplace",
+    "author": "Hubert Pietrzykowski",
     "license": "ISC",
     "scripts": {
-        "build": "cd nft-contract && ./build.sh && cd ../.."
+        "build": "cd ft-contract && ./build.sh && cd .. && cd nft-contract && ./build.sh && cd .."
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "eneftigo_vanilla_nft"
+name = "eneftigo_marketplace"
 version = "0.1.0"
 authors = ["Eneftigo <pietrzykowskihubert@gmail.com>"]
 edition = "2021"
@@ -9,7 +9,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 near-sdk = "=4.0.0-pre.4"
-serde_json = "1.0"
 
 [profile.release]
 codegen-units=1

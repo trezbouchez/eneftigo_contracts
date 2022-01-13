@@ -10,6 +10,12 @@ impl Contract {
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,        
     ) {
+        assert_eq!(
+            &env::predecessor_account_id(),
+            &self.owner_id,
+            "Only contract owner can mint."
+        );
+
         // measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
 
