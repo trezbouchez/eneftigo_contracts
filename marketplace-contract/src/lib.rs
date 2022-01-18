@@ -1,23 +1,27 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_one_yocto, env, ext_contract, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
+    assert_one_yocto, env, /*ext_contract, */near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
     Promise, CryptoHash, BorshStorageKey,
 };
 use std::collections::HashMap;
 
-use crate::external::*;
-use crate::internal::*;
-use crate::sale::*;
+// use crate::external::*;
+// use crate::internal::*;
+// use crate::sale::*;
+use crate::fpo::*;
 use near_sdk::env::STORAGE_PRICE_PER_BYTE;
 
-mod external;
+mod fpo;
 mod internal;
-mod nft_callbacks;
-mod sale;
-mod sale_views;
+mod enumeration;
+// mod external;
+// mod internal;
+// mod nft_callbacks;
+// mod sale;
+// mod sale_views;
 
 //GAS constants to attach to calls
 const GAS_FOR_ROYALTIES: Gas = Gas(115_000_000_000_000);
@@ -49,19 +53,19 @@ pub struct Payout {
 //main contract struct to store all the information
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
-pub struct Contract {
+pub struct MarketplaceContract {
     pub owner_id: AccountId,
-    pub fixed_price_offerings_by_contract_id: UnorderedMap<AccountId, FixedPriceOffering>; 
-    pub fixed_price_offerings_by_offeror_id: LookupMap<AccountId, UnorderedSet<AccountId>>;
+    pub fpos_by_contract_id: UnorderedMap<AccountId, FixedPriceOffering>,
+    pub fpos_by_offeror_id: LookupMap<AccountId, UnorderedSet<AccountId>>,
     pub storage_deposits: LookupMap<AccountId, Balance>,
 }
 
 /// Helper structure to for keys of the persistent collections.
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKey {
-    FixedPriceOfferingsByContractId,
-    FixedPriceOfferingsByOfferorId,
-    FixedPriceOfferingsByOfferorIdInner { account_id_hash: CryptoHash },
+    FPOsByContractId,
+    FPOsByOfferorId,
+    FPOsByOfferorIdInner { account_id_hash: CryptoHash },
     // ByNFTContractId,
     // ByNFTContractIdInner { account_id_hash: CryptoHash },
     // ByNFTTokenType,
@@ -71,7 +75,7 @@ pub enum StorageKey {
 }
 
 #[near_bindgen]
-impl Contract {
+impl MarketplaceContract {
     /*
         initialization function (can only be called once).
         this initializes the contract with default data and the owner ID
@@ -84,8 +88,8 @@ impl Contract {
             owner_id,
 
             // fixed-price offerings
-            fixed_price_offerings_by_contract_id: UnorderedMap::new(StorageKey::FixedPriceOfferingsByContractId),
-            fixed_price_offerings_by_offeror_id: LookupMap::new(StorageKey::FixedPriceOfferingsByOfferorId),
+            fpos_by_contract_id: UnorderedMap::new(StorageKey::FPOsByContractId),
+            fpos_by_offeror_id: LookupMap::new(StorageKey::FPOsByOfferorId),
             storage_deposits: LookupMap::new(StorageKey::StorageDeposits),
         };
 
@@ -127,7 +131,7 @@ impl Contract {
     //Bob could then withdraw this 0.01N back into his account. 
     #[payable]
     pub fn storage_withdraw(&mut self) {
-        //make sure the user attaches exactly 1 yoctoNEAR for security purposes.
+/*        //make sure the user attaches exactly 1 yoctoNEAR for security purposes.
         //this will redirect them to the NEAR wallet (or requires a full access key). 
         assert_one_yocto();
 
@@ -155,7 +159,7 @@ impl Contract {
         //if those sales get taken down, the user can then go and withdraw 500 sales worth of storage.
         if diff > 0 {
             self.storage_deposits.insert(&owner_id, &diff);
-        }
+        }*/
     }
 
     /// views

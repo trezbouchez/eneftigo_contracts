@@ -1,3 +1,40 @@
+#1. Reset NFT marketplace account
+near delete marketplace.trez.testnet trez.testnet
+near create-account marketplace.trez.testnet --masterAccount trez.testnet
+
+#2. Build contract
+yarn build
+
+#3. Deploy contract
+near deploy --wasmFile ./out/marketplace.wasm --accountId marketplace.trez.testnet
+
+#4. Initialize contract
+near call marketplace.trez.testnet new '{"owner_id": "marketplace.trez.testnet"}' --accountId marketplace.trez.testnet 
+
+%5. Add Fixed-Price Offering listing
+near call marketplace.trez.testnet fpo_list '{
+    "nft_contract_id": "nft.trez.testnet", 
+    "offeror_id": "hubi.testnet",
+    "nft_max_supply": 10,
+    "duration": 7
+}' --accountId marketplace.trez.testnet
+
+#6. Show FPO listings
+near view marketplace.trez.testnet fpos ''
+
+
+
+near call marketplace.trez.testnet fpo_list '{
+    "nft_contract_id": "nft.trez.testnet", 
+    "offering": {
+        "offeror_id": "hubi.testnet",
+        "nft_max_supply": 10,
+        "end_date_utc": "2022-02-19T18:25:43.511Z"
+    }
+}' --accountId marketplace.trez.testnet
+
+----------------------
+
 0. Offering party prepares an offer including:
 - `media`
 - `offer_type` (`fixed_price`, `auction`, other? - list is extensible)
