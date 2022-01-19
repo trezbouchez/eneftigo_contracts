@@ -1,31 +1,33 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::json_types::{Base64VecU8, U64, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_one_yocto, env, /*ext_contract, */near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
+    /*assert_one_yocto, */env, ext_contract, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
     Promise, CryptoHash, BorshStorageKey,
 };
 use std::collections::HashMap;
 
-// use crate::external::*;
-// use crate::internal::*;
 // use crate::sale::*;
-use crate::fpo::*;
+use crate::internal::*;
+use crate::external::*;
+pub use crate::fpo::*;
+
 use near_sdk::env::STORAGE_PRICE_PER_BYTE;
 
 mod fpo;
 mod internal;
 mod enumeration;
-// mod external;
+mod external;
 // mod internal;
 // mod nft_callbacks;
 // mod sale;
 // mod sale_views;
 
 //GAS constants to attach to calls
-const GAS_FOR_ROYALTIES: Gas = Gas(115_000_000_000_000);
-const GAS_FOR_NFT_TRANSFER: Gas = Gas(15_000_000_000_000);
+// const GAS_FOR_ROYALTIES: Gas = Gas(115_000_000_000_000);
+// const GAS_FOR_NFT_TRANSFER: Gas = Gas(15_000_000_000_000);
+const GAS_FOR_NFT_MINT: Gas = Gas(15_000_000_000_000);
 
 //constant used to attach 0 NEAR to a call
 const NO_DEPOSIT: Balance = 0;
@@ -34,7 +36,7 @@ const NO_DEPOSIT: Balance = 0;
 const STORAGE_PER_SALE: u128 = 1000 * STORAGE_PRICE_PER_BYTE;
 
 //every sale will have a unique ID which is `CONTRACT + DELIMITER + TOKEN_ID`
-static DELIMETER: &str = ".";
+// static DELIMETER: &str = ".";
 
 //Creating custom types to use within the contract. This makes things more readable. 
 pub type SalePriceInYoctoNear = U128;
@@ -64,6 +66,8 @@ pub struct MarketplaceContract {
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKey {
     FPOsByContractId,
+    FPOInnerWinning { account_id_hash: CryptoHash },
+    FPOInnerLoosing { account_id_hash: CryptoHash },
     FPOsByOfferorId,
     FPOsByOfferorIdInner { account_id_hash: CryptoHash },
     // ByNFTContractId,

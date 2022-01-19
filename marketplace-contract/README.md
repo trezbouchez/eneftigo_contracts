@@ -11,16 +11,18 @@ near deploy --wasmFile ./out/marketplace.wasm --accountId marketplace.trez.testn
 #4. Initialize contract
 near call marketplace.trez.testnet new '{"owner_id": "marketplace.trez.testnet"}' --accountId marketplace.trez.testnet 
 
-%5. Add Fixed-Price Offering listing
+#5. Add Fixed-Price Offering listing
 near call marketplace.trez.testnet fpo_list '{
     "nft_contract_id": "nft.trez.testnet", 
     "offeror_id": "hubi.testnet",
     "nft_max_supply": 10,
-    "duration": 7
-}' --accountId marketplace.trez.testnet
+    "duration_days": 7
+}' --accountId marketplace.trez.testnet --amount 0.1
 
 #6. Show FPO listings
 near view marketplace.trez.testnet fpos ''
+
+
 
 
 
