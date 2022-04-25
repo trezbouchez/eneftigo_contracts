@@ -15,25 +15,67 @@ near call marketplace.trez.testnet new '{"owner_id": "marketplace.trez.testnet"}
 near call marketplace.trez.testnet fpo_list '{
     "nft_contract_id": "nft.trez.testnet", 
     "offeror_id": "hubi.testnet",
-    "nft_max_supply": 10,
-    "duration_days": 7
+    "supply_total": 3,
+    "buy_now_price_yocto": 1000,
+    "min_proposal_price_yocto": 100,
+    "nft_metadata":  {
+        "title": "Nie bedzie niczego!", 
+        "description": "Krzychu", 
+        "media": "https://eneftigo.s3.eu-central-1.amazonaws.com/konon-kononowicz-bestia.gif"
+    }
 }' --accountId marketplace.trez.testnet --amount 0.1
 
 #6. Show FPO listings
-near view marketplace.trez.testnet fpos ''
+near view marketplace.trez.testnet fpos '{
+    "from_index": "0",
+    "limit": 2
+}'
 
+#7. Make unacceptable proposals 
+near call marketplace.trez.testnet fpo_place_proposal '{
+    "nft_contract_id": "nft.trez.testnet",
+    "proposed_price_yocto": 90
+}' --accountId marketplace.trez.testnet --depositYocto 9
 
+near call marketplace.trez.testnet fpo_place_proposal '{
+    "nft_contract_id": "nft.trez.testnet",
+    "proposed_price_yocto": 100
+}' --accountId marketplace.trez.testnet --depositYocto 9
 
+#8. Make acceptable proposal
+near call marketplace.trez.testnet fpo_place_proposal '{
+    "nft_contract_id": "nft.trez.testnet",
+    "proposed_price_yocto": 100
+}' --accountId marketplace.trez.testnet --depositYocto 10
 
+#9. View proposals
+near view marketplace.trez.testnet fpo_proposals '{
+    "nft_contract_id": "nft.trez.testnet",
+    "limit": 10
+}'
 
-near call marketplace.trez.testnet fpo_list '{
-    "nft_contract_id": "nft.trez.testnet", 
-    "offering": {
-        "offeror_id": "hubi.testnet",
-        "nft_max_supply": 10,
-        "end_date_utc": "2022-02-19T18:25:43.511Z"
-    }
-}' --accountId marketplace.trez.testnet
+#10. Make more proposals
+near call marketplace.trez.testnet fpo_place_proposal '{
+    "nft_contract_id": "nft.trez.testnet",
+    "proposed_price_yocto": 110
+}' --accountId marketplace.trez.testnet --depositYocto 11
+
+near call marketplace.trez.testnet fpo_place_proposal '{
+    "nft_contract_id": "nft.trez.testnet",
+    "proposed_price_yocto": 130
+}' --accountId marketplace.trez.testnet --depositYocto 13
+
+#11. Make proposal that's supposed to be outbid
+near call marketplace.trez.testnet fpo_place_proposal '{
+    "nft_contract_id": "nft.trez.testnet",
+    "proposed_price_yocto": 100
+}' --accountId marketplace.trez.testnet --depositYocto 10
+
+#12. Make acceptable proposal
+near call marketplace.trez.testnet fpo_place_proposal '{
+    "nft_contract_id": "nft.trez.testnet",
+    "proposed_price_yocto": 120
+}' --accountId marketplace.trez.testnet --depositYocto 12
 
 ----------------------
 

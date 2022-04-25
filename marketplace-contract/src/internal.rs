@@ -1,6 +1,6 @@
 use crate::*;
 use near_sdk::{CryptoHash};
-
+use near_sdk::collections::Vector;
 
 // used to generate a unique prefix in our storage collections (this is to avoid data collisions)
 pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
@@ -33,6 +33,13 @@ pub(crate) fn refund_deposit(storage_used: u64) {
         Promise::new(env::predecessor_account_id()).transfer(refund);
     }
 }
+
+// pub(crate) fn vec_to_vector<T: near_sdk::borsh::BorshSerialize>(vec: Vec<T>, id: Vec<u8>) -> Vector<T>
+// {
+//     let mut vector = Vector::new(id);
+//     vector.extend(vec);
+//     return vector;
+// }
 
 impl MarketplaceContract {
 

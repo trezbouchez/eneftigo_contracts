@@ -4,7 +4,7 @@ use crate::*;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct NFTMetadata {
+pub struct TokenMetadata {
     pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
     pub description: Option<String>, // free-form description
     pub media: Option<String>, // URL to associated media, preferably to decentralized, content-addressed storage
@@ -24,7 +24,7 @@ trait ExtContract {
     fn nft_mint(
         &mut self,
         token_id: TokenId,
-        metadata: NFTMetadata,
+        metadata: TokenMetadata,
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
     );

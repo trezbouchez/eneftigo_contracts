@@ -4,17 +4,22 @@ use crate::*;
 impl Contract {
 
     //Query for nft tokens on the contract regardless of the owner using pagination
-    pub fn nft_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonToken> {
+    pub fn nft_tokens(
+        &self, 
+        from_index: Option<U128>, 
+        limit: Option<u64>
+    ) -> Vec<JsonToken> {
         //get a vector of the keys in the token_metadata_by_id collection.  
         let keys = self.token_metadata_by_id.keys_as_vector();
         
         //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
-        let start = u128::from(from_index.unwrap_or(U128(0)));
+        let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
+        let count = limit.unwrap_or(10) as usize;
 
         //iterate through the keys vector
         keys.iter()
-            .skip(start as usize)   //skip to the index we specified in the start variable
-            .take(limit.unwrap_or(0) as usize)     // return "limit" elements or 0 if missing
+            .skip(start)   //skip to the index we specified in the start variable
+            .take(count)     // return "limit" elements or 0 if missing
             .map(|token_id| self.nft_token(token_id.clone()).unwrap())      // map onto Json Tokens
             .collect()
     }
@@ -46,7 +51,7 @@ impl Contract {
             let keys = tokens_for_owner_set.as_vector();
 
             //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
-            let start = u128::from(from_index.unwrap_or(U128(0)));
+            let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
 
             //iterate through the keys vector
             return keys.iter()

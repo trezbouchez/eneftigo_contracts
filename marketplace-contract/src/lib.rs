@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{Base64VecU8, U64, U128};
+use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     /*assert_one_yocto, */env, ext_contract, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
@@ -9,9 +9,9 @@ use near_sdk::{
 use std::collections::HashMap;
 
 // use crate::sale::*;
-use crate::internal::*;
+//use crate::internal::*;
 use crate::external::*;
-pub use crate::fpo::*;
+pub use crate::fpo::lib::*;
 
 use near_sdk::env::STORAGE_PRICE_PER_BYTE;
 
@@ -19,6 +19,7 @@ mod fpo;
 mod internal;
 mod enumeration;
 mod external;
+
 // mod internal;
 // mod nft_callbacks;
 // mod sale;
@@ -66,8 +67,8 @@ pub struct MarketplaceContract {
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKey {
     FPOsByContractId,
-    FPOInnerWinning { account_id_hash: CryptoHash },
-    FPOInnerLoosing { account_id_hash: CryptoHash },
+    // FPOInnerWinning { account_id_hash: CryptoHash },
+    // FPOInnerLoosing { account_id_hash: CryptoHash },
     FPOsByOfferorId,
     FPOsByOfferorIdInner { account_id_hash: CryptoHash },
     // ByNFTContractId,
