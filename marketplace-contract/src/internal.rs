@@ -1,6 +1,6 @@
 use crate::*;
 use near_sdk::{CryptoHash};
-use near_sdk::collections::Vector;
+// use near_sdk::collections::Vector;
 
 // used to generate a unique prefix in our storage collections (this is to avoid data collisions)
 pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {

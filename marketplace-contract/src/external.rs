@@ -1,6 +1,5 @@
 use crate::*;
-
-/// external contract calls
+use crate::config::*;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]

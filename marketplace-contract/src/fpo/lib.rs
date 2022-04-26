@@ -1,28 +1,12 @@
 use crate::*;
 use crate::internal::*;
+use crate::fpo::config::*;
 
 use std::cmp::Ordering;
 use chrono::{DateTime, Duration, Utc, TimeZone};
 
 use near_sdk::collections::Vector;
 use near_sdk::json_types::{U128};
-
-// use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-// use near_sdk::serde::{Deserialize, Serialize};
-
-// TODO: tweak these if needed
-//const STORAGE_PER_FIXED_PRICE_OFFERING: u128 = 1000 * STORAGE_PRICE_PER_BYTE;   // TODO: measure and tweak
-const NFT_TOTAL_SUPPLY_MAX: u64 = 100;
-const FPO_MIN_PRICE_YOCTO: u128 = 1000;
-const FPO_PRICE_STEP_YOCTO: u128 = 10;
-
-// TODO: it is important to set the minimum effective yocto deposit
-// (determined by FPO_MIN_PRICE_YOCTO and FPO_PROPOSAL_DEPOSIT_RATE)
-// to be greater than or equal the storage cost per proposal; this
-// prevents the mallicious attempt to drain the contract out of its
-// Near balance known as "million cheap data additions" attack
-// https://docs.near.org/docs/concepts/storage-staking
-const FPO_PROPOSAL_DEPOSIT_RATE: u128 = 10;     // percent
 
 pub type ProposalId = u128;
 
@@ -94,16 +78,14 @@ trait FixedPriceOfferingResolver {
     fn fpo_resolve_purchase(
         &mut self,
         nft_contract_id: AccountId,
-        buyer_id: AccountId,
-    ) -> bool;
+    );
 }
 
 trait FixedPriceOfferingResolver {
     fn fpo_resolve_purchase(
         &mut self,
         nft_contract_id: AccountId,
-        buyer_id: AccountId,
-    ) -> bool;
+    );
 }
 
 #[near_bindgen]
@@ -124,8 +106,8 @@ impl MarketplaceContract {
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: U128,
         nft_metadata: TokenMetadata,
-        duration_days: Option<u64>,         // if duration is set, end_date must be None 
-        end_date: Option<String>,
+        duration_days: Option<u64>,         // if duration is set, end_date must be None, if both are None then
+        end_date: Option<String>,           // the offering lasts until concluded; proposals won't be accepted
     ) {
         // make sure it's called by marketplace 
         assert_eq!(
@@ -136,9 +118,9 @@ impl MarketplaceContract {
 
         // ensure max supply does not exceed limit
         assert!(
-            supply_total > 0 && supply_total <= NFT_TOTAL_SUPPLY_MAX,
+            supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
             "Max NFT supply must be between 1 and {}.", 
-            NFT_TOTAL_SUPPLY_MAX
+            TOTAL_SUPPLY_MAX
         );
 
         // make sure it's not yet listed
@@ -147,17 +129,17 @@ impl MarketplaceContract {
             "Already listed"
         );
 
-        // price must be at least FPO_MIN_PRICE_YOCTO
+        // price must be at least MIN_PRICE_YOCTO
         assert!(
-            buy_now_price_yocto.0 >= FPO_MIN_PRICE_YOCTO,
-            "Price cannot be lower than {} yocto Near", FPO_MIN_PRICE_YOCTO
+            buy_now_price_yocto.0 >= MIN_PRICE_YOCTO,
+            "Price cannot be lower than {} yocto Near", MIN_PRICE_YOCTO
         );
         
-        // prices must be multiple of FPO_PRICE_STEP_YOCTO
+        // prices must be multiple of PRICE_STEP_YOCTO
         assert!(
-            buy_now_price_yocto.0 % FPO_PRICE_STEP_YOCTO == 0 || min_proposal_price_yocto.0 % FPO_PRICE_STEP_YOCTO == 0,
+            buy_now_price_yocto.0 % PRICE_STEP_YOCTO == 0 || min_proposal_price_yocto.0 % PRICE_STEP_YOCTO == 0,
             "Prices must be integer multiple of {} yocto Near",
-            FPO_PRICE_STEP_YOCTO
+            PRICE_STEP_YOCTO
         );
 
         // get initial storage
@@ -247,7 +229,7 @@ impl MarketplaceContract {
         );
 
         // get FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
         // ensure there's supply left
         assert!(
@@ -266,7 +248,11 @@ impl MarketplaceContract {
         // process the purchase
         let buyer_id = env::predecessor_account_id();
 
-        fpo.process_purchase(buyer_id);
+        self.fpo_process_purchase(
+            fpo.nft_contract_id,
+            fpo.supply_left.to_string(),
+            buyer_id,
+        );
 
         //get the refund amount from the attached deposit - required cost
         // let refund = attached_deposit - required_cost;
@@ -287,27 +273,33 @@ impl MarketplaceContract {
         // get FPO
         let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
+        // ensure proposals are accepted
+        assert!(
+            fpo.end_timestamp.is_some(),
+            "Proposals are not accepted for this offering"
+        );
+
         // ensure there's supply left
         assert!(
             fpo.supply_left > 0,
             "You are late. All NFTs have been sold."
         );
 
-        // price must be multiple of FPO_PRICE_STEP_YOCTO
+        // price must be multiple of PRICE_STEP_YOCTO
         assert!(
-            price_yocto % FPO_PRICE_STEP_YOCTO == 0,
+            price_yocto % PRICE_STEP_YOCTO == 0,
             "Price must be an integer multple of {} yocto Near", 
-            FPO_PRICE_STEP_YOCTO
+            PRICE_STEP_YOCTO
         );
         
         // ensure the attached balance is sufficient to pay deposit
         // TODO: should we adopt approvals instead?
         let attached_balance_yocto = env::attached_deposit();
-        let deposit_yocto = price_yocto * FPO_PROPOSAL_DEPOSIT_RATE / 100;
+        let deposit_yocto = price_yocto * PROPOSAL_DEPOSIT_RATE / 100;
         assert!(
             attached_balance_yocto >= deposit_yocto, 
             "Attached balance must be sufficient to pay the required {:?}% deposit ({:?} yocto Near)", 
-            FPO_PROPOSAL_DEPOSIT_RATE, 
+            PROPOSAL_DEPOSIT_RATE, 
             deposit_yocto 
         );
 
@@ -317,7 +309,7 @@ impl MarketplaceContract {
         let min_accepted_price_yocto = if unmatched_supply_exists {
             fpo.min_proposal_price_yocto
         } else {
-            winning_proposals.get(0).unwrap().price_yocto + FPO_PRICE_STEP_YOCTO
+            winning_proposals.get(0).unwrap().price_yocto + PRICE_STEP_YOCTO
         };
         assert!(
             price_yocto >= min_accepted_price_yocto,
@@ -376,15 +368,23 @@ impl MarketplaceContract {
 }
 
 #[near_bindgen]
-impl FixedPriceOfferingResolver for FixedPriceOffering {
+impl FixedPriceOfferingResolver for MarketplaceContract {
 
     fn fpo_resolve_purchase(
         &mut self,
         nft_contract_id: AccountId,
-        buyer_id: AccountId,
-    ) -> bool {
-        return false;
-        // TODO: update proposals by popping least attractive ones until their number matches the supply
+    ) {
+        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+
+        fpo.supply_left -= 1;
+
+        // end offer if no supply left
+        if fpo.supply_left == 0 {
+            self.fpo_conclude(nft_contract_id);
+        } else {
+            fpo.prune_supply_exceeding_winning_proposals();
+        }
+
     }
 }
 
