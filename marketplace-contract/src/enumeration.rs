@@ -21,7 +21,7 @@ pub struct JsonFixedPriceOfferingProposal {
     pub id: U128,
     pub proposer_id: AccountId,
     pub price_yocto: U128,
-    pub is_winning: bool,
+    pub is_acceptable: bool,
 }
 
 #[near_bindgen]
@@ -109,8 +109,8 @@ impl MarketplaceContract {
         }
     }
 
-    // get winning proposals by nft_contract_id, results are paginated
-    pub fn fpo_winning_proposals(
+    // get acceptable proposals by nft_contract_id, results are paginated
+    pub fn fpo_acceptable_proposals(
         &self,
         nft_contract_id: AccountId,
         from_index: Option<U128>, 
@@ -122,15 +122,18 @@ impl MarketplaceContract {
         let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
         let count = limit.unwrap_or(10) as usize;
 
-        fpo.winning_proposals
+        fpo.acceptable_proposals
             .iter()
             .skip(start)   //skip to the index we specified in the start variable
             .take(count)     // return "limit" elements or 0 if missing
-            .map(|winning_proposal| JsonFixedPriceOfferingProposal {
-                id: U128(winning_proposal.id),
-                proposer_id: winning_proposal.proposer_id,
-                price_yocto: U128(winning_proposal.price_yocto),
-                is_winning: winning_proposal.is_winning,        // should always be true!
+            .map(|proposal_id| {
+                let proposal = fpo.proposals.get(&proposal_id).expect("Could not find proposal");
+                JsonFixedPriceOfferingProposal {
+                    id: U128(proposal.id),
+                    proposer_id: proposal.proposer_id,
+                    price_yocto: U128(proposal.price_yocto),
+                    is_acceptable: proposal.is_acceptable,        // should always be true!
+                }
             })
             .collect()
     }
@@ -147,7 +150,7 @@ impl FixedPriceOffering {
                 id: U128(proposal.id),
                 proposer_id: proposal.proposer_id,
                 price_yocto: U128(proposal.price_yocto),
-                is_winning: proposal.is_winning,
+                is_acceptable: proposal.is_acceptable,
             })
         } else {
             None

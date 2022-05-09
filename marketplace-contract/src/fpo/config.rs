@@ -1,6 +1,7 @@
 pub const TOTAL_SUPPLY_MAX: u64 = 100;
-pub const MIN_PRICE_YOCTO: u128 = 1000;
+pub const MIN_BUY_NOW_PRICE_YOCTO: u128 = 1000;
 pub const PRICE_STEP_YOCTO: u128 = 10;
+pub const MIN_DURATION_NANO: i64 = 3600000000000;       // 1 hour
 
 // TODO: it is important to set the minimum effective yocto deposit
 // (determined by MIN_PRICE_YOCTO and PROPOSAL_DEPOSIT_RATE)
