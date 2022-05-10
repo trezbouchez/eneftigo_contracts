@@ -11,7 +11,7 @@ use near_sdk::AccountId;
 
 #[near_bindgen]
 impl MarketplaceContract {
-    
+
     #[payable]
     pub fn fpo_add_buy_now_only(
         &mut self,
@@ -89,8 +89,9 @@ impl MarketplaceContract {
 
         if let Some(start_timestamp) = start_timestamp {
             if let Some(end_timestamp) = end_timestamp {
+                let duration = end_timestamp - start_timestamp;
                 assert!(
-                    end_timestamp - start_timestamp >= MIN_DURATION_NANO,
+                    duration >= MIN_DURATION_NANO,
                     "Offering duration too short"
                 );
             }
@@ -214,9 +215,14 @@ impl MarketplaceContract {
         let end_timestamp = end_datetime.timestamp_nanos();
 
         if let Some(start_timestamp) = start_timestamp {
+            let duration = end_timestamp - start_timestamp;
             assert!(
-                end_timestamp - start_timestamp >= MIN_DURATION_NANO,
+                duration >= MIN_DURATION_NANO,
                 "Offering duration too short"
+            );
+            assert!(
+                duration <= MAX_DURATION_NANO,
+                "Offering duration too long"
             );
         } else {
             let current_block_timestamp = env::block_timestamp() as i64;
