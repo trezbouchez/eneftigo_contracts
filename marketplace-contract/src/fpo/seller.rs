@@ -6,11 +6,12 @@ use crate::*;
 use chrono::DateTime;
 
 use near_sdk::collections::{LookupMap, Vector};
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{U128};
 use near_sdk::AccountId;
 
 #[near_bindgen]
 impl MarketplaceContract {
+    
     #[payable]
     pub fn fpo_add_buy_now_only(
         &mut self,
@@ -22,13 +23,6 @@ impl MarketplaceContract {
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
     ) {
-        // make sure it's called by marketplace
-        // assert_eq!(
-        //     &env::predecessor_account_id(),
-        //     &self.owner_id,
-        //     "Only Eneftigo Marketplace owner can add listing."
-        // );
-
         // ensure max supply does not exceed limit
         assert!(
             supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
@@ -161,13 +155,6 @@ impl MarketplaceContract {
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
     ) {
-        // make sure it's called by marketplace
-        // assert_eq!(
-        //     &env::predecessor_account_id(),
-        //     &self.owner_id,
-        //     "Only Eneftigo Marketplace owner can add listing."
-        // );
-
         // ensure max supply does not exceed limit
         assert!(
             supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
@@ -286,6 +273,43 @@ impl MarketplaceContract {
         refund_deposit(required_storage_in_bytes);
     }
 
+    #[payable]
+    pub fn fpo_accept_proposals(
+        &mut self,
+        nft_contract_id: AccountId,
+        accepted_proposals_count: u64,
+        ) {
+        // get FPO
+        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+
+        // make sure there's enough proposals
+        let num_acceptable_proposals = fpo.acceptable_proposals.len();
+        assert!(
+            num_acceptable_proposals >= accepted_proposals_count,
+            "There's not enough proposals ({})",
+            num_acceptable_proposals
+        );
+
+        // accept best proposals
+        let mut acceptable_proposals_vec = fpo.acceptable_proposals.to_vec();
+        let first_accepted_proposal_index = (num_acceptable_proposals - accepted_proposals_count) as usize;
+        let best_proposals_iter = acceptable_proposals_vec.drain(first_accepted_proposal_index..(num_acceptable_proposals as usize));
+        let mut minted_nft_id = fpo.supply_left;
+        for proposal_being_accepted_id in best_proposals_iter {
+            let proposal_being_accepted = &mut fpo.proposals
+                .get(&proposal_being_accepted_id)
+                .expect("Proposal being accepted is missing, inconsistent state");
+            self.fpo_process_purchase(
+                nft_contract_id.clone(),
+                minted_nft_id.to_string(),
+                proposal_being_accepted.proposer_id.clone(),
+                proposal_being_accepted.price_yocto
+            );
+            minted_nft_id += 1;
+            let _removed_proposal = fpo.proposals.remove(&proposal_being_accepted_id).expect("Could not find proposal");
+        }
+    }
+
     // here the caller will need to cover the refund transfers gas if there's supply left
     // this is because there may be multiple acceptable proposals pending which have active deposits
     // they need to be returned
@@ -309,12 +333,12 @@ impl MarketplaceContract {
         // 2. the offeror can end if either of these is met:
         // - the end time has passed or is not set
         // - the offering is already marked closed
-        let signer_id = env::signer_account_id();
-        let contract_id = env::current_account_id();
+        let predecessor_account_id = env::predecessor_account_id();
+        let contract_account_id = env::current_account_id();
 
-        if signer_id != contract_id {
+        if predecessor_account_id != contract_account_id {
             assert!(
-                signer_id == offeror_id,
+                predecessor_account_id == offeror_id,
                 "Only offeror can conclude the offering."
             );
             if let Some(end_timestamp) = removed_fpo.end_timestamp {

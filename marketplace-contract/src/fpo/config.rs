@@ -3,10 +3,15 @@ pub const MIN_BUY_NOW_PRICE_YOCTO: u128 = 1000;
 pub const PRICE_STEP_YOCTO: u128 = 10;
 pub const MIN_DURATION_NANO: i64 = 3600000000000;       // 1 hour
 
-// TODO: it is important to set the minimum effective yocto deposit
-// (determined by MIN_PRICE_YOCTO and PROPOSAL_DEPOSIT_RATE)
-// to be greater than or equal the storage cost per proposal; this
-// prevents the mallicious attempt to drain the contract out of its
-// Near balance known as "million cheap data additions" attack
-// https://docs.near.org/docs/concepts/storage-staking
-pub const PROPOSAL_DEPOSIT_RATE: u128 = 10;     // percent
+// we act as an escrow when placing proposals; users must deposit
+// the full price of the proposal must be deposited in order to be 
+// accepted and will be either paid to the seller or returned;
+// also, we allow proposers to revoke their proposal at the cost of
+// the penalty which is set (in percentage) by this constant
+pub const PROPOSAL_REVOKE_PENALTY_RATE: u128 = 10;     // percent
+
+// there are situations where we reserve the right to keep some Near as
+// our immediate profit, such as when a proposer revokes their proposal
+// (they are charged penalty)
+// in such cases Near will be transfered to this account
+pub const ENEFTIGO_PROFIT_ACCOUNT_ID: &str = "profit.eneftigo.near";

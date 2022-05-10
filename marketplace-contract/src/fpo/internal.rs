@@ -68,6 +68,15 @@ impl FixedPriceOffering {
         self.acceptable_proposals.extend(acceptable_proposals_vec);
     }
 
+    // pub(crate) fn remove_acceptable_proposal(&mut self, proposal_id: ProposalId) -> Option<usize> {
+    //     if let Some(acceptable_proposal_index) = acceptable_proposals
+    //     .iter()
+    //     .position(|acceptable_proposal_id| acceptable_proposal_id == proposal_id) {
+
+    //     }
+    //     None
+    // }
+
     pub(crate) fn acceptable_price_yocto(&self) -> u128 {
         assert!(
             self.min_proposal_price_yocto.is_some(),
@@ -92,8 +101,7 @@ impl FixedPriceOfferingProposal {
     }
 
     pub fn refund_deposit(&self) {
-        let deposit_yocto = self.price_yocto * PROPOSAL_DEPOSIT_RATE / 100;
-        Promise::new(self.proposer_id.clone()).transfer(deposit_yocto);
+        Promise::new(self.proposer_id.clone()).transfer(self.price_yocto);
     }
 }
 
@@ -104,6 +112,7 @@ impl MarketplaceContract {
         nft_contract_id: AccountId,
         nft_token_id: String,
         buyer_id: AccountId,
+        price_yocto: Balance
     ) -> Promise {
         // initiate a cross contract call to the nft contract. This will mint the token and transfer it to the buyer
 
@@ -122,6 +131,7 @@ impl MarketplaceContract {
             reference: None,
             reference_hash: None,
         };
+
         ext_contract::nft_mint(
             nft_token_id,
             nft_metadata,
@@ -133,6 +143,7 @@ impl MarketplaceContract {
         )
         .then(ext_self::fpo_resolve_purchase(
             nft_contract_id,
+            price_yocto,
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             GAS_FOR_NFT_MINT,          // GAS attached to the mint call

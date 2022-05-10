@@ -7,4 +7,5 @@ mod resolve;
 mod internal;
 mod config;
 
-mod seller_test;
+mod test_seller;
+mod test_internal;

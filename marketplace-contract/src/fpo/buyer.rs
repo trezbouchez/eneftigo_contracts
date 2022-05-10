@@ -53,6 +53,7 @@ impl MarketplaceContract {
             fpo.nft_contract_id.clone(),
             fpo.supply_left.to_string(),
             buyer_id,
+            fpo.buy_now_price_yocto
         );
 
         // return surplus deposit
@@ -117,12 +118,10 @@ impl MarketplaceContract {
         // ensure the attached balance is sufficient to pay deposit
         // TODO: should we adopt approvals instead?
         let attached_balance_yocto = env::attached_deposit();
-        let deposit_yocto = price_yocto * PROPOSAL_DEPOSIT_RATE / 100;
         assert!(
-            attached_balance_yocto >= deposit_yocto, 
-            "Attached balance must be sufficient to pay the required {:?}% deposit ({:?} yocto Near)", 
-            PROPOSAL_DEPOSIT_RATE, 
-            deposit_yocto 
+            attached_balance_yocto >= price_yocto, 
+            "Attached balance must be sufficient to pay the required deposit of {} yocto Near", 
+            price_yocto 
         );
 
         // register proposal
@@ -162,7 +161,7 @@ impl MarketplaceContract {
         fpo.sort_acceptable_proposals();
 
         // return surplus deposit
-        let surplus_deposit = attached_balance_yocto - deposit_yocto;
+        let surplus_deposit = attached_balance_yocto - price_yocto;
         if surplus_deposit > 0 {
             Promise::new(env::predecessor_account_id()).transfer(surplus_deposit);
         }
@@ -208,30 +207,30 @@ impl MarketplaceContract {
             PRICE_STEP_YOCTO
         );
     
-        // check if there is a prior proposal from this signer
-        let signer_account_id = env::signer_account_id();
-        let signers_proposals = fpo.proposals_by_proposer.get(&signer_account_id).expect("No prior proposal from this account");
+        // check if there is a prior proposal from this account
+        let predecessor_account_id = env::predecessor_account_id();
+        let predecessors_proposals = fpo.proposals_by_proposer.get(&predecessor_account_id).expect("No prior proposal from this account");
         assert!(
-            signers_proposals.contains(&proposal_id),
+            predecessors_proposals.contains(&proposal_id),
             "Proposal with ID {} from account {} not found",
-            proposal_id, signer_account_id
+            proposal_id, predecessor_account_id
         );
 
         // check if proposed price is acceptable
         let acceptable_price_yocto = fpo.acceptable_price_yocto();
-                assert!(
-                    price_yocto >= acceptable_price_yocto,
-                    "The minimum acceptable price is {} yoctoNear",
-                    acceptable_price_yocto
-                );
+        assert!(
+            price_yocto >= acceptable_price_yocto,
+            "The minimum acceptable price is {} yoctoNear",
+            acceptable_price_yocto
+       );
         
         // ensure the attached balance is sufficient to cover higher required deposit
         let proposal = &mut fpo.proposals.get(&proposal_id).expect("Could not find proposal");
-        let deposit_supplement_yocto = (price_yocto - proposal.price_yocto) * PROPOSAL_DEPOSIT_RATE / 100;
+        let deposit_supplement_yocto = price_yocto - proposal.price_yocto;
         let attached_balance_yocto = env::attached_deposit();
         assert!(
             attached_balance_yocto >= deposit_supplement_yocto, 
-            "Attached balance must be sufficient to pay the required deposit supplement of ({:?} yocto Near)", 
+            "Attached balance must be sufficient to pay the required deposit supplement of {} yocto Near", 
             deposit_supplement_yocto
         );
         
@@ -258,6 +257,65 @@ impl MarketplaceContract {
         if surplus_deposit > 0 {
             Promise::new(env::predecessor_account_id()).transfer(surplus_deposit);
         }
+    }
+
+    pub fn fpo_revoke_proposal(
+        &mut self,
+        nft_contract_id: AccountId,
+        proposal_id: ProposalId
+    ) {
+        // get FPO
+        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+
+        fpo.update_status();
+        
+        assert!(
+            fpo.status == Running,
+            "This offering is {}",
+            fpo.status.as_str()
+        );
+        
+        // ensure proposals are accepted
+        assert!(
+            fpo.min_proposal_price_yocto.is_some(),
+            "Proposals are not accepted for this offering"
+        );
+
+        // check if there exists a proposal from this proposer
+        let predecessor_account_id = env::predecessor_account_id();
+        let predecessors_proposals = fpo.proposals_by_proposer.get(&predecessor_account_id).expect("No prior proposal from this account");
+        assert!(
+            predecessors_proposals.contains(&proposal_id),
+            "Proposal with ID {} from account {} not found",
+            proposal_id, predecessor_account_id
+        );
+
+        // check if the proposal is still acceptable
+        let acceptable_proposal_index = fpo.acceptable_proposals.iter().position(|acceptable_proposal_id| acceptable_proposal_id == proposal_id).expect("This proposal has been outbid. The deposit has been returned");
+
+        // remove from acceptable_proposals, no sorting of acceptable_proposals is required
+        let mut acceptable_proposals_vec = fpo.acceptable_proposals.to_vec();
+        let _removed_acceptable_proposal_id = acceptable_proposals_vec.remove(acceptable_proposal_index);
+        fpo.acceptable_proposals.clear();
+        fpo.acceptable_proposals.extend(acceptable_proposals_vec);
+
+        // remove from proposals
+        let removed_proposal = fpo.proposals.remove(&proposal_id).expect("Could not find proposal");
+
+        // remove from proposals_by_proposer
+        let proposals_by_predecessor = &mut fpo.proposals_by_proposer.get(&predecessor_account_id).expect("This account has not submitted any proposals");
+        let was_removed_from_proposer_proposals = proposals_by_predecessor.remove(&proposal_id);
+        assert!(
+            was_removed_from_proposer_proposals,
+            "Could not find it among proposals submitted by this account"
+        );
+
+        // return deposit minus penalty
+        let penalty = removed_proposal.price_yocto * PROPOSAL_REVOKE_PENALTY_RATE / 100;
+        Promise::new(env::predecessor_account_id()).transfer(removed_proposal.price_yocto - penalty);
+
+        // transfer penalty to Eneftigo profit account
+        Promise::new(ENEFTIGO_PROFIT_ACCOUNT_ID.parse().unwrap()).transfer(penalty);
     }
 }
 
