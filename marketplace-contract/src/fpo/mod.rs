@@ -6,6 +6,3 @@ pub mod enumeration;
 mod resolve;
 mod internal;
 mod config;
-
-mod test_seller;
-mod test_internal;

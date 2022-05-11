@@ -1,6 +1,6 @@
 #[cfg(test)]
-mod tests {
-    use crate::{MarketplaceContract, TokenMetadata};
+
+use crate::{MarketplaceContract, TokenMetadata};
     use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::json_types::U128;
     use near_sdk::{testing_env, AccountId, VMContext};

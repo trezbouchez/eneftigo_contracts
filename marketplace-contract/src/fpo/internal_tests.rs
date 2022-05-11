@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod internal_tests {
     use crate::{TokenMetadata};
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
@@ -8,92 +8,6 @@ mod tests {
     use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::collections::{LookupMap, Vector};
     use near_sdk::{testing_env, AccountId, VMContext};
-
-    fn get_context(
-        predecessor_account_id: String,
-        signer_account_id: String,
-        datetime: DateTime<Utc>,
-        attached_deposit: u128,
-        storage_usage: u64,
-    ) -> VMContext {
-        VMContext {
-            current_account_id: "marketplace.eneftigo.testnet".to_string(),
-            signer_account_id: signer_account_id,
-            signer_account_pk: vec![0, 1, 2],
-            predecessor_account_id,
-            input: vec![],
-            block_index: 0,
-            block_timestamp: datetime.timestamp_nanos() as u64,
-            account_balance: 0,
-            account_locked_balance: 0,
-            storage_usage,
-            attached_deposit,
-            prepaid_gas: 10u64.pow(18),
-            random_seed: vec![0, 1, 2],
-            is_view: false,
-            output_data_receivers: vec![],
-            epoch_height: 19,
-        }
-    }
-
-    fn test_nft_metadata(index: i32) -> TokenMetadata {
-        TokenMetadata {
-            title: Some(format!("nft{}", index)),
-            description: None,
-            media: None,
-            media_hash: None,
-            copies: Some(1),
-            issued_at: None,
-            expires_at: None,
-            starts_at: None,
-            updated_at: None,
-            extra: None,
-            reference: None,
-            reference_hash: None,
-        }
-    }
-
-    fn test_fpo(
-        nft_contract_id_str: &str,
-        offeror_id_str: &str,
-        start_date: Option<&str>, 
-        end_date: Option<&str>
-    ) -> FixedPriceOffering {
-        let start_timestamp: Option<i64> = if let Some(start_date) = start_date {
-            Some(DateTime::parse_from_rfc3339(start_date).expect(
-                "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
-            ).timestamp_nanos())
-        } else {
-            None
-        };
-        let end_timestamp = if let Some(end_date) = end_date {
-            Some(DateTime::parse_from_rfc3339(end_date).expect(
-                "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
-            ).timestamp_nanos())
-        } else {
-            None
-        };
-
-        let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
-        let offeror_id = AccountId::new_unchecked(offeror_id_str.to_string());
-
-        FixedPriceOffering {
-            nft_contract_id: nft_contract_id,
-            offeror_id: offeror_id,
-            supply_total: 5,
-            buy_now_price_yocto: 1000,
-            min_proposal_price_yocto: Some(500),
-            start_timestamp: start_timestamp,
-            end_timestamp: end_timestamp,
-            status: Unstarted,
-            nft_metadata: test_nft_metadata(1),
-            supply_left: 5,
-            proposals: LookupMap::new(b"m"),
-            proposals_by_proposer: LookupMap::new(b"p"),
-            acceptable_proposals: Vector::new(b"a"),
-            next_proposal_id: 0,
-        }
-    }
 
     #[test]
     fn test_lifetime() {
@@ -324,5 +238,95 @@ mod tests {
         );
 
         // test acceptable_price_yocto
+    }
+
+    /*
+     * Helpers
+     */
+
+    fn get_context(
+        predecessor_account_id: String,
+        signer_account_id: String,
+        datetime: DateTime<Utc>,
+        attached_deposit: u128,
+        storage_usage: u64,
+    ) -> VMContext {
+        VMContext {
+            current_account_id: "marketplace.eneftigo.testnet".to_string(),
+            signer_account_id: signer_account_id,
+            signer_account_pk: vec![0, 1, 2],
+            predecessor_account_id,
+            input: vec![],
+            block_index: 0,
+            block_timestamp: datetime.timestamp_nanos() as u64,
+            account_balance: 0,
+            account_locked_balance: 0,
+            storage_usage,
+            attached_deposit,
+            prepaid_gas: 10u64.pow(18),
+            random_seed: vec![0, 1, 2],
+            is_view: false,
+            output_data_receivers: vec![],
+            epoch_height: 19,
+        }
+    }
+
+    fn test_nft_metadata(index: i32) -> TokenMetadata {
+        TokenMetadata {
+            title: Some(format!("nft{}", index)),
+            description: None,
+            media: None,
+            media_hash: None,
+            copies: Some(1),
+            issued_at: None,
+            expires_at: None,
+            starts_at: None,
+            updated_at: None,
+            extra: None,
+            reference: None,
+            reference_hash: None,
+        }
+    }
+
+    fn test_fpo(
+        nft_contract_id_str: &str,
+        offeror_id_str: &str,
+        start_date: Option<&str>, 
+        end_date: Option<&str>
+    ) -> FixedPriceOffering {
+        let start_timestamp: Option<i64> = if let Some(start_date) = start_date {
+            Some(DateTime::parse_from_rfc3339(start_date).expect(
+                "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
+            ).timestamp_nanos())
+        } else {
+            None
+        };
+        let end_timestamp = if let Some(end_date) = end_date {
+            Some(DateTime::parse_from_rfc3339(end_date).expect(
+                "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
+            ).timestamp_nanos())
+        } else {
+            None
+        };
+
+        let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
+        let offeror_id = AccountId::new_unchecked(offeror_id_str.to_string());
+
+        FixedPriceOffering {
+            nft_contract_id: nft_contract_id,
+            offeror_id: offeror_id,
+            supply_total: 5,
+            buy_now_price_yocto: 1000,
+            min_proposal_price_yocto: Some(500),
+            start_timestamp: start_timestamp,
+            end_timestamp: end_timestamp,
+            status: Unstarted,
+            nft_metadata: test_nft_metadata(1),
+            supply_left: 5,
+            proposals: LookupMap::new(b"m"),
+            proposals_by_proposer: LookupMap::new(b"p"),
+            acceptable_proposals: Vector::new(b"a"),
+            next_proposal_id: 0,
+        }
     }
 }

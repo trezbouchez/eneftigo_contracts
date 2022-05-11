@@ -9,6 +9,10 @@ use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::json_types::{U128};
 use near_sdk::AccountId;
 
+#[cfg(test)]
+#[path = "seller_tests.rs"]
+mod seller_tests;
+
 #[near_bindgen]
 impl MarketplaceContract {
 
@@ -279,14 +283,19 @@ impl MarketplaceContract {
         refund_deposit(required_storage_in_bytes);
     }
 
-    #[payable]
     pub fn fpo_accept_proposals(
         &mut self,
         nft_contract_id: AccountId,
         accepted_proposals_count: u64,
         ) {
-        // get FPO
-        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        // get the FPO
+        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+
+        // make sure it's the offeror who's calling this
+        assert!(
+            env::predecessor_account_id() == fpo.offeror_id,
+            "Only the offeror can accept proposals"
+        );
 
         // make sure there's enough proposals
         let num_acceptable_proposals = fpo.acceptable_proposals.len();
@@ -299,21 +308,43 @@ impl MarketplaceContract {
         // accept best proposals
         let mut acceptable_proposals_vec = fpo.acceptable_proposals.to_vec();
         let first_accepted_proposal_index = (num_acceptable_proposals - accepted_proposals_count) as usize;
+
         let best_proposals_iter = acceptable_proposals_vec.drain(first_accepted_proposal_index..(num_acceptable_proposals as usize));
-        let mut minted_nft_id = fpo.supply_left;
+        let mut minted_nft_id = fpo.supply_total - fpo.supply_left;
+        
         for proposal_being_accepted_id in best_proposals_iter {
-            let proposal_being_accepted = &mut fpo.proposals
+            let proposal_being_accepted = fpo.proposals
                 .get(&proposal_being_accepted_id)
                 .expect("Proposal being accepted is missing, inconsistent state");
+            let proposer_id = proposal_being_accepted.proposer_id;
             self.fpo_process_purchase(
                 nft_contract_id.clone(),
                 minted_nft_id.to_string(),
-                proposal_being_accepted.proposer_id.clone(),
-                proposal_being_accepted.price_yocto
+                proposer_id.clone(),
+                proposal_being_accepted.price_yocto.clone()
             );
             minted_nft_id += 1;
+
+            // TODO: move these to fpo_process_purchase resolve
             let _removed_proposal = fpo.proposals.remove(&proposal_being_accepted_id).expect("Could not find proposal");
+
+            let mut proposals_by_this_proposer = fpo.proposals_by_proposer.get(&proposer_id)
+            .expect("Could not get proposals for proposer whose proposal is being accepted");
+            let removed = proposals_by_this_proposer.remove(&proposal_being_accepted_id);
+            assert!(removed, "Could not find id for proposer's proposals");
+            if proposals_by_this_proposer.is_empty() {
+                fpo.proposals_by_proposer.remove(&proposer_id).expect("Could not remove empty array for proposer whose proposals have all been accepted");
+            } else {
+                fpo.proposals_by_proposer.insert(&proposer_id, &proposals_by_this_proposer);
+            }
         }
+
+        fpo.acceptable_proposals.clear();
+        fpo.acceptable_proposals.extend(acceptable_proposals_vec);
+
+        fpo.supply_left -= accepted_proposals_count;        // TODO: move to resolve, one by one
+        
+        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
     }
 
     // here the caller will need to cover the refund transfers gas if there's supply left
@@ -321,6 +352,16 @@ impl MarketplaceContract {
     // they need to be returned
     // must be called by the offeror!
     pub(crate) fn fpo_conclude(&mut self, nft_contract_id: AccountId) {
+        // get the FPO
+        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+
+        // make sure it's the offeror who's calling this
+        assert!(
+            env::predecessor_account_id() == fpo.offeror_id,
+            "Only the offeror can accept proposals"
+        );
+
+        // remove FPO
         let removed_fpo = self
             .fpos_by_contract_id
             .remove(&nft_contract_id)

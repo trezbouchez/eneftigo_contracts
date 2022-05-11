@@ -4,6 +4,11 @@ use crate::fpo::resolve::*;
 use crate::FixedPriceOfferingStatus::*;
 use crate::*;
 
+// This is required so that the unit tests (placed in separate file) see this
+#[cfg(test)]
+#[path = "internal_tests.rs"]
+mod internal_tests;
+
 impl FixedPriceOffering {
 
     pub(crate) fn update_status(&mut self) {
@@ -68,15 +73,6 @@ impl FixedPriceOffering {
         self.acceptable_proposals.extend(acceptable_proposals_vec);
     }
 
-    // pub(crate) fn remove_acceptable_proposal(&mut self, proposal_id: ProposalId) -> Option<usize> {
-    //     if let Some(acceptable_proposal_index) = acceptable_proposals
-    //     .iter()
-    //     .position(|acceptable_proposal_id| acceptable_proposal_id == proposal_id) {
-
-    //     }
-    //     None
-    // }
-
     pub(crate) fn acceptable_price_yocto(&self) -> u128 {
         assert!(
             self.min_proposal_price_yocto.is_some(),
@@ -107,14 +103,16 @@ impl FixedPriceOfferingProposal {
 
 impl MarketplaceContract {
 
-    pub fn fpo_process_purchase(
+        // will initiate a cross contract call to the nft contract
+        // to mint the token and transfer it to the buyer
+        // if succeeds, Near will be transfered to the seller
+        pub fn fpo_process_purchase(
         &mut self,
         nft_contract_id: AccountId,
         nft_token_id: String,
         buyer_id: AccountId,
         price_yocto: Balance
     ) -> Promise {
-        // initiate a cross contract call to the nft contract. This will mint the token and transfer it to the buyer
 
         // TODO:
         let nft_metadata = TokenMetadata {

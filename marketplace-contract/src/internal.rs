@@ -53,7 +53,7 @@ impl MarketplaceContract {
         let mut fpo_set = self.fpos_by_offeror_id.get(offeror_id).unwrap_or_else(|| {
             //if the offeror doesn't have any fpos yet we'll create the new unordered set
             UnorderedSet::new(
-                StorageKey::FPOsByOfferorIdInner {
+                MarketplaceStorageKey::FposByOfferorIdInner {
                     account_id_hash: hash_account_id(&offeror_id),  // generate a new unique prefix for the collection
                 }
                 .try_to_vec()

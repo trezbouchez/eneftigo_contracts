@@ -49,9 +49,10 @@ impl MarketplaceContract {
         // process the purchase
         let buyer_id = env::predecessor_account_id();
 
+        let mint_token_id = fpo.supply_total - fpo.supply_left;
         self.fpo_process_purchase(
             fpo.nft_contract_id.clone(),
-            fpo.supply_left.to_string(),
+            mint_token_id.to_string(),
             buyer_id,
             fpo.buy_now_price_yocto
         );
@@ -192,14 +193,7 @@ impl MarketplaceContract {
             fpo.min_proposal_price_yocto.is_some(),
             "Proposals are not accepted for this offering"
         );
-        
-        // price must be lower than buy now
-        assert!(
-            price_yocto < fpo.buy_now_price_yocto,
-            "Proposed price must be lower than buy now price of {}",
-            fpo.buy_now_price_yocto
-        );
-        
+                
         // price must be multiple of PRICE_STEP_YOCTO
         assert!(
             price_yocto % PRICE_STEP_YOCTO == 0,
@@ -216,14 +210,6 @@ impl MarketplaceContract {
             proposal_id, predecessor_account_id
         );
 
-        // check if proposed price is acceptable
-        let acceptable_price_yocto = fpo.acceptable_price_yocto();
-        assert!(
-            price_yocto >= acceptable_price_yocto,
-            "The minimum acceptable price is {} yoctoNear",
-            acceptable_price_yocto
-       );
-        
         // ensure the attached balance is sufficient to cover higher required deposit
         let proposal = &mut fpo.proposals.get(&proposal_id).expect("Could not find proposal");
         let deposit_supplement_yocto = price_yocto - proposal.price_yocto;
@@ -233,7 +219,48 @@ impl MarketplaceContract {
             "Attached balance must be sufficient to pay the required deposit supplement of {} yocto Near", 
             deposit_supplement_yocto
         );
-        
+
+        // if price is >= buy_now_price_yocto then accept right away, terminate early to save gas
+        if price_yocto >= fpo.buy_now_price_yocto {
+            // remove from acceptable_proposals (if there), proposals and proposals_by_proposer
+            let index_of_this_in_acceptable_proposals = fpo.acceptable_proposals
+            .iter()
+            .position(|acceptable_proposal_id| acceptable_proposal_id == proposal_id);
+            if let Some(index_of_this_in_acceptable_proposals) = index_of_this_in_acceptable_proposals {
+                let mut acceptable_proposals_vec = fpo.acceptable_proposals.to_vec();
+                acceptable_proposals_vec.remove(index_of_this_in_acceptable_proposals);
+                fpo.acceptable_proposals.clear();
+                fpo.acceptable_proposals.extend(acceptable_proposals_vec);
+            }
+            fpo.proposals.remove(&proposal_id).expect("Could not remove proposal");
+            let proposals_by_this_proposer = &mut fpo.proposals_by_proposer.get(&predecessor_account_id).expect("Could not find proposal from this account.");
+            proposals_by_this_proposer.remove(&proposal_id);
+            // process purchase (mint and transfer)
+            self.fpo_process_purchase(
+                nft_contract_id.clone(),
+                (fpo.supply_total - fpo.supply_left).to_string(),
+                predecessor_account_id.clone(),
+                fpo.buy_now_price_yocto
+            );
+            // return surplus deposit
+            let surplus_deposit = attached_balance_yocto + proposal.price_yocto - fpo.buy_now_price_yocto;
+            if surplus_deposit > 0 {
+                if surplus_deposit > 0 {
+                    Promise::new(predecessor_account_id).transfer(surplus_deposit);
+                }
+            }
+            // update min
+            return;
+        }
+
+        // check if proposed price is acceptable
+        let acceptable_price_yocto = fpo.acceptable_price_yocto();
+        assert!(
+            price_yocto >= acceptable_price_yocto,
+            "The minimum acceptable price is {} yoctoNear",
+            acceptable_price_yocto
+       );
+                
         // update price and mark acceptable
         proposal.price_yocto = price_yocto;
         proposal.is_acceptable = true;

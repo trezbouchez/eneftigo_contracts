@@ -31,10 +31,10 @@ pub struct MarketplaceContract {
 
 /// Helper structure to for keys of the persistent collections.
 #[derive(BorshStorageKey, BorshSerialize)]
-pub enum StorageKey {
-    FPOsByContractId,
-    FPOsByOfferorId,
-    FPOsByOfferorIdInner { account_id_hash: CryptoHash },
+pub enum MarketplaceStorageKey {
+    FposByContractId,
+    FposByOfferorId,
+    FposByOfferorIdInner { account_id_hash: CryptoHash },
     // StorageDeposits,
 }
 
@@ -52,8 +52,8 @@ impl MarketplaceContract {
             owner_id,
 
             // fixed-price offerings
-            fpos_by_contract_id: UnorderedMap::new(StorageKey::FPOsByContractId),
-            fpos_by_offeror_id: LookupMap::new(StorageKey::FPOsByOfferorId),
+            fpos_by_contract_id: UnorderedMap::new(MarketplaceStorageKey::FposByContractId),
+            fpos_by_offeror_id: LookupMap::new(MarketplaceStorageKey::FposByOfferorId),
             // storage_deposits: LookupMap::new(StorageKey::StorageDeposits),
         };
 
