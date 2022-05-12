@@ -4,6 +4,11 @@ use crate::FixedPriceOfferingStatus::*;
 use crate::internal::*;
 use crate::*;
 
+#[cfg(test)]
+#[path = "buyer_tests.rs"]
+mod buyer_tests;
+
+
 #[near_bindgen]
 impl MarketplaceContract {
 
@@ -13,16 +18,8 @@ impl MarketplaceContract {
         &mut self,
         nft_contract_id: AccountId,
     ) {
-        // make sure it's called by marketplace 
-        // TODO: should this hold? shouldn't we allow anyone?
-        assert_eq!(
-            &env::predecessor_account_id(),
-            &self.owner_id,
-            "Only Eneftigo Marketplace owner can place order."
-        );
-
         // get FPO
-        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
         fpo.update_status();
 
@@ -57,6 +54,12 @@ impl MarketplaceContract {
             fpo.buy_now_price_yocto
         );
 
+        // TODO: move to resolve
+        fpo.supply_left -= 1;
+        fpo.prune_supply_exceeding_acceptable_proposals();
+
+        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+
         // return surplus deposit
         let surplus_deposit = attached_balance_yocto - fpo.buy_now_price_yocto;
         if surplus_deposit > 0 {
@@ -72,7 +75,7 @@ impl MarketplaceContract {
         price_yocto: u128,
     ) {
         // get FPO
-        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
         fpo.update_status();
 
@@ -155,11 +158,14 @@ impl MarketplaceContract {
             fpo.acceptable_proposals.push(&new_proposal.id);
         } else {
             let outbid_proposal_id = fpo.acceptable_proposals.replace(0, &new_proposal.id);
-            let outbid_proposal = &mut fpo.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
+            let mut outbid_proposal = fpo.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
             outbid_proposal.mark_unacceptable_and_refund_deposit();
+            fpo.proposals.insert(&outbid_proposal_id, &outbid_proposal);
         }
 
         fpo.sort_acceptable_proposals();
+
+        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
 
         // return surplus deposit
         let surplus_deposit = attached_balance_yocto - price_yocto;

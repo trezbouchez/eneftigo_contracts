@@ -60,14 +60,13 @@ impl FixedPriceOffering {
     pub(crate) fn prune_supply_exceeding_acceptable_proposals(&mut self) {
         // assumes acceptable_proposals are already sorted
         let mut acceptable_proposals_vec = self.acceptable_proposals.to_vec();
-        let to_be_pruned_count = acceptable_proposals_vec.len() - self.supply_left as usize;
+        let to_be_pruned_count = acceptable_proposals_vec.len() - self.supply_left as usize;        
         let pruned_proposals_iter = acceptable_proposals_vec.drain(0..to_be_pruned_count);
         for pruned_proposal_id in pruned_proposals_iter {
-            let pruned_proposal = &mut self
-                .proposals
-                .get(&pruned_proposal_id)
+            let mut pruned_proposal = self.proposals.get(&pruned_proposal_id)
                 .expect("Proposal to be pruned is missing, inconsistent state");
             pruned_proposal.mark_unacceptable_and_refund_deposit();
+            self.proposals.insert(&pruned_proposal_id, &pruned_proposal);
         }
         self.acceptable_proposals.clear();
         self.acceptable_proposals.extend(acceptable_proposals_vec);

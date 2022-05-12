@@ -355,10 +355,18 @@ impl MarketplaceContract {
         // get the FPO
         let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
+        fpo.update_status();
+
+        // make sure it's not running
+        assert!(
+            fpo.status == Unstarted || fpo.status == Ended,
+            "Cannot conclude an offering while it's running"
+        );
+
         // make sure it's the offeror who's calling this
         assert!(
             env::predecessor_account_id() == fpo.offeror_id,
-            "Only the offeror can accept proposals"
+            "Only the offeror can conclude"
         );
 
         // remove FPO
@@ -374,28 +382,6 @@ impl MarketplaceContract {
         }
 
         let offeror_id = removed_fpo.offeror_id;
-
-        // check if the caller can end the listing
-        // 1. the marketplace account can end at any time
-        // 2. the offeror can end if either of these is met:
-        // - the end time has passed or is not set
-        // - the offering is already marked closed
-        let predecessor_account_id = env::predecessor_account_id();
-        let contract_account_id = env::current_account_id();
-
-        if predecessor_account_id != contract_account_id {
-            assert!(
-                predecessor_account_id == offeror_id,
-                "Only offeror can conclude the offering."
-            );
-            if let Some(end_timestamp) = removed_fpo.end_timestamp {
-                let current_block_timestamp_nanos = env::block_timestamp() as i64;
-                assert!(
-                    current_block_timestamp_nanos >= end_timestamp,
-                    "Can only conclude after end date has passed"
-                );
-            }
-        }
 
         let fpos_by_this_offeror = &mut self
             .fpos_by_offeror_id

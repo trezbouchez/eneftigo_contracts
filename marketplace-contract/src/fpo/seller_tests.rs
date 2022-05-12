@@ -1,21 +1,22 @@
 #[cfg(test)]
 mod seller_tests {
-    use chrono::{DateTime, TimeZone, Utc};
-    use near_sdk::json_types::U128;
-    use near_sdk::{testing_env, AccountId, VMContext};
-    use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::collections::{LookupMap, UnorderedSet, Vector};
-    use crate::{MarketplaceStorageKey, MarketplaceContract, TokenMetadata};
-    use crate::ProposalId;
+    use crate::internal::hash_account_id;
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
-    use crate::FixedPriceOfferingStorageKey;
     use crate::FixedPriceOfferingStatus::*;
-    use crate::internal::hash_account_id;
+    use crate::FixedPriceOfferingStorageKey;
+    use crate::ProposalId;
+    use crate::{MarketplaceContract, MarketplaceStorageKey, TokenMetadata};
+    use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::borsh::BorshSerialize;
+    use near_sdk::collections::{LookupMap, UnorderedSet, Vector};
+    use near_sdk::json_types::U128;
+    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::{testing_env, AccountId, VMContext};
 
     const MARKETPLACE_ACCOUNT_ID: &str = "marketplace.eneftigo.testnet";
     const NFT_ACCOUNT_ID: &str = "nft.eneftigo.testnet";
+    const NONEXISTENT_NFT_ACCOUNT_ID: &str = "nonexistent.eneftigo.testnet";
     const OFFEROR_ACCOUNT_ID: &str = "offeror.eneftigo.testnet";
     const MALICIOUS_ACCOUNT_ID: &str = "malicious.eneftigo.testnet";
     const PROPOSER1_ACCOUNT_ID: &str = "proposer1.eneftigo.testnet";
@@ -35,7 +36,6 @@ mod seller_tests {
             0,
         );
         testing_env!(context);
-        
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
@@ -44,7 +44,7 @@ mod seller_tests {
             2,                                       // total_supply
             U128(800),                               // buy_now_price_yocto
             U128(50),                                // min_proposal_price_yocto
-            nft_metadata(1),                    // nft_metadata
+            nft_metadata(1),                         // nft_metadata
             None,                                    // start_date
             "1975-06-24T00:00:00+00:00".to_string(), // end_date
         );
@@ -69,7 +69,7 @@ mod seller_tests {
             2,                                       // total_supply
             U128(1115),                              // buy_now_price_yocto
             U128(50),                                // min_proposal_price_yocto
-            nft_metadata(1),                    // nft_metadata
+            nft_metadata(1),                         // nft_metadata
             None,                                    // start_date
             "1975-06-24T00:00:00+00:00".to_string(), // end_date
         );
@@ -94,7 +94,7 @@ mod seller_tests {
             2,                                       // total_supply
             U128(1200),                              // buy_now_price_yocto
             U128(55),                                // min_proposal_price_yocto
-            nft_metadata(1),                    // nft_metadata
+            nft_metadata(1),                         // nft_metadata
             None,                                    // start_date
             "1975-06-24T00:00:00+00:00".to_string(), // end_date
         );
@@ -112,14 +112,13 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,                                       // total_supply
             U128(1100),                              // buy_now_price_yocto
             U128(1100),                              // min_proposal_price_yocto
-            nft_metadata(1),                    // nft_metadata
+            nft_metadata(1),                         // nft_metadata
             None,                                    // start_date
             "1975-06-24T00:00:00+00:00".to_string(), // end_date
         );
@@ -144,7 +143,7 @@ mod seller_tests {
             2,                                       // total_supply
             U128(1100),                              // buy_now_price_yocto
             U128(500),                               // min_proposal_price_yocto
-            nft_metadata(1),                    // nft_metadata
+            nft_metadata(1),                         // nft_metadata
             None,                                    // start_date
             "1975-04-24T00:00:00+00:00".to_string(), // end_date
         );
@@ -166,14 +165,14 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                              // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            Some("1975-04-24T00:00:00+00:00".to_string()),  // start_date
-            "1975-06-24T00:00:00+00:00".to_string(),        // end_date
+            2,                                             // total_supply
+            U128(1100),                                    // buy_now_price_yocto
+            U128(500),                                     // min_proposal_price_yocto
+            nft_metadata(1),                               // nft_metadata
+            Some("1975-04-24T00:00:00+00:00".to_string()), // start_date
+            "1975-06-24T00:00:00+00:00".to_string(),       // end_date
         );
-    }    
+    }
 
     #[test]
     #[should_panic(expected = r#"Offering duration too short"#)]
@@ -191,14 +190,14 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                              // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            Some("1975-05-24T13:10:00+00:00".to_string()),  // start_date
-            "1975-05-24T13:50:00+00:00".to_string(),        // end_date
+            2,                                             // total_supply
+            U128(1100),                                    // buy_now_price_yocto
+            U128(500),                                     // min_proposal_price_yocto
+            nft_metadata(1),                               // nft_metadata
+            Some("1975-05-24T13:10:00+00:00".to_string()), // start_date
+            "1975-05-24T13:50:00+00:00".to_string(),       // end_date
         );
-    }   
+    }
 
     #[test]
     #[should_panic(expected = r#"Offering duration too long"#)]
@@ -216,14 +215,14 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                              // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            Some("1975-05-24T13:10:00+00:00".to_string()),  // start_date
-            "1975-06-15T13:50:00+00:00".to_string(),        // end_date
+            2,                                             // total_supply
+            U128(1100),                                    // buy_now_price_yocto
+            U128(500),                                     // min_proposal_price_yocto
+            nft_metadata(1),                               // nft_metadata
+            Some("1975-05-24T13:10:00+00:00".to_string()), // start_date
+            "1975-06-15T13:50:00+00:00".to_string(),       // end_date
         );
-    }   
+    }
 
     #[test]
     #[should_panic(expected = r#"Max NFT supply must be between 1 and 100"#)]
@@ -241,14 +240,14 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            0,                                              // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            "1975-05-24T13:50:00+00:00".to_string(),        // end_date
+            0,                                       // total_supply
+            U128(1100),                              // buy_now_price_yocto
+            U128(500),                               // min_proposal_price_yocto
+            nft_metadata(1),                         // nft_metadata
+            None,                                    // start_date
+            "1975-05-24T13:50:00+00:00".to_string(), // end_date
         );
-    }  
+    }
 
     #[test]
     #[should_panic(expected = r#"Max NFT supply must be between 1 and 100"#)]
@@ -266,18 +265,18 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            101,                                            // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            "1975-05-24T13:50:00+00:00".to_string(),        // end_date
+            101,                                     // total_supply
+            U128(1100),                              // buy_now_price_yocto
+            U128(500),                               // min_proposal_price_yocto
+            nft_metadata(1),                         // nft_metadata
+            None,                                    // start_date
+            "1975-05-24T13:50:00+00:00".to_string(), // end_date
         );
-    }  
- 
-     
+    }
     #[test]
-    #[should_panic(expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#)]
+    #[should_panic(
+        expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#
+    )]
     fn test_wrong_end_date_format() {
         let context = test_get_context(
             false,
@@ -292,17 +291,19 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            "1975-5-24T13:50:00+00:00".to_string(),         // end_date
+            50,                                     // total_supply
+            U128(1100),                             // buy_now_price_yocto
+            U128(500),                              // min_proposal_price_yocto
+            nft_metadata(1),                        // nft_metadata
+            None,                                   // start_date
+            "1975-5-24T13:50:00+00:00".to_string(), // end_date
         );
     }
 
     #[test]
-    #[should_panic(expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#)]
+    #[should_panic(
+        expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#
+    )]
     fn test_wrong_start_date_format() {
         let context = test_get_context(
             false,
@@ -317,15 +318,14 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            Some("1975-05-24".to_string()),                 // start_date
-            "1975-5-24T13:50:00+00:00".to_string(),         // end_date
+            50,                                     // total_supply
+            U128(1100),                             // buy_now_price_yocto
+            U128(500),                              // min_proposal_price_yocto
+            nft_metadata(1),                        // nft_metadata
+            Some("1975-05-24".to_string()),         // start_date
+            "1975-5-24T13:50:00+00:00".to_string(), // end_date
         );
     }
-    
     #[test]
     #[should_panic(expected = r#"Already listed"#)]
     fn test_already_listed() {
@@ -342,26 +342,25 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            "1975-05-24T13:50:00+00:00".to_string(),        // end_date
+            50,                                      // total_supply
+            U128(1100),                              // buy_now_price_yocto
+            U128(500),                               // min_proposal_price_yocto
+            nft_metadata(1),                         // nft_metadata
+            None,                                    // start_date
+            "1975-05-24T13:50:00+00:00".to_string(), // end_date
         );
 
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            10,                                             // total_supply
-            U128(2000),                                     // buy_now_price_yocto
-            U128(50),                                       // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            "1975-06-24T13:50:00+00:00".to_string(),        // end_date
+            10,                                      // total_supply
+            U128(2000),                              // buy_now_price_yocto
+            U128(50),                                // min_proposal_price_yocto
+            nft_metadata(1),                         // nft_metadata
+            None,                                    // start_date
+            "1975-06-24T13:50:00+00:00".to_string(), // end_date
         );
-    }  
-
+    }
 
     /*
      * fpo_add_buy_now_only assertions
@@ -383,11 +382,11 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                       // total_supply
-            U128(800),                               // buy_now_price_yocto
-            nft_metadata(1),                    // nft_metadata
+            2,               // total_supply
+            U128(800),       // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
     }
 
@@ -407,11 +406,11 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                       // total_supply
-            U128(1115),                              // buy_now_price_yocto
-            nft_metadata(1),                    // nft_metadata
+            2,               // total_supply
+            U128(1115),      // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
     }
 
@@ -430,10 +429,10 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                       // total_supply
-            U128(1100),                              // buy_now_price_yocto
-            nft_metadata(1),                    // nft_metadata
-            None,                                    // start_date
+            2,                                             // total_supply
+            U128(1100),                                    // buy_now_price_yocto
+            nft_metadata(1),                               // nft_metadata
+            None,                                          // start_date
             Some("1975-04-24T00:00:00+00:00".to_string()), // end_date
         );
     }
@@ -454,13 +453,13 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                              // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            Some("1975-04-24T00:00:00+00:00".to_string()),  // start_date
-            None
+            2,                                             // total_supply
+            U128(1100),                                    // buy_now_price_yocto
+            nft_metadata(1),                               // nft_metadata
+            Some("1975-04-24T00:00:00+00:00".to_string()), // start_date
+            None,
         );
-    }    
+    }
 
     #[test]
     #[should_panic(expected = r#"Offering duration too short"#)]
@@ -478,13 +477,13 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            2,                                              // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            Some("1975-05-24T13:10:00+00:00".to_string()),  // start_date
-            Some("1975-05-24T13:50:00+00:00".to_string()),  // end_date
+            2,                                             // total_supply
+            U128(1100),                                    // buy_now_price_yocto
+            nft_metadata(1),                               // nft_metadata
+            Some("1975-05-24T13:10:00+00:00".to_string()), // start_date
+            Some("1975-05-24T13:50:00+00:00".to_string()), // end_date
         );
-    }   
+    }
 
     #[test]
     #[should_panic(expected = r#"Max NFT supply must be between 1 and 100"#)]
@@ -502,13 +501,13 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            0,                                              // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
+            0,               // total_supply
+            U128(1100),      // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
-    }  
+    }
 
     #[test]
     #[should_panic(expected = r#"Max NFT supply must be between 1 and 100"#)]
@@ -526,17 +525,17 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            101,                                            // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
+            101,             // total_supply
+            U128(1100),      // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
-    }  
- 
-     
+    }
     #[test]
-    #[should_panic(expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#)]
+    #[should_panic(
+        expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#
+    )]
     fn test_buy_now_wrong_end_date_format() {
         let context = test_get_context(
             false,
@@ -551,16 +550,18 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            Some("1975-5-24T13:50:00+00:00".to_string()),   // end_date
+            50,                                           // total_supply
+            U128(1100),                                   // buy_now_price_yocto
+            nft_metadata(1),                              // nft_metadata
+            None,                                         // start_date
+            Some("1975-5-24T13:50:00+00:00".to_string()), // end_date
         );
     }
 
     #[test]
-    #[should_panic(expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#)]
+    #[should_panic(
+        expected = r#"Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)"#
+    )]
     fn test_buy_now_wrong_start_date_format() {
         let context = test_get_context(
             false,
@@ -575,14 +576,13 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            Some("1975-05-24".to_string()),                 // start_date
-            None
+            50,                             // total_supply
+            U128(1100),                     // buy_now_price_yocto
+            nft_metadata(1),                // nft_metadata
+            Some("1975-05-24".to_string()), // start_date
+            None,
         );
     }
-    
     #[test]
     #[should_panic(expected = r#"Already listed"#)]
     fn test_buy_now_already_listed() {
@@ -599,23 +599,23 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
+            50,              // total_supply
+            U128(1100),      // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
 
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            10,                                             // total_supply
-            U128(2000),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
+            10,              // total_supply
+            U128(2000),      // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
-    }  
+    }
 
     /*
      * proposal_accepting vs buy_now_only assertions
@@ -637,24 +637,24 @@ mod seller_tests {
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            "1975-05-24T13:50:00+00:00".to_string(),        // end_date
+            50,                                      // total_supply
+            U128(1100),                              // buy_now_price_yocto
+            U128(500),                               // min_proposal_price_yocto
+            nft_metadata(1),                         // nft_metadata
+            None,                                    // start_date
+            "1975-05-24T13:50:00+00:00".to_string(), // end_date
         );
 
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            10,                                             // total_supply
-            U128(2000),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
+            10,              // total_supply
+            U128(2000),      // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
-    }  
+    }
 
     #[test]
     #[should_panic(expected = r#"Already listed"#)]
@@ -672,27 +672,27 @@ mod seller_tests {
         marketplace.fpo_add_buy_now_only(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            10,                                             // total_supply
-            U128(2000),                                     // buy_now_price_yocto
-            nft_metadata(1),                           // nft_metadata
+            10,              // total_supply
+            U128(2000),      // buy_now_price_yocto
+            nft_metadata(1), // nft_metadata
             None,
-            None
+            None,
         );
 
         marketplace.fpo_add_accepting_proposals(
             AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
-            50,                                             // total_supply
-            U128(1100),                                     // buy_now_price_yocto
-            U128(500),                                      // min_proposal_price_yocto
-            nft_metadata(1),                           // nft_metadata
-            None,                                           // start_date
-            "1975-05-24T13:50:00+00:00".to_string(),        // end_date
+            50,                                      // total_supply
+            U128(1100),                              // buy_now_price_yocto
+            U128(500),                               // min_proposal_price_yocto
+            nft_metadata(1),                         // nft_metadata
+            None,                                    // start_date
+            "1975-05-24T13:50:00+00:00".to_string(), // end_date
         );
-    }  
+    }
 
-    /* 
-     * Accepting proposals
+    /*
+     * fpo_accept_proposals
      */
 
     #[test]
@@ -707,21 +707,36 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
-        let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo();
         test_place_proposals(&mut fpo);
-
-        marketplace.fpos_by_contract_id.insert(&nft_account_id, &fpo);
-        let fpos_by_this_offeror = UnorderedSet::new(
-            MarketplaceStorageKey::FposByOfferorIdInner { account_id_hash: hash_account_id(&offeror_account_id) }.try_to_vec().unwrap(),
-        );
-        marketplace.fpos_by_offeror_id.insert(&offeror_account_id, &fpos_by_this_offeror);
+        test_add_fpo(&mut marketplace, &fpo);
 
         marketplace.fpo_accept_proposals(nft_account_id.clone(), 1);
     }
 
+    #[test]
+    #[should_panic(expected = r#"Could not find NFT listing"#)]
+    fn test_accepting_proposals_for_nonexistent_offering() {
+        let context = test_get_context(
+            true,
+            Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
+            8380000000000000000000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo();
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        marketplace.fpo_accept_proposals(
+            AccountId::new_unchecked(NONEXISTENT_NFT_ACCOUNT_ID.to_string()),
+            1,
+        );
+    }
     #[test]
     #[should_panic(expected = r#"There's not enough proposals (3)"#)]
     fn test_accepting_too_many_proposals() {
@@ -734,23 +749,17 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
-        let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo();
         test_place_proposals(&mut fpo);
-
-        marketplace.fpos_by_contract_id.insert(&nft_account_id, &fpo);
-        let fpos_by_this_offeror = UnorderedSet::new(
-            MarketplaceStorageKey::FposByOfferorIdInner { account_id_hash: hash_account_id(&offeror_account_id) }.try_to_vec().unwrap(),
-        );
-        marketplace.fpos_by_offeror_id.insert(&offeror_account_id, &fpos_by_this_offeror);
+        test_add_fpo(&mut marketplace, &fpo);
 
         marketplace.fpo_accept_proposals(nft_account_id.clone(), 4);
     }
 
     #[test]
-    fn test_accepting_proposals() {
+    fn test_accepting_proposals_batches() {
         let context = test_get_context(
             false,
             Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
@@ -760,82 +769,259 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
-        let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo();
         test_place_proposals(&mut fpo);
-
-        marketplace.fpos_by_contract_id.insert(&nft_account_id, &fpo);
-        let fpos_by_this_offeror = UnorderedSet::new(
-            MarketplaceStorageKey::FposByOfferorIdInner { account_id_hash: hash_account_id(&offeror_account_id) }.try_to_vec().unwrap(),
-        );
-        marketplace.fpos_by_offeror_id.insert(&offeror_account_id, &fpos_by_this_offeror);
+        test_add_fpo(&mut marketplace, &fpo);
 
         marketplace.fpo_accept_proposals(nft_account_id.clone(), 1);
-        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).expect("Could not get updated FPO");
+
+        let fpo = marketplace
+            .fpos_by_contract_id
+            .get(&nft_account_id)
+            .expect("Could not get updated FPO");
         assert!(
             fpo.acceptable_proposals.len() == 2,
             "Wrong number of acceptable_proposals"
         );
         assert!(
-            fpo.acceptable_proposals.to_vec() == vec![1,3],
+            fpo.acceptable_proposals.to_vec() == vec![1, 3],
             "acceptable_proposals content incorrect"
         );
         assert!(
-            fpo.proposals.get(&1).is_some() && fpo.proposals.get(&2).is_none() && fpo.proposals.get(&3).is_some(),
+            fpo.proposals.get(&1).is_some()
+                && fpo.proposals.get(&2).is_none()
+                && fpo.proposals.get(&3).is_some(),
             "proposals content incorrect"
         );
-        let proposals_by_proposer1 = fpo.proposals_by_proposer.get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string())).unwrap();
+        let proposals_by_proposer1 = fpo
+            .proposals_by_proposer
+            .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()))
+            .unwrap();
         assert!(
             proposals_by_proposer1.contains(&1),
             "proposals_by_proposer incorrect for proposer1"
         );
-        let proposals_by_proposer2 = fpo.proposals_by_proposer.get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string())).unwrap();
+        let proposals_by_proposer2 = fpo
+            .proposals_by_proposer
+            .get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string()))
+            .unwrap();
         assert!(
             !proposals_by_proposer2.contains(&2) && proposals_by_proposer2.contains(&3),
             "proposals_by_proposer incorrect for proposer2"
         );
-        assert!(
-            fpo.supply_left == 2,
-            "Wrong supply_left"
-        );
+        assert!(fpo.supply_left == 2, "Wrong supply_left");
 
         marketplace.fpo_accept_proposals(nft_account_id.clone(), 2);
-        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).expect("Could not get updated FPO");
+        let fpo = marketplace
+            .fpos_by_contract_id
+            .get(&nft_account_id)
+            .expect("Could not get updated FPO");
         assert!(
             fpo.acceptable_proposals.is_empty(),
             "Wrong number of acceptable_proposals"
         );
         assert!(
-            fpo.proposals.get(&1).is_none() && fpo.proposals.get(&2).is_none() && fpo.proposals.get(&3).is_none(),
+            fpo.proposals.get(&1).is_none()
+                && fpo.proposals.get(&2).is_none()
+                && fpo.proposals.get(&3).is_none(),
             "proposals content incorrect"
         );
-        let proposals_by_proposer1 = fpo.proposals_by_proposer.get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()));
+        let proposals_by_proposer1 = fpo
+            .proposals_by_proposer
+            .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()));
         assert!(
             proposals_by_proposer1.is_none(),
             "proposals_by_proposer exist for proposer1"
         );
-        let proposals_by_proposer2 = fpo.proposals_by_proposer.get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string()));
+        let proposals_by_proposer2 = fpo
+            .proposals_by_proposer
+            .get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string()));
         assert!(
             proposals_by_proposer2.is_none(),
             "proposals_by_proposer exist for proposer2"
         );
-        assert!(
-            fpo.supply_left == 0,
-            "Wrong supply_left"
+        assert!(fpo.supply_left == 0, "Wrong supply_left");
+    }
+
+    #[test]
+    fn test_accepting_proposals_all_at_once() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
+            8380000000000000000000,
+            0,
         );
-     }
-        
-    
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo();
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        marketplace.fpo_accept_proposals(nft_account_id.clone(), 3);
+
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).expect("Could not get updated FPO");
+
+        assert!(
+            fpo.acceptable_proposals.is_empty(),
+            "Some acceptable_proposals are left"
+        );
+        assert!(
+            fpo.proposals.get(&1).is_none()
+                && fpo.proposals.get(&2).is_none()
+                && fpo.proposals.get(&3).is_none(),
+            "proposals content incorrect"
+        );
+        let proposals_by_proposer1 = fpo
+            .proposals_by_proposer
+            .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()));
+        assert!(
+            proposals_by_proposer1.is_none(),
+            "proposals_by_proposer left for proposer1"
+        );
+        let proposals_by_proposer2 = fpo
+            .proposals_by_proposer
+            .get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string()));
+        assert!(
+            proposals_by_proposer2.is_none(),
+            "proposals_by_proposer left for proposer2"
+        );
+        assert!(fpo.supply_left == 0, "Some supply_left");
+    }
+
     /*
-     * Concluding FPO
+     * fpo_conclude
      */
 
+    #[test]
+    #[should_panic(expected = r#"Only the offeror can conclude"#)]
+    fn test_conclude_by_unauthorized_user() {
+        let context = test_get_context(
+            true,
+            Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
+            8380000000000000000000,
+            0,
+        );
+        testing_env!(context);
 
-    /*
-     * Helpers
-     */
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo();
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+        marketplace.fpo_conclude(nft_account_id.clone());
+    }
+
+    #[test]
+    #[should_panic(expected = r#"Could not find NFT listing"#)]
+    fn test_conclude_nonexistent_offering() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
+            8380000000000000000000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo();
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        marketplace.fpo_conclude(AccountId::new_unchecked(
+            NONEXISTENT_NFT_ACCOUNT_ID.to_string(),
+        ));
+    }
+
+    #[test]
+    fn test_conclude_before_start_date() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 5, 24).and_hms(00, 00, 00),
+            8380000000000000000000,
+            0,
+        );
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo();
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+        marketplace.fpo_conclude(nft_account_id.clone());
+
+        assert!(
+            marketplace.fpos_by_contract_id.is_empty(),
+            "fpos_by_contract_id not empty"
+        );
+        assert!(
+            marketplace
+                .fpos_by_offeror_id
+                .get(&AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()))
+                .is_none(),
+            "fpos_by_contract_id not empty"
+        );
+    }
+
+    #[test]
+    fn test_conclude_after_end_date() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 7, 24).and_hms(00, 00, 00),
+            8380000000000000000000,
+            0,
+        );
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo();
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+        marketplace.fpo_conclude(nft_account_id.clone());
+
+        assert!(
+            marketplace.fpos_by_contract_id.is_empty(),
+            "fpos_by_contract_id not empty"
+        );
+        assert!(
+            marketplace
+                .fpos_by_offeror_id
+                .get(&AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()))
+                .is_none(),
+            "fpos_by_contract_id not empty"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = r#"Cannot conclude an offering while it's running"#)]
+    fn test_conclude_while_running() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            8380000000000000000000,
+            0,
+        );
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo();
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+        marketplace.fpo_conclude(nft_account_id.clone());
+    }
+
+
+    /* Helpers */
 
     fn test_get_context(
         malicious: bool,
@@ -849,24 +1035,45 @@ mod seller_tests {
             AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string())
         };
         VMContextBuilder::new()
-        .predecessor_account_id(account_id.clone())
-        .signer_account_id(account_id.clone())
-        .block_timestamp(datetime.timestamp_nanos() as u64)
-        .attached_deposit(attached_deposit)
-        .storage_usage(storage_usage)
-        .build()
+            .predecessor_account_id(account_id.clone())
+            .signer_account_id(account_id.clone())
+            .block_timestamp(datetime.timestamp_nanos() as u64)
+            .attached_deposit(attached_deposit)
+            .storage_usage(storage_usage)
+            .build()
     }
 
     fn test_marketplace() -> MarketplaceContract {
         MarketplaceContract::new(AccountId::new_unchecked(MARKETPLACE_ACCOUNT_ID.to_string()))
     }
 
+    fn test_add_fpo(marketplace: &mut MarketplaceContract, fpo: &FixedPriceOffering) {
+        marketplace
+            .fpos_by_contract_id
+            .insert(&fpo.nft_contract_id, fpo);
+        let mut fpos_by_this_offeror = UnorderedSet::new(
+            MarketplaceStorageKey::FposByOfferorIdInner {
+                account_id_hash: hash_account_id(&fpo.offeror_id),
+            }
+            .try_to_vec()
+            .unwrap(),
+        );
+        fpos_by_this_offeror.insert(&fpo.nft_contract_id.clone());
+        marketplace
+            .fpos_by_offeror_id
+            .insert(&fpo.offeror_id, &fpos_by_this_offeror);
+    }
+
     fn test_fpo() -> FixedPriceOffering {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
         let nft_account_id_hash = hash_account_id(&nft_account_id);
         let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
-        let start_timestamp = DateTime::parse_from_rfc3339("1975-05-26T00:00:00+00:00").unwrap().timestamp_nanos();
-        let end_timestamp = DateTime::parse_from_rfc3339("1975-06-10T00:00:00+00:00").unwrap().timestamp_nanos();
+        let start_timestamp = DateTime::parse_from_rfc3339("1975-05-26T00:00:00+00:00")
+            .unwrap()
+            .timestamp_nanos();
+        let end_timestamp = DateTime::parse_from_rfc3339("1975-06-10T00:00:00+00:00")
+            .unwrap()
+            .timestamp_nanos();
         let fpo = FixedPriceOffering {
             nft_contract_id: nft_account_id.clone(),
             offeror_id: offeror_account_id.clone(),
@@ -875,21 +1082,32 @@ mod seller_tests {
             min_proposal_price_yocto: Some(500),
             start_timestamp: Some(start_timestamp),
             end_timestamp: Some(end_timestamp),
-            status: Running,
+            status: Unstarted,
             nft_metadata: nft_metadata(1),
             supply_left: 3,
             proposals: LookupMap::new(
-                FixedPriceOfferingStorageKey::Proposals { nft_contract_id_hash: nft_account_id_hash }.try_to_vec().unwrap(),
+                FixedPriceOfferingStorageKey::Proposals {
+                    nft_contract_id_hash: nft_account_id_hash,
+                }
+                .try_to_vec()
+                .unwrap(),
             ),
             proposals_by_proposer: LookupMap::new(
-                FixedPriceOfferingStorageKey::ProposalsByProposer { nft_contract_id_hash: nft_account_id_hash }.try_to_vec().unwrap(),
+                FixedPriceOfferingStorageKey::ProposalsByProposer {
+                    nft_contract_id_hash: nft_account_id_hash,
+                }
+                .try_to_vec()
+                .unwrap(),
             ),
             acceptable_proposals: Vector::new(
-                FixedPriceOfferingStorageKey::AcceptableProposals { nft_contract_id_hash: nft_account_id_hash }.try_to_vec().unwrap(),
+                FixedPriceOfferingStorageKey::AcceptableProposals {
+                    nft_contract_id_hash: nft_account_id_hash,
+                }
+                .try_to_vec()
+                .unwrap(),
             ),
             next_proposal_id: 0,
         };
-        
         fpo
     }
 
@@ -901,41 +1119,53 @@ mod seller_tests {
                 id: 1,
                 proposer_id: proposer1_id.clone(),
                 price_yocto: 500,
-                is_acceptable: true
+                is_acceptable: true,
             },
             FixedPriceOfferingProposal {
                 id: 2,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 900,
-                is_acceptable: true
+                is_acceptable: true,
             },
             FixedPriceOfferingProposal {
                 id: 3,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 700,
-                is_acceptable: true
-            }
+                is_acceptable: true,
+            },
         ];
         for proposal in proposals_vec.iter() {
             fpo.proposals.insert(&proposal.id, &proposal);
         }
-        fpo.acceptable_proposals.extend(vec![1,3,2]);
+        fpo.acceptable_proposals.extend(vec![1, 3, 2]);
 
         let proposer1_id_hash = hash_account_id(&proposer1_id);
         let nft_account_id_hash = hash_account_id(&fpo.nft_contract_id);
         let mut proposals_by_proposer1: UnorderedSet<ProposalId> = UnorderedSet::new(
-            FixedPriceOfferingStorageKey::ProposalsByProposerInner { nft_contract_id_hash: nft_account_id_hash, proposer_id_hash: proposer1_id_hash }.try_to_vec().unwrap(),
+            FixedPriceOfferingStorageKey::ProposalsByProposerInner {
+                nft_contract_id_hash: nft_account_id_hash,
+                proposer_id_hash: proposer1_id_hash,
+            }
+            .try_to_vec()
+            .unwrap(),
         );
         proposals_by_proposer1.extend(vec![1]);
 
         let proposer2_id_hash = hash_account_id(&proposer2_id);
         let mut proposals_by_proposer2: UnorderedSet<ProposalId> = UnorderedSet::new(
-            FixedPriceOfferingStorageKey::ProposalsByProposerInner { nft_contract_id_hash: nft_account_id_hash, proposer_id_hash: proposer2_id_hash }.try_to_vec().unwrap(),
+            FixedPriceOfferingStorageKey::ProposalsByProposerInner {
+                nft_contract_id_hash: nft_account_id_hash,
+                proposer_id_hash: proposer2_id_hash,
+            }
+            .try_to_vec()
+            .unwrap(),
         );
-        proposals_by_proposer2.extend(vec![2,3]);
+        proposals_by_proposer2.extend(vec![2, 3]);
 
-        fpo.proposals_by_proposer.insert(&proposer1_id, &proposals_by_proposer1);
-        fpo.proposals_by_proposer.insert(&proposer2_id, &proposals_by_proposer2);
+        fpo.proposals_by_proposer
+            .insert(&proposer1_id, &proposals_by_proposer1);
+        fpo.proposals_by_proposer
+            .insert(&proposer2_id, &proposals_by_proposer2);
     }
 
     fn nft_metadata(index: i32) -> TokenMetadata {
