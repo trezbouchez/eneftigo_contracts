@@ -709,7 +709,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -728,7 +728,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -751,7 +751,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -771,7 +771,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -858,7 +858,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -911,7 +911,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
         marketplace.fpo_conclude(nft_account_id.clone());
@@ -929,7 +929,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -951,7 +951,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
         marketplace.fpo_conclude(nft_account_id.clone());
@@ -982,7 +982,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
         marketplace.fpo_conclude(nft_account_id.clone());
@@ -1002,7 +1002,7 @@ mod seller_tests {
 
     #[test]
     #[should_panic(expected = r#"Cannot conclude an offering while it's running"#)]
-    fn test_conclude_while_running() {
+    fn test_conclude_while_running_and_supply_left() {
         let context = test_get_context(
             false,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
@@ -1014,13 +1014,31 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
         marketplace.fpo_conclude(nft_account_id.clone());
     }
 
+    #[test]
+    fn test_conclude_while_running_and_supply_zero() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            8380000000000000000000,
+            0,
+        );
+        testing_env!(context);
 
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let fpo = test_fpo(0);
+        test_add_fpo(&mut marketplace, &fpo);
+        marketplace.fpo_conclude(nft_account_id.clone());
+    }
+    
+    
     /* Helpers */
 
     fn test_get_context(
@@ -1064,7 +1082,7 @@ mod seller_tests {
             .insert(&fpo.offeror_id, &fpos_by_this_offeror);
     }
 
-    fn test_fpo() -> FixedPriceOffering {
+    fn test_fpo(supply: u64) -> FixedPriceOffering {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
         let nft_account_id_hash = hash_account_id(&nft_account_id);
         let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
@@ -1077,14 +1095,14 @@ mod seller_tests {
         let fpo = FixedPriceOffering {
             nft_contract_id: nft_account_id.clone(),
             offeror_id: offeror_account_id.clone(),
-            supply_total: 3,
+            supply_total: supply,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: Some(500),
             start_timestamp: Some(start_timestamp),
             end_timestamp: Some(end_timestamp),
             status: Unstarted,
             nft_metadata: nft_metadata(1),
-            supply_left: 3,
+            supply_left: supply,
             proposals: LookupMap::new(
                 FixedPriceOfferingStorageKey::Proposals {
                     nft_contract_id_hash: nft_account_id_hash,

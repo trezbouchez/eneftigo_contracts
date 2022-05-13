@@ -353,7 +353,7 @@ impl MarketplaceContract {
     // must be called by the offeror!
     pub(crate) fn fpo_conclude(&mut self, nft_contract_id: AccountId) {
         // get the FPO
-        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
         fpo.update_status();
 

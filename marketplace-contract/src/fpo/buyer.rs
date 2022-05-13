@@ -184,7 +184,7 @@ impl MarketplaceContract {
         price_yocto: u128,
     ) {
         // get FPO
-        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
         fpo.update_status();
         
@@ -217,7 +217,7 @@ impl MarketplaceContract {
         );
 
         // ensure the attached balance is sufficient to cover higher required deposit
-        let proposal = &mut fpo.proposals.get(&proposal_id).expect("Could not find proposal");
+        let mut proposal = fpo.proposals.get(&proposal_id).expect("Could not find proposal");
         let deposit_supplement_yocto = price_yocto - proposal.price_yocto;
         let attached_balance_yocto = env::attached_deposit();
         assert!(
@@ -239,8 +239,14 @@ impl MarketplaceContract {
                 fpo.acceptable_proposals.extend(acceptable_proposals_vec);
             }
             fpo.proposals.remove(&proposal_id).expect("Could not remove proposal");
-            let proposals_by_this_proposer = &mut fpo.proposals_by_proposer.get(&predecessor_account_id).expect("Could not find proposal from this account.");
+            let mut proposals_by_this_proposer = fpo.proposals_by_proposer.get(&predecessor_account_id).expect("Could not find proposal from this account.");
             proposals_by_this_proposer.remove(&proposal_id);
+            if proposals_by_this_proposer.is_empty() {
+                fpo.proposals_by_proposer.remove(&predecessor_account_id);
+            } else {
+                fpo.proposals_by_proposer.insert(&predecessor_account_id, &proposals_by_this_proposer);
+            }
+
             // process purchase (mint and transfer)
             self.fpo_process_purchase(
                 nft_contract_id.clone(),
@@ -255,7 +261,11 @@ impl MarketplaceContract {
                     Promise::new(predecessor_account_id).transfer(surplus_deposit);
                 }
             }
-            // update min
+            // update supply_left
+            fpo.supply_left -= 1;
+
+            self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+
             return;
         }
 
@@ -267,9 +277,11 @@ impl MarketplaceContract {
             acceptable_price_yocto
        );
                 
-        // update price and mark acceptable
+        // update proposal - set price and mark acceptable, store
         proposal.price_yocto = price_yocto;
         proposal.is_acceptable = true;
+
+        fpo.proposals.insert(&proposal_id, &proposal);
 
         // if the proposal is among the acceptable ones we'll just re-sort
         // otherwise we need to outbid the lowers-priced proposal
@@ -279,11 +291,14 @@ impl MarketplaceContract {
             // point - this, in turn, means that the proposal count equals or exceeds the supply
             // so we can just replace the first acceptable proposal (worst price) with this one
             let outbid_proposal_id = fpo.acceptable_proposals.replace(0, &proposal_id);
-            let outbid_proposal = &mut fpo.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
+            let mut outbid_proposal = fpo.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
             outbid_proposal.mark_unacceptable_and_refund_deposit();
+            fpo.proposals.insert(&outbid_proposal_id, &outbid_proposal);
         }
         
         fpo.sort_acceptable_proposals();
+
+        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
 
         // return surplus deposit
         let surplus_deposit = attached_balance_yocto - deposit_supplement_yocto;
@@ -298,7 +313,7 @@ impl MarketplaceContract {
         proposal_id: ProposalId
     ) {
         // get FPO
-        let fpo = &mut self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
 
         fpo.update_status();
         
@@ -336,12 +351,20 @@ impl MarketplaceContract {
         let removed_proposal = fpo.proposals.remove(&proposal_id).expect("Could not find proposal");
 
         // remove from proposals_by_proposer
-        let proposals_by_predecessor = &mut fpo.proposals_by_proposer.get(&predecessor_account_id).expect("This account has not submitted any proposals");
+        let mut proposals_by_predecessor = fpo.proposals_by_proposer.get(&predecessor_account_id).expect("This account has not submitted any proposals");
         let was_removed_from_proposer_proposals = proposals_by_predecessor.remove(&proposal_id);
         assert!(
             was_removed_from_proposer_proposals,
             "Could not find it among proposals submitted by this account"
         );
+        if proposals_by_predecessor.is_empty() {
+            fpo.proposals_by_proposer.remove(&predecessor_account_id);
+        } else {
+            fpo.proposals_by_proposer.insert(&predecessor_account_id, &proposals_by_predecessor);
+        }
+
+        // store
+        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
 
         // return deposit minus penalty
         let penalty = removed_proposal.price_yocto * PROPOSAL_REVOKE_PENALTY_RATE / 100;

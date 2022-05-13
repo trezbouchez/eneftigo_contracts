@@ -17,7 +17,7 @@ mod seller_tests {
     const NFT_ACCOUNT_ID: &str = "nft.eneftigo.testnet";
     const NONEXISTENT_NFT_ACCOUNT_ID: &str = "nonexistent.eneftigo.testnet";
     const OFFEROR_ACCOUNT_ID: &str = "offeror.eneftigo.testnet";
-    const MALICIOUS_ACCOUNT_ID: &str = "malicious.eneftigo.testnet";
+    // const MALICIOUS_ACCOUNT_ID: &str = "malicious.eneftigo.testnet";
     const PROPOSER1_ACCOUNT_ID: &str = "proposer1.eneftigo.testnet";
     const PROPOSER2_ACCOUNT_ID: &str = "proposer2.eneftigo.testnet";
     const BIDDER_ACCOUNT_ID: &str = "bidder.eneftigo.testnet";
@@ -28,7 +28,7 @@ mod seller_tests {
     #[should_panic (expected = r#"This offering is Unstarted"#)]
     fn test_buy_now_too_early() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 5, 24).and_hms(00, 00, 00),
             1000,
             0,
@@ -38,7 +38,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -49,7 +49,7 @@ mod seller_tests {
     #[should_panic (expected = r#"This offering is Ended"#)]
     fn test_buy_now_too_late() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 7, 24).and_hms(00, 00, 00),
             1000,
             0,
@@ -59,7 +59,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -70,7 +70,7 @@ mod seller_tests {
     #[should_panic (expected = r#"Could not find NFT listing"#)]
     fn test_buy_now_nonexistent() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 24).and_hms(00, 00, 00),
             1000,
             0,
@@ -78,7 +78,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -90,7 +90,7 @@ mod seller_tests {
     #[should_panic (expected = r#"Attached Near must be sufficient to pay the price of 1000 yocto Near"#)]
     fn test_buy_now_insufficient_deposit() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
             999,
             0,
@@ -98,7 +98,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -107,10 +107,9 @@ mod seller_tests {
     }
 
     #[test]
-    #[should_panic (expected = r#"You are late. All NFTs have been sold."#)]
     fn test_buy_now_while_running() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
             1000,
             0,
@@ -118,7 +117,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -171,9 +170,48 @@ mod seller_tests {
             fpo.acceptable_proposals.to_vec() == vec![],
             "Proposals state incorrect"
         );
+    }
+
+    #[test]
+    #[should_panic (expected = r#"This offering is Ended"#)]
+    fn test_buy_now_when_no_supply() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         marketplace.fpo_buy(nft_account_id.clone());
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).unwrap();
+        assert!(
+            fpo.supply_left == 2,
+            "supply_left incorrect"
+        );
 
+        marketplace.fpo_buy(nft_account_id.clone());
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).unwrap();
+        assert!(
+            fpo.supply_left == 1,
+            "supply_left incorrect"
+        );
+
+        marketplace.fpo_buy(nft_account_id.clone());
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).unwrap();
+        assert!(
+            fpo.supply_left == 0,
+            "supply_left incorrect"
+        );
+
+        marketplace.fpo_buy(nft_account_id.clone());
     }
 
     
@@ -183,7 +221,7 @@ mod seller_tests {
     #[should_panic (expected = r#"This offering is Unstarted"#)]
     fn test_place_proposal_too_early() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 5, 24).and_hms(00, 00, 00),
             800,
             0,
@@ -193,7 +231,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -204,7 +242,7 @@ mod seller_tests {
     #[should_panic (expected = r#"This offering is Ended"#)]
     fn test_place_proposal_too_late() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 7, 24).and_hms(00, 00, 00),
             800,
             0,
@@ -214,7 +252,7 @@ mod seller_tests {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -225,7 +263,7 @@ mod seller_tests {
     #[should_panic (expected = r#"Could not find NFT listing"#)]
     fn test_place_proposal_nonexistent() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 24).and_hms(00, 00, 00),
             800,
             0,
@@ -233,7 +271,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -245,7 +283,7 @@ mod seller_tests {
     #[should_panic (expected = r#"Attached balance must be sufficient to pay the required deposit of 800 yocto Near"#)]
     fn test_place_proposal_insufficient_deposit() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
             799,
             0,
@@ -253,7 +291,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -265,7 +303,7 @@ mod seller_tests {
     #[should_panic(expected = r#"Proposed price is too low. The lowest acceptable price is 510"#)]
     fn test_place_proposal_outbid() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
             500,
             0,
@@ -273,7 +311,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -285,7 +323,7 @@ mod seller_tests {
     #[should_panic(expected = r#"Proposed price must be lower than buy now price of 1000"#)]
     fn test_place_proposal_above_buy_now() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
             1100,
             0,
@@ -293,7 +331,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -305,7 +343,7 @@ mod seller_tests {
     #[should_panic(expected = r#"Proposed price must be lower than buy now price of 1000"#)]
     fn test_place_proposal_at_buy_now() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
             1000,
             0,
@@ -313,7 +351,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -324,7 +362,7 @@ mod seller_tests {
     #[test]
     fn test_place_proposal_successful() {
         let context = test_get_context(
-            false,
+            BIDDER_ACCOUNT_ID,
             Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
             1000,
             0,
@@ -332,7 +370,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        let mut fpo = test_fpo();
+        let mut fpo = test_fpo(true);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
@@ -349,7 +387,7 @@ mod seller_tests {
             fpo.proposals.get(&2).unwrap().is_acceptable &&
             fpo.proposals.get(&3).unwrap().is_acceptable &&
             fpo.proposals.get(&4).unwrap().is_acceptable,
-            "Wrong acceptable_proposals"
+            "Proposal is_acceptable flag wrong"
         );
         assert!(
             fpo.next_proposal_id == 5,
@@ -368,7 +406,7 @@ mod seller_tests {
             fpo.proposals.get(&3).unwrap().is_acceptable &&
             !fpo.proposals.get(&4).unwrap().is_acceptable &&
             fpo.proposals.get(&5).unwrap().is_acceptable,
-            "Wrong acceptable_proposals"
+            "Proposal is_acceptable flag wrong"
         );
         assert!(
             fpo.next_proposal_id == 6,
@@ -376,25 +414,503 @@ mod seller_tests {
         );
     }
 
-    /* fpo_place_proposal vs fpo_buy_now
-    TODO: test interactions:
-    - placing proposal after buy_now, check min accepted price is ok, check supply_left
-    */
+    /* fpo_place_proposal vs fpo_buy_now */
 
+    #[test]
+    #[should_panic (expected = r#"Proposed price is too low. The lowest acceptable price is 710"#)]
+    fn test_place_too_low_proposal_after_buy_now() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        
+        marketplace.fpo_buy(nft_account_id.clone());
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id.clone()).expect("Could not get updated FPO");
+        assert!(
+            fpo.acceptable_proposals.to_vec() == vec![3,2],
+            "acceptable_proposals not updated on buy_now"
+        );
+        assert!(
+            !fpo.proposals.get(&1).unwrap().is_acceptable &&
+            fpo.proposals.get(&2).unwrap().is_acceptable &&
+            fpo.proposals.get(&3).unwrap().is_acceptable,
+            "Proposal is_acceptable flag wrong"
+        );
+        assert!(
+            fpo.supply_left == 2,
+            "Supply left not updated"
+        );
+
+        marketplace.fpo_place_proposal(nft_account_id.clone(), 700);
+    }
+
+    #[test]
+    fn test_place_acceptable_proposal_after_buy_now() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        
+        marketplace.fpo_buy(nft_account_id.clone());
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id.clone()).expect("Could not get updated FPO");
+        assert!(
+            fpo.acceptable_proposals.to_vec() == vec![3,2],
+            "acceptable_proposals not updated on buy_now"
+        );
+        assert!(
+            !fpo.proposals.get(&1).unwrap().is_acceptable &&
+            fpo.proposals.get(&2).unwrap().is_acceptable &&
+            fpo.proposals.get(&3).unwrap().is_acceptable,
+            "Proposal is_acceptable flag wrong"
+        );
+        assert!(
+            fpo.supply_left == 2,
+            "Supply left not updated"
+        );
+
+        marketplace.fpo_place_proposal(nft_account_id.clone(), 800);
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id.clone()).expect("Could not get updated FPO");
+        assert!(
+            fpo.acceptable_proposals.to_vec() == vec![4,2],
+            "acceptable_proposals not updated on buy_now"
+        );
+        assert!(
+            !fpo.proposals.get(&1).unwrap().is_acceptable &&
+            fpo.proposals.get(&2).unwrap().is_acceptable &&
+            !fpo.proposals.get(&3).unwrap().is_acceptable &&
+            fpo.proposals.get(&4).unwrap().is_acceptable,
+            "Proposal is_acceptable flag wrong"
+        );    
+    }
+
+    #[test]
+    #[should_panic (expected = r#"Proposals are not accepted for this offering"#)]
+    fn test_place_proposal_for_buy_now_only() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let fpo = test_fpo(false);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        marketplace.fpo_place_proposal(nft_account_id.clone(), 800);        
+    }
+
+
+    /* fpo_modify_proposal */
+
+    #[test]
+    #[should_panic (expected = r#"This offering is Unstarted"#)]
+    fn test_modify_proposal_too_early() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 5, 24).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        marketplace.fpo_modify_proposal(nft_account_id, 1, 850);
+    }
+
+    #[test]
+    #[should_panic (expected = r#"This offering is Ended"#)]
+    fn test_modify_proposal_too_late() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 7, 24).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        marketplace.fpo_modify_proposal(nft_account_id, 1, 900);
+    }
+
+    #[test]
+    #[should_panic (expected = r#"No prior proposal from this account"#)]
+    fn test_modify_proposal_unauthorized_user_1() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        
+        marketplace.fpo_modify_proposal(nft_account_id.clone(), 2, 950);
+    }
+
+    #[test]
+    #[should_panic (expected = r#"Proposal with ID 2 from account bidder.eneftigo.testnet not found"#)]
+    fn test_modify_proposal_unauthorized_user_2() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        marketplace.fpo_place_proposal(nft_account_id.clone(), 800);        
+        marketplace.fpo_modify_proposal(nft_account_id.clone(), 2, 950);
+    }
+    
+    #[test]
+    #[should_panic (expected = r#"Price must be an integer multple of 10 yocto Near"#)]
+    fn test_modify_proposal_price_not_multiple_of_step() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let fpo = test_fpo(true);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        marketplace.fpo_place_proposal(nft_account_id.clone(), 805);        
+    }
+
+    #[test]
+    #[should_panic (expected = r#"Attached balance must be sufficient to pay the required deposit supplement of 350 yocto Near"#)]
+    fn test_modify_proposal_insufficient_deposit() {
+        let context = test_get_context(
+            PROPOSER1_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            10,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        marketplace.fpo_modify_proposal(nft_account_id.clone(), 1, 850);        
+    }
+    
+    #[test]
+    fn test_modify_proposal_price_increase() {
+        let context = test_get_context(
+            PROPOSER1_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            350,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        marketplace.fpo_modify_proposal(nft_account_id.clone(), 1, 850);   
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id.clone()).expect("Could not get updated FPO");
+        assert!(
+            fpo.proposals.get(&1).unwrap().price_yocto == 850,
+            "Price has not been updated"
+        );
+        assert!(
+            fpo.acceptable_proposals.to_vec() == vec![3,1,2],
+            "Wrong acceptable_proposals"
+        );
+        assert!(
+            fpo.proposals.get(&1).unwrap().is_acceptable &&
+            fpo.proposals.get(&2).unwrap().is_acceptable &&
+            fpo.proposals.get(&3).unwrap().is_acceptable,
+            "is_acceptable proposal flag has incorrect value"
+        );
+        assert!(
+            fpo.supply_left == 3,
+            "supply_left incorrect"
+        );
+    }    
+
+    #[test]
+    fn test_modify_proposal_buy_now() {
+        let context = test_get_context(
+            PROPOSER1_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            500,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        marketplace.fpo_modify_proposal(nft_account_id.clone(), 1, 1000);   
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id.clone()).expect("Could not get updated FPO");
+        assert!(
+            fpo.proposals.get(&1).is_none(),
+            "Proposal should have been removed"
+        );
+        assert!(
+            fpo.acceptable_proposals.to_vec() == vec![3,2],
+            "Wrong acceptable_proposals"
+        );
+        assert!(
+            fpo.proposals.get(&2).unwrap().is_acceptable &&
+            fpo.proposals.get(&3).unwrap().is_acceptable,
+            "is_acceptable proposal flag has incorrect value"
+        );
+        assert!(
+            fpo.supply_left == 2,
+            "supply_left incorrect"
+        );
+    }  
+
+
+    /* fpo_revoke_proposal */
+
+    #[test]
+    #[should_panic (expected = r#"This offering is Unstarted"#)]
+    fn test_revoke_proposal_too_early() {
+        let context = test_get_context(
+            OFFEROR_ACCOUNT_ID,
+            Utc.ymd(1975, 5, 24).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        marketplace.fpo_revoke_proposal(nft_account_id, 1);
+    }
+
+    #[test]
+    #[should_panic (expected = r#"This offering is Ended"#)]
+    fn test_revoke_proposal_too_late() {
+        let context = test_get_context(
+            OFFEROR_ACCOUNT_ID,
+            Utc.ymd(1975, 7, 24).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        marketplace.fpo_revoke_proposal(nft_account_id, 1);
+    }
+
+    #[test]
+    #[should_panic (expected = r#"No prior proposal from this account"#)]
+    fn test_revoke_proposal_unauthorized_user() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        
+        marketplace.fpo_revoke_proposal(nft_account_id.clone(), 2);
+    }
+
+    #[test]
+    #[should_panic (expected = r#"Proposal with ID 2 from account bidder.eneftigo.testnet not found"#)]
+    fn test_revoke_proposal_unauthorized_user_2() {
+        let context = test_get_context(
+            BIDDER_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+
+        marketplace.fpo_place_proposal(nft_account_id.clone(), 800);        
+        marketplace.fpo_revoke_proposal(nft_account_id.clone(), 2);
+    }
+    
+    #[test]
+    #[should_panic (expected = r#"This proposal has been outbid. The deposit has been returned"#)]
+    fn test_revoke_outbid_proposal() {
+        let context = test_get_context(
+            PROPOSER1_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+        
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        
+        marketplace.fpo_place_proposal(nft_account_id.clone(), 800);
+
+        marketplace.fpo_revoke_proposal(nft_account_id.clone(), 1);        
+    }
+
+    #[test]
+    fn test_revoke_the_only_proposal_success() {
+        let context = test_get_context(
+            PROPOSER1_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+        
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        
+        marketplace.fpo_revoke_proposal(nft_account_id.clone(), 1);        
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).unwrap();
+        assert!(
+            fpo.acceptable_proposals.to_vec() == vec![3,2],
+            "acceptable_proposals incorrect"
+        );
+        assert!(
+            fpo.proposals.get(&1).is_none(),
+            "revoked proposal not removed"
+        );
+        assert!(
+            fpo.proposals_by_proposer.get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string())).is_none(),
+            "Empty proposals_by_proposer set should have been removed"
+        );
+    }
+
+    #[test]
+    fn test_revoke_one_of_many_proposals_success() {
+        let context = test_get_context(
+            PROPOSER2_ACCOUNT_ID,
+            Utc.ymd(1975, 6, 1).and_hms(00, 00, 00),
+            1000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+        let mut fpo = test_fpo(true);
+        test_place_proposals(&mut fpo);
+        test_add_fpo(&mut marketplace, &fpo);
+        
+        let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
+        
+        marketplace.fpo_revoke_proposal(nft_account_id.clone(), 2);        
+        let fpo = marketplace.fpos_by_contract_id.get(&nft_account_id).unwrap();
+        assert!(
+            fpo.acceptable_proposals.to_vec() == vec![1,3],
+            "acceptable_proposals incorrect"
+        );
+        assert!(
+            fpo.proposals.get(&2).is_none(),
+            "revoked proposal not removed"
+        );
+        assert!(
+            fpo.proposals_by_proposer.get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string())).unwrap().len() == 1,
+            "proposals_by_proposer size incorrect"
+        );
+    }
 
     /* Helpers */
 
     fn test_get_context(
-        malicious: bool,
+        account_id_str: &str,
         datetime: DateTime<Utc>,
         attached_deposit: u128,
         storage_usage: u64,
     ) -> VMContext {
-        let account_id = if malicious {
-            AccountId::new_unchecked(MALICIOUS_ACCOUNT_ID.to_string())
-        } else {
-            AccountId::new_unchecked(BIDDER_ACCOUNT_ID.to_string())
-        };
+        let account_id = AccountId::new_unchecked(account_id_str.to_string());
         VMContextBuilder::new()
             .predecessor_account_id(account_id.clone())
             .signer_account_id(account_id.clone())
@@ -425,7 +941,7 @@ mod seller_tests {
             .insert(&fpo.offeror_id, &fpos_by_this_offeror);
     }
 
-    fn test_fpo() -> FixedPriceOffering {
+    fn test_fpo(allow_proposals: bool) -> FixedPriceOffering {
         let nft_account_id = AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string());
         let nft_account_id_hash = hash_account_id(&nft_account_id);
         let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
@@ -440,7 +956,7 @@ mod seller_tests {
             offeror_id: offeror_account_id.clone(),
             supply_total: 3,
             buy_now_price_yocto: 1000,
-            min_proposal_price_yocto: Some(500),
+            min_proposal_price_yocto: if allow_proposals { Some(500) } else { None },
             start_timestamp: Some(start_timestamp),
             end_timestamp: Some(end_timestamp),
             status: Unstarted,

@@ -18,6 +18,11 @@ impl FixedPriceOffering {
             return;
         }
 
+        if self.supply_left == 0 {
+            self.status = Ended;
+            return;
+        }
+
         if let Some(end_timestamp) = self.end_timestamp {
             if block_timestamp >= end_timestamp {
                 self.status = Ended;
