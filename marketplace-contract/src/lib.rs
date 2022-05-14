@@ -1,6 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{Base64VecU8};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     /*assert_one_yocto, */env, ext_contract, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,

@@ -99,7 +99,7 @@ pub struct FixedPriceOffering {
     pub start_timestamp: Option<i64>,           // nanoseconds since 1970-01-01
     pub end_timestamp: Option<i64>,             // nanoseconds since 1970-01-01
     pub status: FixedPriceOfferingStatus, // will be updated when any buyer transaction is mined
-    pub nft_metadata: TokenMetadata,
+    // pub nft_metadata: TokenMetadata,
     pub supply_left: u64,
     pub proposals: LookupMap<ProposalId, FixedPriceOfferingProposal>,
     pub proposals_by_proposer: LookupMap<AccountId, UnorderedSet<ProposalId>>,

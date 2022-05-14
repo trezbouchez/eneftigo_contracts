@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod internal_tests {
-    use crate::{TokenMetadata};
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
     use crate::FixedPriceOfferingStatus::*;
@@ -271,22 +270,22 @@ mod internal_tests {
         }
     }
 
-    fn test_nft_metadata(index: i32) -> TokenMetadata {
-        TokenMetadata {
-            title: Some(format!("nft{}", index)),
-            description: None,
-            media: None,
-            media_hash: None,
-            copies: Some(1),
-            issued_at: None,
-            expires_at: None,
-            starts_at: None,
-            updated_at: None,
-            extra: None,
-            reference: None,
-            reference_hash: None,
-        }
-    }
+    // fn test_nft_metadata(index: i32) -> TokenMetadata {
+    //     TokenMetadata {
+    //         title: Some(format!("nft{}", index)),
+    //         description: None,
+    //         media: None,
+    //         media_hash: None,
+    //         copies: Some(1),
+    //         issued_at: None,
+    //         expires_at: None,
+    //         starts_at: None,
+    //         updated_at: None,
+    //         extra: None,
+    //         reference: None,
+    //         reference_hash: None,
+    //     }
+    // }
 
     fn test_fpo(
         nft_contract_id_str: &str,
@@ -321,7 +320,7 @@ mod internal_tests {
             start_timestamp: start_timestamp,
             end_timestamp: end_timestamp,
             status: Unstarted,
-            nft_metadata: test_nft_metadata(1),
+            // nft_metadata: test_nft_metadata(1),
             supply_left: 5,
             proposals: LookupMap::new(b"m"),
             proposals_by_proposer: LookupMap::new(b"p"),

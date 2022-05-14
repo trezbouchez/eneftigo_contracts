@@ -118,25 +118,24 @@ impl MarketplaceContract {
         price_yocto: Balance
     ) -> Promise {
 
-        // TODO:
-        let nft_metadata = TokenMetadata {
-            title: Some("test".to_string()),
-            description: None,
-            media: None,
-            media_hash: None,
-            copies: Some(1),
-            issued_at: None,
-            expires_at: None,
-            starts_at: None,
-            updated_at: None,
-            extra: None,
-            reference: None,
-            reference_hash: None,
-        };
+        // // TODO:
+        // let nft_metadata = TokenMetadata {
+        //     title: Some("test".to_string()),
+        //     description: None,
+        //     media: None,
+        //     media_hash: None,
+        //     copies: Some(1),
+        //     issued_at: None,
+        //     expires_at: None,
+        //     starts_at: None,
+        //     updated_at: None,
+        //     extra: None,
+        //     reference: None,
+        //     reference_hash: None,
+        // };
 
-        ext_contract::nft_mint(
+        nft_contract::nft_mint(
             nft_token_id,
-            nft_metadata,
             buyer_id,
             None, // TODO: setup perpetual royalties
             nft_contract_id.clone(),

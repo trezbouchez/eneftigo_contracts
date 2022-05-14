@@ -23,7 +23,7 @@ impl MarketplaceContract {
         offeror_id: AccountId,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        nft_metadata: TokenMetadata,
+        // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
     ) {
@@ -108,7 +108,7 @@ impl MarketplaceContract {
             supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
             min_proposal_price_yocto: None,
-            nft_metadata,
+            // nft_metadata,
             start_timestamp,
             end_timestamp,
             status: Unstarted,
@@ -156,7 +156,7 @@ impl MarketplaceContract {
         supply_total: u64,
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: U128,
-        nft_metadata: TokenMetadata,
+        // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
     ) {
@@ -243,7 +243,7 @@ impl MarketplaceContract {
             supply_total: supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
             min_proposal_price_yocto: Some(min_proposal_price_yocto.0),
-            nft_metadata,
+            // nft_metadata,
             start_timestamp,
             end_timestamp: Some(end_timestamp),
             status: Unstarted,

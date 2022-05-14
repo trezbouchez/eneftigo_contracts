@@ -6,7 +6,7 @@ mod seller_tests {
     use crate::FixedPriceOfferingStatus::*;
     use crate::FixedPriceOfferingStorageKey;
     use crate::ProposalId;
-    use crate::{MarketplaceContract, MarketplaceStorageKey, TokenMetadata};
+    use crate::{MarketplaceContract, MarketplaceStorageKey};
     use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::borsh::BorshSerialize;
     use near_sdk::collections::{LookupMap, UnorderedSet, Vector};
@@ -960,7 +960,7 @@ mod seller_tests {
             start_timestamp: Some(start_timestamp),
             end_timestamp: Some(end_timestamp),
             status: Unstarted,
-            nft_metadata: nft_metadata(1),
+            // nft_metadata: nft_metadata(1),
             supply_left: 3,
             proposals: LookupMap::new(
                 FixedPriceOfferingStorageKey::Proposals {
@@ -1045,21 +1045,20 @@ mod seller_tests {
             .insert(&proposer2_id, &proposals_by_proposer2);
     }
 
-    fn nft_metadata(index: i32) -> TokenMetadata {
-        TokenMetadata {
-            title: Some(format!("nft{}", index)),
-            description: None,
-            media: None,
-            media_hash: None,
-            copies: Some(1),
-            issued_at: None,
-            expires_at: None,
-            starts_at: None,
-            updated_at: None,
-            extra: None,
-            reference: None,
-            reference_hash: None,
-        }
-    }
-
+    // fn nft_metadata(index: i32) -> TokenMetadata {
+    //     TokenMetadata {
+    //         title: Some(format!("nft{}", index)),
+    //         description: None,
+    //         media: None,
+    //         media_hash: None,
+    //         copies: Some(1),
+    //         issued_at: None,
+    //         expires_at: None,
+    //         starts_at: None,
+    //         updated_at: None,
+    //         extra: None,
+    //         reference: None,
+    //         reference_hash: None,
+    //     }
+    // }
 }
