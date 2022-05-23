@@ -47,12 +47,24 @@ impl MarketplaceContract {
         let buyer_id = env::predecessor_account_id();
 
         let mint_token_id = fpo.supply_total - fpo.supply_left;
-        self.fpo_process_purchase(
-            fpo.nft_contract_id.clone(),
-            mint_token_id.to_string(),
-            buyer_id,
-            fpo.buy_now_price_yocto
-        );
+        // self.fpo_process_purchase(
+        //     fpo.nft_contract_id.clone(),
+        //     mint_token_id.to_string(),
+        //     buyer_id,
+        //     fpo.buy_now_price_yocto
+        // );
+
+        // nft_contract::nft_mint(
+        //     nft_token_id,
+        //     buyer_id,
+        //     None, // TODO: setup perpetual royalties
+        //     nft_contract_id.clone(),
+        //     1,
+        //     GAS_FOR_NFT_MINT,
+        // );
+        // .then {
+
+        // };
 
         // TODO: move to resolve
         fpo.supply_left -= 1;
