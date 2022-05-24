@@ -5,6 +5,7 @@ const GAS_FOR_NFT_APPROVE: Gas = Gas(10_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
 
 pub trait NonFungibleTokenCore {
+    
     //approve an account ID to transfer a token on your behalf
     fn nft_approve(&mut self, token_id: TokenId, account_id: AccountId, msg: Option<String>);
 

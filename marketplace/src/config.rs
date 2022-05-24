@@ -10,4 +10,3 @@ pub const NO_DEPOSIT: Balance = 0;
 // const GAS_FOR_ROYALTIES: Gas = Gas(115_000_000_000_000);
 // const GAS_FOR_NFT_TRANSFER: Gas = Gas(15_000_000_000_000);
 pub const GAS_FOR_NFT_MINT: Gas = Gas(15_000_000_000_000);
-

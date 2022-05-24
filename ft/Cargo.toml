@@ -1,5 +1,5 @@
 [package]
-name = "eneftigo_fungible_token"
+name = "ft"
 version = "0.1.0"
 authors = ["Eneftigo <pietrzykowskihubert@gmail.com>"]
 edition = "2021"
