@@ -1,13 +1,17 @@
+use crate::config::*;
 use crate::fpo::config::*;
-use crate::FixedPriceOfferingStatus::*;
+use crate::fpo::resolve::*;
 use crate::internal::*;
+use crate::FixedPriceOfferingStatus::*;
 use crate::*;
 
 use chrono::DateTime;
 
 use near_sdk::collections::{LookupMap, Vector};
-use near_sdk::json_types::{U128};
-use near_sdk::AccountId;
+use near_sdk::json_types::U128;
+use near_sdk::{log, AccountId};
+
+const NFT_CONTRACT_CODE: &[u8] = include_bytes!("../../../out/nft.wasm");
 
 #[cfg(test)]
 #[path = "seller_tests.rs"]
@@ -15,18 +19,15 @@ mod seller_tests;
 
 #[near_bindgen]
 impl MarketplaceContract {
-
     #[payable]
     pub fn fpo_add_buy_now_only(
         &mut self,
-        nft_contract_id: AccountId,
-        offeror_id: AccountId,
         supply_total: u64,
         buy_now_price_yocto: U128,
         // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
-    ) {
+    ) -> Promise {
         // ensure max supply does not exceed limit
         assert!(
             supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
@@ -34,11 +35,11 @@ impl MarketplaceContract {
             TOTAL_SUPPLY_MAX
         );
 
-        // make sure it's not yet listed
-        assert!(
-            self.fpos_by_contract_id.get(&nft_contract_id).is_none(),
-            "Already listed"
-        );
+        // // make sure it's not yet listed
+        // assert!(
+        //     self.fpos_by_contract_id.get(&nft_account_id).is_none(),
+        //     "Already listed"
+        // );
 
         // price must be at least MIN_PRICE_YOCTO
         assert!(
@@ -94,16 +95,21 @@ impl MarketplaceContract {
         if let Some(start_timestamp) = start_timestamp {
             if let Some(end_timestamp) = end_timestamp {
                 let duration = end_timestamp - start_timestamp;
-                assert!(
-                    duration >= MIN_DURATION_NANO,
-                    "Offering duration too short"
-                );
+                assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
             }
         }
 
-        let nft_contract_id_hash = hash_account_id(&nft_contract_id);
+        // we adhere to the pattern where we first add the FPO to the marketplace
+        // hoping the NFT contract deployment will succeed;
+        // if it fails (which should not really happen) we'll revert
+        // this approach has the advantage that we can perform reasonably meaningful
+        // unit tests
+
+        let nft_account_id = self.internal_make_nft_account_id();
+        let nft_account_id_hash = hash_account_id(&nft_account_id);
+        let offeror_id = env::signer_account_id();
         let fpo = FixedPriceOffering {
-            nft_contract_id,
+            nft_account_id: nft_account_id.clone(),
             offeror_id,
             supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
@@ -115,21 +121,21 @@ impl MarketplaceContract {
             supply_left: supply_total,
             proposals: LookupMap::new(
                 FixedPriceOfferingStorageKey::Proposals {
-                    nft_contract_id_hash: nft_contract_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             proposals_by_proposer: LookupMap::new(
                 FixedPriceOfferingStorageKey::ProposalsByProposer {
-                    nft_contract_id_hash: nft_contract_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             acceptable_proposals: Vector::new(
                 FixedPriceOfferingStorageKey::AcceptableProposals {
-                    nft_contract_id_hash: nft_contract_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -137,29 +143,41 @@ impl MarketplaceContract {
             next_proposal_id: 0,
         };
 
-        self.fpos_by_contract_id.insert(&fpo.nft_contract_id, &fpo);
+        self.internal_add_fpo(&fpo);
 
-        self.internal_add_fpo_to_offeror(&fpo.offeror_id, &fpo.nft_contract_id);
+        let nft_contract_storage_cost = (NFT_CONTRACT_CODE.len() as u128) * env::storage_byte_cost();
+
+        Promise::new(nft_account_id.clone())
+            .create_account()
+            .transfer(NFT_NAKED_ACCOUNT_REQUIRED_BALANCE + nft_contract_storage_cost)
+            // .add_full_access_key(env::signer_account_pk())   // TODO: what for?
+            .deploy_contract(NFT_CONTRACT_CODE.to_vec())
+            .then(
+                ext_self::fpo_resolve_nft_deploy(
+                    nft_account_id,
+                    env::current_account_id(), // we are invoking this function on the current contract
+                    NO_DEPOSIT,                // don't attach any deposit
+                    GAS_FOR_NFT_DEPLOY,        // GAS attached to the deployment call
+                )
+            )
 
         // calculate the extra storage used by FPO entries
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+        // let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
         // refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover what's required.
-        refund_deposit(required_storage_in_bytes);
+        // refund_deposit(required_storage_in_bytes);
     }
 
     #[payable]
     pub fn fpo_add_accepting_proposals(
         &mut self,
-        nft_contract_id: AccountId,
-        offeror_id: AccountId,
         supply_total: u64,
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: U128,
         // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
-    ) {
+    ) -> Promise {
         // ensure max supply does not exceed limit
         assert!(
             supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
@@ -168,10 +186,10 @@ impl MarketplaceContract {
         );
 
         // make sure it's not yet listed
-        assert!(
-            self.fpos_by_contract_id.get(&nft_contract_id).is_none(),
-            "Already listed"
-        );
+        // assert!(
+        //     self.fpos_by_contract_id.get(&nft_contract_id).is_none(),
+        //     "Already listed"
+        // );
 
         // price must be at least MIN_PRICE_YOCTO
         assert!(
@@ -220,14 +238,8 @@ impl MarketplaceContract {
 
         if let Some(start_timestamp) = start_timestamp {
             let duration = end_timestamp - start_timestamp;
-            assert!(
-                duration >= MIN_DURATION_NANO,
-                "Offering duration too short"
-            );
-            assert!(
-                duration <= MAX_DURATION_NANO,
-                "Offering duration too long"
-            );
+            assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
+            assert!(duration <= MAX_DURATION_NANO, "Offering duration too long");
         } else {
             let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
@@ -236,9 +248,32 @@ impl MarketplaceContract {
             );
         }
 
-        let nft_contract_id_hash = hash_account_id(&nft_contract_id);
+        // deploy NFT contract to new address
+        let nft_account_id = AccountId::new_unchecked(format!(
+            "{}.nft.{}",
+            self.nft_account_id_prefix,
+            env::current_account_id()
+        ));
+
+        // we adhere to the pattern where we first add the FPO to the marketplace
+        // contract hoping the NFT contract deployment will succeed;
+        // if it fails (which should not really happen) we'll revert
+        // this approach has the advantage that we can perform reasonably meaningful
+        // unit tests
+
+        self.nft_account_id_prefix += 1;
+
+        Promise::new(nft_account_id.clone())
+            .create_account()
+            // .add_full_access_key(env::signer_account_pk())
+            .transfer(3_000_000_000_000_000_000_000_000) // 3e24yN, 3N
+            .deploy_contract(NFT_CONTRACT_CODE.to_vec())
+        // .then()
+
+        /*        let offeror_id = env::signer_account_id();
+        let nft_account_id_hash = hash_account_id(&nft_account_id);
         let fpo = FixedPriceOffering {
-            nft_contract_id,
+            nft_account_id,
             offeror_id,
             supply_total: supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
@@ -250,21 +285,21 @@ impl MarketplaceContract {
             supply_left: supply_total,
             proposals: LookupMap::new(
                 FixedPriceOfferingStorageKey::Proposals {
-                    nft_contract_id_hash: nft_contract_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             proposals_by_proposer: LookupMap::new(
                 FixedPriceOfferingStorageKey::ProposalsByProposer {
-                    nft_contract_id_hash: nft_contract_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             acceptable_proposals: Vector::new(
                 FixedPriceOfferingStorageKey::AcceptableProposals {
-                    nft_contract_id_hash: nft_contract_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -272,24 +307,27 @@ impl MarketplaceContract {
             next_proposal_id: 0,
         };
 
-        self.fpos_by_contract_id.insert(&fpo.nft_contract_id, &fpo);
+        self.fpos_by_contract_id.insert(&fpo.nft_account_id, &fpo);
 
-        self.internal_add_fpo_to_offeror(&fpo.offeror_id, &fpo.nft_contract_id);
+        self.internal_add_fpo_to_offeror(&fpo.offeror_id, &fpo.nft_account_id);
 
         // calculate the extra storage used by FPO entries
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
         // refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover what's required.
-        refund_deposit(required_storage_in_bytes);
+        refund_deposit(required_storage_in_bytes);*/
     }
 
     pub fn fpo_accept_proposals(
         &mut self,
         nft_contract_id: AccountId,
         accepted_proposals_count: u64,
-        ) {
+    ) {
         // get the FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self
+            .fpos_by_contract_id
+            .get(&nft_contract_id)
+            .expect("Could not find NFT listing");
 
         // make sure it's the offeror who's calling this
         assert!(
@@ -307,13 +345,15 @@ impl MarketplaceContract {
 
         // accept best proposals
         let mut acceptable_proposals_vec = fpo.acceptable_proposals.to_vec();
-        let first_accepted_proposal_index = (num_acceptable_proposals - accepted_proposals_count) as usize;
+        let first_accepted_proposal_index =
+            (num_acceptable_proposals - accepted_proposals_count) as usize;
 
-        let best_proposals_iter = acceptable_proposals_vec.drain(first_accepted_proposal_index..(num_acceptable_proposals as usize));
+        let best_proposals_iter = acceptable_proposals_vec
+            .drain(first_accepted_proposal_index..(num_acceptable_proposals as usize));
         let mut minted_nft_id = fpo.supply_total - fpo.supply_left;
-        
         for proposal_being_accepted_id in best_proposals_iter {
-            let proposal_being_accepted = fpo.proposals
+            let proposal_being_accepted = fpo
+                .proposals
                 .get(&proposal_being_accepted_id)
                 .expect("Proposal being accepted is missing, inconsistent state");
             let proposer_id = proposal_being_accepted.proposer_id;
@@ -321,29 +361,34 @@ impl MarketplaceContract {
                 nft_contract_id.clone(),
                 minted_nft_id.to_string(),
                 proposer_id.clone(),
-                proposal_being_accepted.price_yocto.clone()
+                proposal_being_accepted.price_yocto.clone(),
             );
             minted_nft_id += 1;
 
             // TODO: move these to fpo_process_purchase resolve
-            let _removed_proposal = fpo.proposals.remove(&proposal_being_accepted_id).expect("Could not find proposal");
+            let _removed_proposal = fpo
+                .proposals
+                .remove(&proposal_being_accepted_id)
+                .expect("Could not find proposal");
 
-            let mut proposals_by_this_proposer = fpo.proposals_by_proposer.get(&proposer_id)
-            .expect("Could not get proposals for proposer whose proposal is being accepted");
+            let mut proposals_by_this_proposer = fpo
+                .proposals_by_proposer
+                .get(&proposer_id)
+                .expect("Could not get proposals for proposer whose proposal is being accepted");
             let removed = proposals_by_this_proposer.remove(&proposal_being_accepted_id);
             assert!(removed, "Could not find id for proposer's proposals");
             if proposals_by_this_proposer.is_empty() {
                 fpo.proposals_by_proposer.remove(&proposer_id).expect("Could not remove empty array for proposer whose proposals have all been accepted");
             } else {
-                fpo.proposals_by_proposer.insert(&proposer_id, &proposals_by_this_proposer);
+                fpo.proposals_by_proposer
+                    .insert(&proposer_id, &proposals_by_this_proposer);
             }
         }
 
         fpo.acceptable_proposals.clear();
         fpo.acceptable_proposals.extend(acceptable_proposals_vec);
 
-        fpo.supply_left -= accepted_proposals_count;        // TODO: move to resolve, one by one
-        
+        fpo.supply_left -= accepted_proposals_count; // TODO: move to resolve, one by one
         self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
     }
 
@@ -351,9 +396,12 @@ impl MarketplaceContract {
     // this is because there may be multiple acceptable proposals pending which have active deposits
     // they need to be returned
     // must be called by the offeror!
-    pub(crate) fn fpo_conclude(&mut self, nft_contract_id: AccountId) {
+    pub(crate) fn fpo_conclude(&mut self, nft_account_id: AccountId) {
         // get the FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self
+            .fpos_by_contract_id
+            .get(&nft_account_id)
+            .expect("Could not find NFT listing");
 
         fpo.update_status();
 
@@ -370,29 +418,16 @@ impl MarketplaceContract {
         );
 
         // remove FPO
-        let removed_fpo = self
-            .fpos_by_contract_id
-            .remove(&nft_contract_id)
-            .expect("Could not find this NFT listing");
+        let removed_fpo = self.internal_remove_fpo(&nft_account_id);
 
         // refund all acceptable but not accepted proposals
-        for unaccepted_proposal in removed_fpo.acceptable_proposals.iter()
-        .map(|proposal_id| removed_fpo.proposals.get(&proposal_id).expect("Could not find proposal")) {
+        for unaccepted_proposal in removed_fpo.acceptable_proposals.iter().map(|proposal_id| {
+            removed_fpo
+                .proposals
+                .get(&proposal_id)
+                .expect("Could not find proposal")
+        }) {
             unaccepted_proposal.refund_deposit();
-        }
-
-        let offeror_id = removed_fpo.offeror_id;
-
-        let fpos_by_this_offeror = &mut self
-            .fpos_by_offeror_id
-            .get(&offeror_id)
-            .expect("Could not find offers for this offeror");
-        let did_remove = fpos_by_this_offeror.remove(&nft_contract_id);
-        assert!(did_remove, "Offer not on offeror's list");
-        if fpos_by_this_offeror.is_empty() {
-            self.fpos_by_offeror_id
-                .remove(&offeror_id)
-                .expect("Could not remove the now-empty offer list");
         }
     }
 }

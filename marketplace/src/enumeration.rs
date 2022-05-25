@@ -6,7 +6,7 @@ use near_sdk::json_types::{U128, U64};
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonFixedPriceOffering {
-    pub nft_contract_id: AccountId,
+    pub nft_account_id: AccountId,
     pub offeror_id: AccountId,
     pub supply_total: U64,
     pub buy_now_price_yocto: U128,
@@ -45,7 +45,7 @@ impl MarketplaceContract {
             .skip(start)   //skip to the index we specified in the start variable
             .take(count)     // return "limit" elements or 0 if missing
             .map(|fpo| JsonFixedPriceOffering {
-                nft_contract_id: fpo.nft_contract_id,
+                nft_account_id: fpo.nft_account_id,
                 offeror_id: fpo.offeror_id,
                 supply_total: U64(fpo.supply_total),
                 buy_now_price_yocto: U128(fpo.buy_now_price_yocto),
@@ -59,12 +59,12 @@ impl MarketplaceContract {
     // get FixedPriceOffering by nft_contract_id
     pub fn fpo(
         &self, 
-        nft_contract_id: AccountId,
+        nft_account_id: AccountId,
     ) -> JsonFixedPriceOffering {
-        let fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find Fixed Price Offering");
+        let fpo = self.fpos_by_contract_id.get(&nft_account_id).expect("Could not find Fixed Price Offering");
 
         JsonFixedPriceOffering {
-            nft_contract_id: fpo.nft_contract_id,
+            nft_account_id: fpo.nft_account_id,
             offeror_id: fpo.offeror_id,
             supply_total: U64(fpo.supply_total),
             buy_now_price_yocto: U128(fpo.buy_now_price_yocto),
@@ -78,22 +78,22 @@ impl MarketplaceContract {
     // there's no way to enumerate all proposals for given FPO
     pub fn fpo_proposal(
         &self,
-        nft_contract_id: AccountId,
+        nft_account_id: AccountId,
         proposal_id: ProposalId,
     ) -> Option<JsonFixedPriceOfferingProposal> {
-        let fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find Fixed Price Offering");
+        let fpo = self.fpos_by_contract_id.get(&nft_account_id).expect("Could not find Fixed Price Offering");
         return fpo.proposal(&proposal_id);
     }
 
     // get proposals by nft_contract_id and proposer_id, results are paginated
     pub fn fpo_proposals_by_proposer(
         &self,
-        nft_contract_id: AccountId,
+        nft_account_id: AccountId,
         proposer_id: AccountId,
         from_index: Option<U128>, 
         limit: Option<u64>,
     ) -> Vec<JsonFixedPriceOfferingProposal> {
-        let fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find Fixed Price Offering");
+        let fpo = self.fpos_by_contract_id.get(&nft_account_id).expect("Could not find Fixed Price Offering");
         let proposals_by_proposer_set = fpo.proposals_by_proposer.get(&proposer_id);
         if let Some(proposals_by_proposer_set) = proposals_by_proposer_set {
             let keys = proposals_by_proposer_set.as_vector();
@@ -112,11 +112,11 @@ impl MarketplaceContract {
     // get acceptable proposals by nft_contract_id, results are paginated
     pub fn fpo_acceptable_proposals(
         &self,
-        nft_contract_id: AccountId,
+        nft_account_id: AccountId,
         from_index: Option<U128>, 
         limit: Option<u64>,
     ) -> Vec<JsonFixedPriceOfferingProposal> {
-        let fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find Fixed Price Offering");
+        let fpo = self.fpos_by_contract_id.get(&nft_account_id).expect("Could not find Fixed Price Offering");
 
         // where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
         let start = u128::from(from_index.unwrap_or(U128(0))) as usize;

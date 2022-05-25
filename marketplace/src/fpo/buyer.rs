@@ -83,11 +83,11 @@ impl MarketplaceContract {
     #[payable]
     pub fn fpo_place_proposal(
         &mut self,
-        nft_contract_id: AccountId,
+        nft_account_id: AccountId,
         price_yocto: u128,
     ) {
         // get FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_contract_id.get(&nft_account_id).expect("Could not find NFT listing");
 
         fpo.update_status();
 
@@ -153,11 +153,11 @@ impl MarketplaceContract {
         fpo.proposals.insert(&new_proposal.id, &new_proposal);
 
         let mut proposals_by_proposer_set = fpo.proposals_by_proposer.get(&new_proposal.proposer_id).unwrap_or_else(|| {
-            let nft_contract_id_hash = hash_account_id(&nft_contract_id);
+            let nft_account_id_hash = hash_account_id(&nft_account_id);
             let proposer_id_hash = hash_account_id(&new_proposal.proposer_id);
                 UnorderedSet::new(
                     FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                        nft_contract_id_hash: nft_contract_id_hash,
+                        nft_account_id_hash: nft_account_id_hash,
                         proposer_id_hash: proposer_id_hash,
                     }.try_to_vec().unwrap()
                 )
@@ -177,7 +177,7 @@ impl MarketplaceContract {
 
         fpo.sort_acceptable_proposals();
 
-        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+        self.fpos_by_contract_id.insert(&nft_account_id, &fpo);
 
         // return surplus deposit
         let surplus_deposit = attached_balance_yocto - price_yocto;

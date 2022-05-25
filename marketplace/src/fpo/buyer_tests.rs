@@ -927,7 +927,7 @@ mod seller_tests {
     fn test_add_fpo(marketplace: &mut MarketplaceContract, fpo: &FixedPriceOffering) {
         marketplace
             .fpos_by_contract_id
-            .insert(&fpo.nft_contract_id, fpo);
+            .insert(&fpo.nft_account_id, fpo);
         let mut fpos_by_this_offeror = UnorderedSet::new(
             MarketplaceStorageKey::FposByOfferorIdInner {
                 account_id_hash: hash_account_id(&fpo.offeror_id),
@@ -935,7 +935,7 @@ mod seller_tests {
             .try_to_vec()
             .unwrap(),
         );
-        fpos_by_this_offeror.insert(&fpo.nft_contract_id.clone());
+        fpos_by_this_offeror.insert(&fpo.nft_account_id.clone());
         marketplace
             .fpos_by_offeror_id
             .insert(&fpo.offeror_id, &fpos_by_this_offeror);
@@ -952,7 +952,7 @@ mod seller_tests {
             .unwrap()
             .timestamp_nanos();
         let fpo = FixedPriceOffering {
-            nft_contract_id: nft_account_id.clone(),
+            nft_account_id: nft_account_id.clone(),
             offeror_id: offeror_account_id.clone(),
             supply_total: 3,
             buy_now_price_yocto: 1000,
@@ -964,21 +964,21 @@ mod seller_tests {
             supply_left: 3,
             proposals: LookupMap::new(
                 FixedPriceOfferingStorageKey::Proposals {
-                    nft_contract_id_hash: nft_account_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             proposals_by_proposer: LookupMap::new(
                 FixedPriceOfferingStorageKey::ProposalsByProposer {
-                    nft_contract_id_hash: nft_account_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             acceptable_proposals: Vector::new(
                 FixedPriceOfferingStorageKey::AcceptableProposals {
-                    nft_contract_id_hash: nft_account_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -1017,10 +1017,10 @@ mod seller_tests {
         fpo.acceptable_proposals.extend(vec![1, 3, 2]);
 
         let proposer1_id_hash = hash_account_id(&proposer1_id);
-        let nft_account_id_hash = hash_account_id(&fpo.nft_contract_id);
+        let nft_account_id_hash = hash_account_id(&fpo.nft_account_id);
         let mut proposals_by_proposer1: UnorderedSet<ProposalId> = UnorderedSet::new(
             FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                nft_contract_id_hash: nft_account_id_hash,
+                nft_account_id_hash: nft_account_id_hash,
                 proposer_id_hash: proposer1_id_hash,
             }
             .try_to_vec()
@@ -1031,7 +1031,7 @@ mod seller_tests {
         let proposer2_id_hash = hash_account_id(&proposer2_id);
         let mut proposals_by_proposer2: UnorderedSet<ProposalId> = UnorderedSet::new(
             FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                nft_contract_id_hash: nft_account_id_hash,
+                nft_account_id_hash: nft_account_id_hash,
                 proposer_id_hash: proposer2_id_hash,
             }
             .try_to_vec()

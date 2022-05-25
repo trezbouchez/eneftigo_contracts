@@ -17,3 +17,7 @@ workspaces = "0.1.1"
 [[example]]
 name = "status_message"
 path = "src/status_message.rs"
+
+[[example]]
+name = "fpo_buy_now_only"
+path = "src/fpo_buy_now_only.rs"

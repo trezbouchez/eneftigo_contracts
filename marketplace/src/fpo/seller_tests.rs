@@ -15,7 +15,7 @@ mod seller_tests {
     use near_sdk::{testing_env, AccountId, VMContext};
 
     const MARKETPLACE_ACCOUNT_ID: &str = "marketplace.eneftigo.testnet";
-    const NFT_ACCOUNT_ID: &str = "nft.eneftigo.testnet";
+    const NFT_ACCOUNT_ID: &str = "0.nft.eneftigo.testnet";
     const NONEXISTENT_NFT_ACCOUNT_ID: &str = "nonexistent.eneftigo.testnet";
     const OFFEROR_ACCOUNT_ID: &str = "offeror.eneftigo.testnet";
     const MALICIOUS_ACCOUNT_ID: &str = "malicious.eneftigo.testnet";
@@ -39,8 +39,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,         // total_supply
             U128(800), // buy_now_price_yocto
             U128(50),  // min_proposal_price_yocto
@@ -64,8 +62,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1115), // buy_now_price_yocto
             U128(50),   // min_proposal_price_yocto
@@ -89,8 +85,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1200), // buy_now_price_yocto
             U128(55),   // min_proposal_price_yocto
@@ -113,8 +107,6 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(1100), // min_proposal_price_yocto
@@ -138,8 +130,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -163,8 +153,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -188,8 +176,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -213,8 +199,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -238,8 +222,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             0,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -263,8 +245,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             101,        // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -289,8 +269,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -316,8 +294,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -340,8 +316,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -351,8 +325,6 @@ mod seller_tests {
         );
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             10,         // total_supply
             U128(2000), // buy_now_price_yocto
             U128(50),   // min_proposal_price_yocto
@@ -380,8 +352,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,         // total_supply
             U128(800), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -404,8 +374,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1115), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -427,8 +395,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -451,8 +417,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -475,8 +439,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -499,8 +461,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             0,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -523,8 +483,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             101,        // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -548,8 +506,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                              // nft_metadata
@@ -574,8 +530,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                // nft_metadata
@@ -597,8 +551,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -607,8 +559,6 @@ mod seller_tests {
         );
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             10,         // total_supply
             U128(2000), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -635,8 +585,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -646,8 +594,6 @@ mod seller_tests {
         );
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             10,         // total_supply
             U128(2000), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -670,8 +616,6 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             10,         // total_supply
             U128(2000), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -680,8 +624,6 @@ mod seller_tests {
         );
 
         marketplace.fpo_add_accepting_proposals(
-            AccountId::new_unchecked(NFT_ACCOUNT_ID.to_string()),
-            AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -1069,7 +1011,7 @@ mod seller_tests {
     fn test_add_fpo(marketplace: &mut MarketplaceContract, fpo: &FixedPriceOffering) {
         marketplace
             .fpos_by_contract_id
-            .insert(&fpo.nft_contract_id, fpo);
+            .insert(&fpo.nft_account_id, fpo);
         let mut fpos_by_this_offeror = UnorderedSet::new(
             MarketplaceStorageKey::FposByOfferorIdInner {
                 account_id_hash: hash_account_id(&fpo.offeror_id),
@@ -1077,7 +1019,7 @@ mod seller_tests {
             .try_to_vec()
             .unwrap(),
         );
-        fpos_by_this_offeror.insert(&fpo.nft_contract_id.clone());
+        fpos_by_this_offeror.insert(&fpo.nft_account_id.clone());
         marketplace
             .fpos_by_offeror_id
             .insert(&fpo.offeror_id, &fpos_by_this_offeror);
@@ -1094,7 +1036,7 @@ mod seller_tests {
             .unwrap()
             .timestamp_nanos();
         let fpo = FixedPriceOffering {
-            nft_contract_id: nft_account_id.clone(),
+            nft_account_id: nft_account_id.clone(),
             offeror_id: offeror_account_id.clone(),
             supply_total: supply,
             buy_now_price_yocto: 1000,
@@ -1106,21 +1048,21 @@ mod seller_tests {
             supply_left: supply,
             proposals: LookupMap::new(
                 FixedPriceOfferingStorageKey::Proposals {
-                    nft_contract_id_hash: nft_account_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             proposals_by_proposer: LookupMap::new(
                 FixedPriceOfferingStorageKey::ProposalsByProposer {
-                    nft_contract_id_hash: nft_account_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
             ),
             acceptable_proposals: Vector::new(
                 FixedPriceOfferingStorageKey::AcceptableProposals {
-                    nft_contract_id_hash: nft_account_id_hash,
+                    nft_account_id_hash: nft_account_id_hash,
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -1159,10 +1101,10 @@ mod seller_tests {
         fpo.acceptable_proposals.extend(vec![1, 3, 2]);
 
         let proposer1_id_hash = hash_account_id(&proposer1_id);
-        let nft_account_id_hash = hash_account_id(&fpo.nft_contract_id);
+        let nft_account_id_hash = hash_account_id(&fpo.nft_account_id);
         let mut proposals_by_proposer1: UnorderedSet<ProposalId> = UnorderedSet::new(
             FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                nft_contract_id_hash: nft_account_id_hash,
+                nft_account_id_hash: nft_account_id_hash,
                 proposer_id_hash: proposer1_id_hash,
             }
             .try_to_vec()
@@ -1173,7 +1115,7 @@ mod seller_tests {
         let proposer2_id_hash = hash_account_id(&proposer2_id);
         let mut proposals_by_proposer2: UnorderedSet<ProposalId> = UnorderedSet::new(
             FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                nft_contract_id_hash: nft_account_id_hash,
+                nft_account_id_hash: nft_account_id_hash,
                 proposer_id_hash: proposer2_id_hash,
             }
             .try_to_vec()

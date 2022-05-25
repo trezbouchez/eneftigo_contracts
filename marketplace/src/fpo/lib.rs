@@ -12,17 +12,17 @@ pub type ProposalId = u128;
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum FixedPriceOfferingStorageKey {
     Proposals {
-        nft_contract_id_hash: CryptoHash,
+        nft_account_id_hash: CryptoHash,
     },
     ProposalsByProposer {
-        nft_contract_id_hash: CryptoHash,
+        nft_account_id_hash: CryptoHash,
     },
     ProposalsByProposerInner {
-        nft_contract_id_hash: CryptoHash,
+        nft_account_id_hash: CryptoHash,
         proposer_id_hash: CryptoHash,
     },
     AcceptableProposals {
-        nft_contract_id_hash: CryptoHash,
+        nft_account_id_hash: CryptoHash,
     },
 }
 
@@ -91,7 +91,7 @@ impl FixedPriceOfferingStatus {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct FixedPriceOffering {
-    pub nft_contract_id: AccountId,
+    pub nft_account_id: AccountId,
     pub offeror_id: AccountId,
     pub supply_total: u64,
     pub buy_now_price_yocto: u128,
@@ -111,8 +111,8 @@ impl fmt::Display for FixedPriceOffering {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "(nft_contract_id: {}\n offeror_id{}\n)",
-            self.nft_contract_id, self.offeror_id
+            "(nft_account_id: {}\n offeror_id{}\n)",
+            self.nft_account_id, self.offeror_id
         )
     }
 }

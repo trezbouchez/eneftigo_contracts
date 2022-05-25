@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::{CryptoHash};
+use near_sdk::{CryptoHash, Balance};
 // use near_sdk::collections::Vector;
 
 // used to generate a unique prefix in our storage collections (this is to avoid data collisions)
@@ -43,11 +43,37 @@ pub(crate) fn refund_deposit(storage_used: u64) {
 
 impl MarketplaceContract {
 
-    //add FPO to the set of fpos an offeror offered
+    // doesn't check if already there!
+    pub(crate) fn internal_add_fpo(
+        &mut self,
+        fpo: &FixedPriceOffering,
+    ) {
+        self.fpos_by_contract_id.insert(&fpo.nft_account_id, &fpo);
+        self.internal_add_fpo_to_offeror(&fpo.offeror_id, &fpo.nft_account_id);
+    }
+
+    pub(crate) fn internal_remove_fpo(
+        &mut self,
+        nft_account_id: &AccountId
+    ) -> FixedPriceOffering {
+        let removed_fpo = self.fpos_by_contract_id.remove(&nft_account_id).expect("Could not remove FPO: Could not find FPO listing");
+        let offeror_id = &removed_fpo.offeror_id;
+        let fpos_by_this_offeror = &mut self.fpos_by_offeror_id.get(offeror_id).expect("Could not remove FPO: Could not find listings for offeror");
+        let did_remove = fpos_by_this_offeror.remove(&nft_account_id);
+        assert!(did_remove, "Could not remove FPO: Offering not on offeror's list");
+        if fpos_by_this_offeror.is_empty() {
+            self.fpos_by_offeror_id.remove(offeror_id).expect("Could not remove FPO: Could not remove the now-empty offeror list");
+        }
+        
+        removed_fpo
+    }
+
+    // add FPO to the set of fpos an offeror offered
+    // doesn't check if already there
     pub(crate) fn internal_add_fpo_to_offeror(
         &mut self,
         offeror_id: &AccountId,
-        nft_contract_id: &AccountId,
+        nft_account_id: &AccountId,
     ) {
         //get the set of FPOs for the given owner account
         let mut fpo_set = self.fpos_by_offeror_id.get(offeror_id).unwrap_or_else(|| {
@@ -62,9 +88,23 @@ impl MarketplaceContract {
         });
 
         // insert the nft_account_id into the set
-        fpo_set.insert(nft_contract_id);
+        fpo_set.insert(nft_account_id);
 
         // insert back
         self.fpos_by_offeror_id.insert(offeror_id, &fpo_set);
+    }
+
+    pub(crate) fn internal_make_nft_account_id(
+        &mut self,
+    ) -> AccountId {
+        let nft_account_id = AccountId::new_unchecked(format!(
+            "nft{}.{}",
+            self.nft_account_id_prefix,
+            env::current_account_id()
+        ));
+    
+        self.nft_account_id_prefix += 1;
+
+        nft_account_id
     }
 }

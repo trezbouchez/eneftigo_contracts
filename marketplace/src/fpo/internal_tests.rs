@@ -288,7 +288,7 @@ mod internal_tests {
     // }
 
     fn test_fpo(
-        nft_contract_id_str: &str,
+        nft_account_id_str: &str,
         offeror_id_str: &str,
         start_date: Option<&str>, 
         end_date: Option<&str>
@@ -308,11 +308,11 @@ mod internal_tests {
             None
         };
 
-        let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
+        let nft_account_id = AccountId::new_unchecked(nft_account_id_str.to_string());
         let offeror_id = AccountId::new_unchecked(offeror_id_str.to_string());
 
         FixedPriceOffering {
-            nft_contract_id: nft_contract_id,
+            nft_account_id: nft_account_id,
             offeror_id: offeror_id,
             supply_total: 5,
             buy_now_price_yocto: 1000,
