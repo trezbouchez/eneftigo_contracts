@@ -39,6 +39,8 @@ impl FixedPriceOffering {
                 self.status = Running;
                 return;
             }
+        } else {
+            self.status = Running;
         }
     }
 
@@ -65,7 +67,11 @@ impl FixedPriceOffering {
     pub(crate) fn prune_supply_exceeding_acceptable_proposals(&mut self) {
         // assumes acceptable_proposals are already sorted
         let mut acceptable_proposals_vec = self.acceptable_proposals.to_vec();
-        let to_be_pruned_count = acceptable_proposals_vec.len() - self.supply_left as usize;        
+        let supply_left = self.supply_left as usize;
+        if supply_left >= acceptable_proposals_vec.len() {
+            return;
+        }
+        let to_be_pruned_count = acceptable_proposals_vec.len() - supply_left;        
         let pruned_proposals_iter = acceptable_proposals_vec.drain(0..to_be_pruned_count);
         for pruned_proposal_id in pruned_proposals_iter {
             let mut pruned_proposal = self.proposals.get(&pruned_proposal_id)
@@ -112,8 +118,7 @@ impl MarketplaceContract {
         // if succeeds, Near will be transfered to the seller
         pub fn fpo_process_purchase(
         &mut self,
-        nft_contract_id: AccountId,
-        nft_token_id: String,
+        offering_id: OfferingId,
         buyer_id: AccountId,
         price_yocto: Balance
     ) -> Promise {
@@ -134,16 +139,16 @@ impl MarketplaceContract {
         //     reference_hash: None,
         // };
 
-        nft_contract::nft_mint(
-            nft_token_id,
+        nft_contract::mint(
+            offering_id.collection_id,
             buyer_id,
             None, // TODO: setup perpetual royalties
-            nft_contract_id.clone(),
+            offering_id.nft_contract_id.clone(),
             1,
             GAS_FOR_NFT_MINT,
         )
         .then(ext_self::fpo_resolve_purchase(
-            nft_contract_id,
+            offering_id,
             price_yocto,
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit

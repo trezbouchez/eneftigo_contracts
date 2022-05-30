@@ -10,14 +10,14 @@ impl MarketplaceContract {
     pub fn fpos_total_supply(
         &self,
     ) -> U128 {
-        U128(self.fpos_by_contract_id.len() as u128)
+        U128(self.fpos_by_id.len() as u128)
     }
 
     pub fn fpo_min_proposal_price_yocto(
         &self,
-        nft_contract_id: AccountId
+        offering_id: OfferingId
     ) -> Option<U128> {
-        let fpo = self.fpos_by_contract_id.get(&nft_contract_id);
+        let fpo = self.fpos_by_id.get(&offering_id);
         if let Some(fpo) = fpo {
             if fpo.status == Running {
                 if fpo.min_proposal_price_yocto.is_some() {

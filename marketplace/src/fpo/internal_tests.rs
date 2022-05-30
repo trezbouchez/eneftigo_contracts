@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod internal_tests {
+    use crate::*;
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
     use crate::FixedPriceOfferingStatus::*;
@@ -23,6 +24,7 @@ mod internal_tests {
         
         let mut fpo = test_fpo(
             "nft.eneftigo.testnet", 
+            0,
             "offeror.eneftigo.testnet", 
             Some("1975-05-26T00:00:00+00:00"), 
             Some("1975-06-24T00:00:00+00:00")
@@ -116,6 +118,7 @@ mod internal_tests {
         
         let mut fpo = test_fpo(
             "nft.eneftigo.testnet", 
+            0,
             "offeror.eneftigo.testnet", 
             Some("1975-05-26T00:00:00+00:00"), 
             Some("1975-06-24T00:00:00+00:00")
@@ -288,7 +291,8 @@ mod internal_tests {
     // }
 
     fn test_fpo(
-        nft_account_id_str: &str,
+        nft_contract_id_str: &str,
+        collection_id: CollectionId,
         offeror_id_str: &str,
         start_date: Option<&str>, 
         end_date: Option<&str>
@@ -308,11 +312,12 @@ mod internal_tests {
             None
         };
 
-        let nft_account_id = AccountId::new_unchecked(nft_account_id_str.to_string());
+        let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
+        let offering_id = OfferingId { nft_contract_id, collection_id };
         let offeror_id = AccountId::new_unchecked(offeror_id_str.to_string());
 
         FixedPriceOffering {
-            nft_account_id: nft_account_id,
+            offering_id: offering_id,
             offeror_id: offeror_id,
             supply_total: 5,
             buy_now_price_yocto: 1000,

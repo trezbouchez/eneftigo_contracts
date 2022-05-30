@@ -1,5 +1,5 @@
-use crate::*;
 use crate::config::*;
+use crate::*;
 
 // #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 // #[serde(crate = "near_sdk::serde")]
@@ -20,9 +20,13 @@ use crate::config::*;
 
 #[ext_contract(nft_contract)]
 trait NFTContract {
-    fn nft_mint(
+    fn make_collection(&mut self, collection_id: u64, max_supply: u64) -> u64;
+    fn freeze_collection(&mut self, collection_id: u64);
+    fn delete_colleciton(&mut self, collection_id: u64);
+
+    fn mint(
         &mut self,
-        token_id: TokenId,
+        collection_id: CollectionId,
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
     );

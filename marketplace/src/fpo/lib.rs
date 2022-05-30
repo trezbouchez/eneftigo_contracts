@@ -5,24 +5,24 @@ use std::fmt;
 
 use near_sdk::collections::Vector;
 
-pub type ProposalId = u128;
+pub type ProposalId = u64;
 
 // contains fixed-price offering parameters
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum FixedPriceOfferingStorageKey {
     Proposals {
-        nft_account_id_hash: CryptoHash,
+        offering_id_hash: CryptoHash,
     },
     ProposalsByProposer {
-        nft_account_id_hash: CryptoHash,
+        offering_id_hash: CryptoHash,
     },
     ProposalsByProposerInner {
-        nft_account_id_hash: CryptoHash,
+        offering_id_hash: CryptoHash,
         proposer_id_hash: CryptoHash,
     },
     AcceptableProposals {
-        nft_account_id_hash: CryptoHash,
+        offering_id_hash: CryptoHash,
     },
 }
 
@@ -91,7 +91,7 @@ impl FixedPriceOfferingStatus {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct FixedPriceOffering {
-    pub nft_account_id: AccountId,
+    pub offering_id: OfferingId,
     pub offeror_id: AccountId,
     pub supply_total: u64,
     pub buy_now_price_yocto: u128,
@@ -104,15 +104,15 @@ pub struct FixedPriceOffering {
     pub proposals: LookupMap<ProposalId, FixedPriceOfferingProposal>,
     pub proposals_by_proposer: LookupMap<AccountId, UnorderedSet<ProposalId>>,
     pub acceptable_proposals: Vector<ProposalId>, // by ascending price then by ascending id (submission order)
-    pub next_proposal_id: u128,
+    pub next_proposal_id: u64,
 }
 
 impl fmt::Display for FixedPriceOffering {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "(nft_account_id: {}\n offeror_id{}\n)",
-            self.nft_account_id, self.offeror_id
+            "(nft_contract_id: {}\n, collection_id: {}\n, offeror_id{}\n)",
+            self.offering_id.nft_contract_id, self.offering_id.collection_id, self.offeror_id
         )
     }
 }

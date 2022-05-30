@@ -29,7 +29,7 @@ pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
 }
 
 //refund the initial deposit based on the amount of storage that was used up
-pub(crate) fn refund_deposit(storage_used: u64) {
+pub(crate) fn refund_excess_deposit(storage_used: u64) {
     //get how much it would cost to store the information
     let required_cost = env::storage_byte_cost() * Balance::from(storage_used);
     //get the attached deposit
@@ -142,15 +142,16 @@ impl Contract {
         self.internal_add_token_to_owner(receiver_id, token_id);
 
         // create a new token struct 
-        let new_token = Token {
+        let updated_token = Token {
             owner_id: receiver_id.clone(),
+            collection_id: token.collection_id,
             approved_account_ids: Default::default(),   // reset approvals, new owner doesn't want them to be there
             next_approval_id: token.next_approval_id,
             royalty: token.royalty.clone(),
         };
     
         // insert that new token into the tokens_by_id, replacing the old entry 
-        self.tokens_by_id.insert(token_id, &new_token);
+        self.tokens_by_id.insert(token_id, &updated_token);
 
         // if there was some memo attached, we log it. 
         if let Some(memo) = memo.as_ref() {

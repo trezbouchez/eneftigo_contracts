@@ -1,3 +1,4 @@
+use crate::callback::*;
 use crate::config::*;
 use crate::fpo::config::*;
 use crate::fpo::resolve::*;
@@ -9,7 +10,7 @@ use chrono::DateTime;
 
 use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::json_types::U128;
-use near_sdk::{log, AccountId};
+use near_sdk::AccountId;
 
 const NFT_CONTRACT_CODE: &[u8] = include_bytes!("../../../out/nft.wasm");
 
@@ -56,7 +57,7 @@ impl MarketplaceContract {
         );
 
         // get initial storage
-        let initial_storage_usage = env::storage_usage();
+        // let initial_storage_usage = env::storage_usage();
 
         // start timestamp
         let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
@@ -105,11 +106,16 @@ impl MarketplaceContract {
         // this approach has the advantage that we can perform reasonably meaningful
         // unit tests
 
-        let nft_account_id = self.internal_make_nft_account_id();
-        let nft_account_id_hash = hash_account_id(&nft_account_id);
+        let nft_contract_id = self.internal_nft_contract_id();
+        let collection_id = self.next_collection_id;
+        let offering_id = OfferingId {
+            nft_contract_id: nft_contract_id.clone(),
+            collection_id,
+        };
+        let offering_id_hash = hash_offering_id(&offering_id);
         let offeror_id = env::signer_account_id();
         let fpo = FixedPriceOffering {
-            nft_account_id: nft_account_id.clone(),
+            offering_id,
             offeror_id,
             supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
@@ -120,46 +126,40 @@ impl MarketplaceContract {
             status: Unstarted,
             supply_left: supply_total,
             proposals: LookupMap::new(
-                FixedPriceOfferingStorageKey::Proposals {
-                    nft_account_id_hash: nft_account_id_hash,
-                }
-                .try_to_vec()
-                .unwrap(),
+                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
+                    .try_to_vec()
+                    .unwrap(),
             ),
             proposals_by_proposer: LookupMap::new(
-                FixedPriceOfferingStorageKey::ProposalsByProposer {
-                    nft_account_id_hash: nft_account_id_hash,
-                }
-                .try_to_vec()
-                .unwrap(),
+                FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
+                    .try_to_vec()
+                    .unwrap(),
             ),
             acceptable_proposals: Vector::new(
-                FixedPriceOfferingStorageKey::AcceptableProposals {
-                    nft_account_id_hash: nft_account_id_hash,
-                }
-                .try_to_vec()
-                .unwrap(),
+                FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
+                    .try_to_vec()
+                    .unwrap(),
             ),
             next_proposal_id: 0,
         };
 
         self.internal_add_fpo(&fpo);
 
-        let nft_contract_storage_cost = (NFT_CONTRACT_CODE.len() as u128) * env::storage_byte_cost();
+        self.next_collection_id += 1;
 
-        Promise::new(nft_account_id.clone())
-            .create_account()
-            .transfer(NFT_NAKED_ACCOUNT_REQUIRED_BALANCE + nft_contract_storage_cost)
-            // .add_full_access_key(env::signer_account_pk())   // TODO: what for?
-            .deploy_contract(NFT_CONTRACT_CODE.to_vec())
-            .then(
-                ext_self::fpo_resolve_nft_deploy(
-                    nft_account_id,
-                    env::current_account_id(), // we are invoking this function on the current contract
-                    NO_DEPOSIT,                // don't attach any deposit
-                    GAS_FOR_NFT_DEPLOY,        // GAS attached to the deployment call
-                )
-            )
+        nft_contract::make_collection(
+            collection_id,
+            supply_total,
+            nft_contract_id.clone(),
+            0,
+            GAS_FOR_NFT_MINT,
+        )
+        .then(ext_self_nft::make_collection_completion(
+            nft_contract_id,
+            env::current_account_id(), // we are invoking this function on the current contract
+            NO_DEPOSIT,                // don't attach any deposit
+            GAS_FOR_NFT_MINT,          // GAS attached to the mint call
+        ))
 
         // calculate the extra storage used by FPO entries
         // let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
@@ -213,7 +213,7 @@ impl MarketplaceContract {
         );
 
         // get initial storage
-        let initial_storage_usage = env::storage_usage();
+        // let initial_storage_usage = env::storage_usage();
 
         // start timestamp
         let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
@@ -249,31 +249,16 @@ impl MarketplaceContract {
         }
 
         // deploy NFT contract to new address
-        let nft_account_id = AccountId::new_unchecked(format!(
-            "{}.nft.{}",
-            self.nft_account_id_prefix,
-            env::current_account_id()
-        ));
-
-        // we adhere to the pattern where we first add the FPO to the marketplace
-        // contract hoping the NFT contract deployment will succeed;
-        // if it fails (which should not really happen) we'll revert
-        // this approach has the advantage that we can perform reasonably meaningful
-        // unit tests
-
-        self.nft_account_id_prefix += 1;
-
-        Promise::new(nft_account_id.clone())
-            .create_account()
-            // .add_full_access_key(env::signer_account_pk())
-            .transfer(3_000_000_000_000_000_000_000_000) // 3e24yN, 3N
-            .deploy_contract(NFT_CONTRACT_CODE.to_vec())
-        // .then()
-
-        /*        let offeror_id = env::signer_account_id();
-        let nft_account_id_hash = hash_account_id(&nft_account_id);
+        let nft_contract_id = self.internal_nft_contract_id();
+        let collection_id = self.next_collection_id;
+        let offering_id = OfferingId {
+            nft_contract_id: nft_contract_id.clone(),
+            collection_id,
+        };
+        let offering_id_hash = hash_offering_id(&offering_id);
+        let offeror_id = env::signer_account_id();
         let fpo = FixedPriceOffering {
-            nft_account_id,
+            offering_id,
             offeror_id,
             supply_total: supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
@@ -284,30 +269,42 @@ impl MarketplaceContract {
             status: Unstarted,
             supply_left: supply_total,
             proposals: LookupMap::new(
-                FixedPriceOfferingStorageKey::Proposals {
-                    nft_account_id_hash: nft_account_id_hash,
-                }
-                .try_to_vec()
-                .unwrap(),
+                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
+                    .try_to_vec()
+                    .unwrap(),
             ),
             proposals_by_proposer: LookupMap::new(
-                FixedPriceOfferingStorageKey::ProposalsByProposer {
-                    nft_account_id_hash: nft_account_id_hash,
-                }
-                .try_to_vec()
-                .unwrap(),
+                FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
+                    .try_to_vec()
+                    .unwrap(),
             ),
             acceptable_proposals: Vector::new(
-                FixedPriceOfferingStorageKey::AcceptableProposals {
-                    nft_account_id_hash: nft_account_id_hash,
-                }
-                .try_to_vec()
-                .unwrap(),
+                FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
+                    .try_to_vec()
+                    .unwrap(),
             ),
             next_proposal_id: 0,
         };
 
-        self.fpos_by_contract_id.insert(&fpo.nft_account_id, &fpo);
+        self.internal_add_fpo(&fpo);
+
+        self.next_collection_id += 1;
+
+        nft_contract::make_collection(
+            supply_total,
+            collection_id,
+            nft_contract_id.clone(),
+            0,
+            GAS_FOR_NFT_MINT,
+        )
+        .then(ext_self_nft::make_collection_completion(
+            nft_contract_id,
+            env::current_account_id(), // we are invoking this function on the current contract
+            NO_DEPOSIT,                // don't attach any deposit
+            GAS_FOR_NFT_MINT,          // GAS attached to the mint call
+        ))
+
+        /*        self.fpos_by_contract_id.insert(&fpo.nft_account_id, &fpo);
 
         self.internal_add_fpo_to_offeror(&fpo.offeror_id, &fpo.nft_account_id);
 
@@ -321,12 +318,18 @@ impl MarketplaceContract {
     pub fn fpo_accept_proposals(
         &mut self,
         nft_contract_id: AccountId,
+        collection_id: CollectionId,
         accepted_proposals_count: u64,
     ) {
+        let offering_id = OfferingId {
+            nft_contract_id,
+            collection_id,
+        };
+
         // get the FPO
         let mut fpo = self
-            .fpos_by_contract_id
-            .get(&nft_contract_id)
+            .fpos_by_id
+            .get(&offering_id)
             .expect("Could not find NFT listing");
 
         // make sure it's the offeror who's calling this
@@ -358,8 +361,7 @@ impl MarketplaceContract {
                 .expect("Proposal being accepted is missing, inconsistent state");
             let proposer_id = proposal_being_accepted.proposer_id;
             self.fpo_process_purchase(
-                nft_contract_id.clone(),
-                minted_nft_id.to_string(),
+                offering_id.clone(),
                 proposer_id.clone(),
                 proposal_being_accepted.price_yocto.clone(),
             );
@@ -389,18 +391,23 @@ impl MarketplaceContract {
         fpo.acceptable_proposals.extend(acceptable_proposals_vec);
 
         fpo.supply_left -= accepted_proposals_count; // TODO: move to resolve, one by one
-        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+        self.fpos_by_id.insert(&offering_id, &fpo);
     }
 
     // here the caller will need to cover the refund transfers gas if there's supply left
     // this is because there may be multiple acceptable proposals pending which have active deposits
     // they need to be returned
     // must be called by the offeror!
-    pub(crate) fn fpo_conclude(&mut self, nft_account_id: AccountId) {
+    pub(crate) fn fpo_conclude(&mut self, nft_contract_id: AccountId, collection_id: CollectionId) {
+        let offering_id = OfferingId {
+            nft_contract_id,
+            collection_id,
+        };
+
         // get the FPO
         let mut fpo = self
-            .fpos_by_contract_id
-            .get(&nft_account_id)
+            .fpos_by_id
+            .get(&offering_id)
             .expect("Could not find NFT listing");
 
         fpo.update_status();
@@ -418,7 +425,7 @@ impl MarketplaceContract {
         );
 
         // remove FPO
-        let removed_fpo = self.internal_remove_fpo(&nft_account_id);
+        let removed_fpo = self.internal_remove_fpo(&offering_id);
 
         // refund all acceptable but not accepted proposals
         for unaccepted_proposal in removed_fpo.acceptable_proposals.iter().map(|proposal_id| {

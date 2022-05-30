@@ -1,5 +1,7 @@
 use crate::*;
 pub type TokenId = String;
+pub type CollectionId = u64;
+
 //defines the payout type we'll be returning as a part of the royalty standards.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -40,6 +42,8 @@ pub struct TokenMetadata {
 pub struct Token {
     // owner of the token
     pub owner_id: AccountId,
+    // collection id
+    pub collection_id: CollectionId,
     // list of approved accounts and their approval IDs
     pub approved_account_ids: HashMap<AccountId, u64>,
     // the next approval ID to give out. 
@@ -56,6 +60,8 @@ pub struct JsonToken {
     pub token_id: TokenId,
     //owner of the token
     pub owner_id: AccountId,
+    //collection_id
+    pub collection_id: CollectionId,
     //token metadata
     pub metadata: TokenMetadata,
     //list of approved accounts and their approval IDs

@@ -195,6 +195,7 @@ impl NonFungibleTokenCore for Contract {
             Some(JsonToken {
                 token_id,
                 owner_id: token.owner_id,
+                collection_id: token.collection_id,
                 metadata,
                 approved_account_ids: token.approved_account_ids,
                 royalty: token.royalty,

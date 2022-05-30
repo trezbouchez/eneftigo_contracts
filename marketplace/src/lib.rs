@@ -2,7 +2,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    /*assert_one_yocto, */env, ext_contract, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
+    env, ext_contract, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
     Promise, CryptoHash, BorshStorageKey,
 };
 use std::collections::HashMap;
@@ -17,22 +17,34 @@ mod internal;
 mod enumeration;
 mod external;
 mod config;
+mod callback;
+
+pub type CollectionId = u64;
+
+#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(Serialize,Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+#[derive(Clone)]
+pub struct OfferingId {
+    pub nft_contract_id: AccountId,
+    pub collection_id: CollectionId,
+}
 
 //main contract struct to store all the information
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct MarketplaceContract {
     pub owner_id: AccountId,
-    pub fpos_by_contract_id: UnorderedMap<AccountId, FixedPriceOffering>,
-    pub fpos_by_offeror_id: LookupMap<AccountId, UnorderedSet<AccountId>>,
-    pub nft_account_id_prefix: u64,         // the next deployed NFT contract will use this prefix
+    pub fpos_by_id: UnorderedMap<OfferingId, FixedPriceOffering>,
+    pub fpos_by_offeror_id: LookupMap<AccountId, UnorderedSet<OfferingId>>,
+    pub next_collection_id: u64,         // the next NFT collection created will use this prefix
     // pub storage_deposits: LookupMap<AccountId, Balance>,
 }
 
 /// Helper structure to for keys of the persistent collections.
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum MarketplaceStorageKey {
-    FposByContractId,
+    FposById,
     FposByOfferorId,
     FposByOfferorIdInner { account_id_hash: CryptoHash },
     // StorageDeposits,
@@ -50,9 +62,9 @@ impl MarketplaceContract {
         let this = Self {
             //set the owner_id field equal to the passed in owner_id. 
             owner_id,
-            fpos_by_contract_id: UnorderedMap::new(MarketplaceStorageKey::FposByContractId),
+            fpos_by_id: UnorderedMap::new(MarketplaceStorageKey::FposById),
             fpos_by_offeror_id: LookupMap::new(MarketplaceStorageKey::FposByOfferorId),
-            nft_account_id_prefix: 0,
+            next_collection_id: 0,
         };
 
         //return the Contract object

@@ -1,13 +1,14 @@
 
+use crate::config::*;
 use crate::fpo::config::*;
 use crate::FixedPriceOfferingStatus::*;
 use crate::internal::*;
 use crate::*;
+use near_sdk::json_types::{U128};
 
 #[cfg(test)]
 #[path = "buyer_tests.rs"]
 mod buyer_tests;
-
 
 #[near_bindgen]
 impl MarketplaceContract {
@@ -17,9 +18,12 @@ impl MarketplaceContract {
     pub fn fpo_buy(
         &mut self,
         nft_contract_id: AccountId,
+        collection_id: CollectionId,
     ) {
+        let offering_id = OfferingId{ nft_contract_id, collection_id };
+
         // get FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_id.get(&offering_id).expect("Could not find NFT listing");
 
         fpo.update_status();
 
@@ -28,6 +32,9 @@ impl MarketplaceContract {
             "This offering is {}",
             fpo.status.as_str()
         );
+
+        let buyer_id = env::predecessor_account_id();
+        assert!(buyer_id != fpo.offeror_id, "Cannot buy from yourself");
 
         // ensure there's supply left
         assert!(
@@ -43,10 +50,6 @@ impl MarketplaceContract {
             fpo.buy_now_price_yocto
         );
 
-        // process the purchase
-        let buyer_id = env::predecessor_account_id();
-
-        let mint_token_id = fpo.supply_total - fpo.supply_left;
         // self.fpo_process_purchase(
         //     fpo.nft_contract_id.clone(),
         //     mint_token_id.to_string(),
@@ -54,15 +57,14 @@ impl MarketplaceContract {
         //     fpo.buy_now_price_yocto
         // );
 
-        // nft_contract::nft_mint(
-        //     nft_token_id,
-        //     buyer_id,
-        //     None, // TODO: setup perpetual royalties
-        //     nft_contract_id.clone(),
-        //     1,
-        //     GAS_FOR_NFT_MINT,
-        // );
-        // .then {
+        nft_contract::mint(
+            offering_id.collection_id,
+            buyer_id,
+            None,
+            offering_id.nft_contract_id.clone(),
+            1,
+            GAS_FOR_NFT_MINT,
+        );
 
         // };
 
@@ -70,7 +72,7 @@ impl MarketplaceContract {
         fpo.supply_left -= 1;
         fpo.prune_supply_exceeding_acceptable_proposals();
 
-        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+        self.fpos_by_id.insert(&offering_id, &fpo);
 
         // return surplus deposit
         let surplus_deposit = attached_balance_yocto - fpo.buy_now_price_yocto;
@@ -83,11 +85,14 @@ impl MarketplaceContract {
     #[payable]
     pub fn fpo_place_proposal(
         &mut self,
-        nft_account_id: AccountId,
-        price_yocto: u128,
-    ) {
+        nft_contract_id: AccountId,
+        collection_id: CollectionId,
+        price_yocto: U128,
+    ) -> ProposalId {
+        let offering_id = OfferingId{ nft_contract_id, collection_id };
+
         // get FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_account_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_id.get(&offering_id).expect("Could not find NFT listing");
 
         fpo.update_status();
 
@@ -96,6 +101,9 @@ impl MarketplaceContract {
             "This offering is {}",
             fpo.status.as_str()
         );
+
+        let proposer_id = env::predecessor_account_id();
+        assert!(proposer_id != fpo.offeror_id, "Cannot submit a proposal to your own offering");
 
         // ensure proposals are accepted
         assert!(
@@ -108,6 +116,8 @@ impl MarketplaceContract {
             fpo.supply_left > 0,
             "You are late. All NFTs have been sold."
         );
+
+        let price_yocto = price_yocto.0;
 
         // price must be lower than buy now
         assert!(
@@ -141,7 +151,6 @@ impl MarketplaceContract {
         );
 
         // register proposal
-        let proposer_id = env::predecessor_account_id();
         let new_proposal = FixedPriceOfferingProposal {
             id: fpo.next_proposal_id,
             proposer_id: proposer_id,
@@ -153,13 +162,10 @@ impl MarketplaceContract {
         fpo.proposals.insert(&new_proposal.id, &new_proposal);
 
         let mut proposals_by_proposer_set = fpo.proposals_by_proposer.get(&new_proposal.proposer_id).unwrap_or_else(|| {
-            let nft_account_id_hash = hash_account_id(&nft_account_id);
+            let offering_id_hash = hash_offering_id(&offering_id);
             let proposer_id_hash = hash_account_id(&new_proposal.proposer_id);
                 UnorderedSet::new(
-                    FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                        nft_account_id_hash: nft_account_id_hash,
-                        proposer_id_hash: proposer_id_hash,
-                    }.try_to_vec().unwrap()
+                    FixedPriceOfferingStorageKey::ProposalsByProposerInner { offering_id_hash, proposer_id_hash }.try_to_vec().unwrap()
                 )
         });
         proposals_by_proposer_set.insert(&new_proposal.id);
@@ -177,7 +183,7 @@ impl MarketplaceContract {
 
         fpo.sort_acceptable_proposals();
 
-        self.fpos_by_contract_id.insert(&nft_account_id, &fpo);
+        self.fpos_by_id.insert(&offering_id, &fpo);
 
         // return surplus deposit
         let surplus_deposit = attached_balance_yocto - price_yocto;
@@ -185,6 +191,7 @@ impl MarketplaceContract {
             Promise::new(env::predecessor_account_id()).transfer(surplus_deposit);
         }
         
+        new_proposal.id
         // self.fpos_by_contract_id.insert(&fpo.nft_contract_id, &fpo);
     }    
 
@@ -192,11 +199,14 @@ impl MarketplaceContract {
     pub fn fpo_modify_proposal(
         &mut self,
         nft_contract_id: AccountId,
+        collection_id: CollectionId,
         proposal_id: ProposalId,
-        price_yocto: u128,
+        price_yocto: U128,
     ) {
+        let offering_id = OfferingId { nft_contract_id, collection_id };
+        
         // get FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_id.get(&offering_id).expect("Could not find NFT listing");
 
         fpo.update_status();
         
@@ -211,7 +221,9 @@ impl MarketplaceContract {
             fpo.min_proposal_price_yocto.is_some(),
             "Proposals are not accepted for this offering"
         );
-                
+               
+        let price_yocto = price_yocto.0;
+
         // price must be multiple of PRICE_STEP_YOCTO
         assert!(
             price_yocto % PRICE_STEP_YOCTO == 0,
@@ -261,8 +273,7 @@ impl MarketplaceContract {
 
             // process purchase (mint and transfer)
             self.fpo_process_purchase(
-                nft_contract_id.clone(),
-                (fpo.supply_total - fpo.supply_left).to_string(),
+                offering_id.clone(),
                 predecessor_account_id.clone(),
                 fpo.buy_now_price_yocto
             );
@@ -276,7 +287,7 @@ impl MarketplaceContract {
             // update supply_left
             fpo.supply_left -= 1;
 
-            self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+            self.fpos_by_id.insert(&offering_id, &fpo);
 
             return;
         }
@@ -310,7 +321,7 @@ impl MarketplaceContract {
         
         fpo.sort_acceptable_proposals();
 
-        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+        self.fpos_by_id.insert(&offering_id, &fpo);
 
         // return surplus deposit
         let surplus_deposit = attached_balance_yocto - deposit_supplement_yocto;
@@ -322,10 +333,13 @@ impl MarketplaceContract {
     pub fn fpo_revoke_proposal(
         &mut self,
         nft_contract_id: AccountId,
+        collection_id: CollectionId,
         proposal_id: ProposalId
     ) {
+        let offering_id = OfferingId { nft_contract_id, collection_id };
+
         // get FPO
-        let mut fpo = self.fpos_by_contract_id.get(&nft_contract_id).expect("Could not find NFT listing");
+        let mut fpo = self.fpos_by_id.get(&offering_id).expect("Could not find NFT listing");
 
         fpo.update_status();
         
@@ -376,7 +390,7 @@ impl MarketplaceContract {
         }
 
         // store
-        self.fpos_by_contract_id.insert(&nft_contract_id, &fpo);
+        self.fpos_by_id.insert(&offering_id, &fpo);
 
         // return deposit minus penalty
         let penalty = removed_proposal.price_yocto * PROPOSAL_REVOKE_PENALTY_RATE / 100;
