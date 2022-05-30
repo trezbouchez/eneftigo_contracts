@@ -12,7 +12,7 @@ use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::json_types::U128;
 use near_sdk::AccountId;
 
-const NFT_CONTRACT_CODE: &[u8] = include_bytes!("../../../out/nft.wasm");
+// const NFT_CONTRACT_CODE: &[u8] = include_bytes!("../../../out/nft.wasm");
 
 #[cfg(test)]
 #[path = "seller_tests.rs"]
@@ -36,6 +36,15 @@ impl MarketplaceContract {
             TOTAL_SUPPLY_MAX
         );
 
+        // make sure the attached deposit is sufficient to cover NFT collection storage
+        let nft_storage_deposit = (NFT_MAKE_COLLECTION_STORAGE as u128) * env::storage_byte_cost();
+        assert!(
+            env::attached_deposit() >= nft_storage_deposit,
+            "Must attach at least {:?} yoctoNear to cover NFT collection storage",
+            nft_storage_deposit
+        );
+
+        // TODO: we may check metadata here
         // // make sure it's not yet listed
         // assert!(
         //     self.fpos_by_contract_id.get(&nft_account_id).is_none(),
@@ -101,10 +110,9 @@ impl MarketplaceContract {
         }
 
         // we adhere to the pattern where we first add the FPO to the marketplace
-        // hoping the NFT contract deployment will succeed;
+        // hoping the NFT contract call creating new collection will succeed;
         // if it fails (which should not really happen) we'll revert
-        // this approach has the advantage that we can perform reasonably meaningful
-        // unit tests
+        // this approach has the advantage that we can perform some unit tests
 
         let nft_contract_id = self.internal_nft_contract_id();
         let collection_id = self.next_collection_id;
@@ -115,7 +123,7 @@ impl MarketplaceContract {
         let offering_id_hash = hash_offering_id(&offering_id);
         let offeror_id = env::signer_account_id();
         let fpo = FixedPriceOffering {
-            offering_id,
+            offering_id: offering_id.clone(),
             offeror_id,
             supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
@@ -148,14 +156,14 @@ impl MarketplaceContract {
         self.next_collection_id += 1;
 
         nft_contract::make_collection(
-            collection_id,
             supply_total,
+            collection_id,
             nft_contract_id.clone(),
-            0,
-            GAS_FOR_NFT_MINT,
+            nft_storage_deposit,
+            NFT_MAKE_COLLECTION_GAS,
         )
         .then(ext_self_nft::make_collection_completion(
-            nft_contract_id,
+            offering_id,
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             GAS_FOR_NFT_MINT,          // GAS attached to the mint call
@@ -183,6 +191,14 @@ impl MarketplaceContract {
             supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
             "Max NFT supply must be between 1 and {}.",
             TOTAL_SUPPLY_MAX
+        );
+
+        // make sure the attached deposit is sufficient to cover NFT collection storage
+        let nft_storage_deposit = (NFT_MAKE_COLLECTION_STORAGE as u128) * env::storage_byte_cost();
+        assert!(
+            env::attached_deposit() >= nft_storage_deposit,
+            "Must attach at least {:?} yoctoNear to cover NFT collection storage",
+            nft_storage_deposit
         );
 
         // make sure it's not yet listed
@@ -248,7 +264,7 @@ impl MarketplaceContract {
             );
         }
 
-        // deploy NFT contract to new address
+        //
         let nft_contract_id = self.internal_nft_contract_id();
         let collection_id = self.next_collection_id;
         let offering_id = OfferingId {
@@ -258,7 +274,7 @@ impl MarketplaceContract {
         let offering_id_hash = hash_offering_id(&offering_id);
         let offeror_id = env::signer_account_id();
         let fpo = FixedPriceOffering {
-            offering_id,
+            offering_id: offering_id.clone(),
             offeror_id,
             supply_total: supply_total,
             buy_now_price_yocto: buy_now_price_yocto.0,
@@ -294,11 +310,11 @@ impl MarketplaceContract {
             supply_total,
             collection_id,
             nft_contract_id.clone(),
-            0,
-            GAS_FOR_NFT_MINT,
+            nft_storage_deposit,
+            NFT_MAKE_COLLECTION_GAS,
         )
         .then(ext_self_nft::make_collection_completion(
-            nft_contract_id,
+            offering_id,
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             GAS_FOR_NFT_MINT,          // GAS attached to the mint call

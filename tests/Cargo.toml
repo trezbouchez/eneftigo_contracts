@@ -19,5 +19,9 @@ name = "status_message"
 path = "src/status_message.rs"
 
 [[example]]
+name = "nft_make_collection"
+path = "src/nft/nft_make_collection.rs"
+
+[[example]]
 name = "fpo_buy_now_only"
-path = "src/fpo_buy_now_only.rs"
+path = "src/marketplace/fpo_buy_now_only.rs"
