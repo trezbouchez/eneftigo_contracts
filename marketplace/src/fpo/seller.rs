@@ -193,6 +193,7 @@ impl MarketplaceContract {
             TOTAL_SUPPLY_MAX
         );
 
+        // TODO: add this function storage
         // make sure the attached deposit is sufficient to cover NFT collection storage
         let nft_storage_deposit = (NFT_MAKE_COLLECTION_STORAGE as u128) * env::storage_byte_cost();
         assert!(
@@ -229,7 +230,7 @@ impl MarketplaceContract {
         );
 
         // get initial storage
-        // let initial_storage_usage = env::storage_usage();
+        let initial_storage_usage = env::storage_usage();
 
         // start timestamp
         let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
@@ -306,6 +307,10 @@ impl MarketplaceContract {
 
         self.next_collection_id += 1;
 
+        let final_storage_usage = env::storage_usage();
+
+        println!("STORAGE USED: {}", final_storage_usage - initial_storage_usage);
+        
         nft_contract::make_collection(
             supply_total,
             collection_id,
