@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::{AccountId,PromiseResult};
+use near_sdk::{AccountId, PromiseResult};
 
 #[ext_contract(ext_self_nft)]
 trait NFTContractCompletionHandler {
@@ -16,27 +16,24 @@ trait NFTContractCompletionHandler {
 
 #[near_bindgen]
 impl NFTContractCompletionHandler for MarketplaceContract {
-
     fn make_collection_completion(&mut self, offering_id: OfferingId) -> String {
-        assert_eq!(
-            env::promise_results_count(),
-            1,
-            "This is a callback method"
-        );
-      
+        assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
         // handle the result from the cross contract call this method is a callback for
         match env::promise_result(0) {
-          PromiseResult::NotReady => unreachable!(),
-          PromiseResult::Failed => env::panic_str("nft contract make_collection call failed"),
-          PromiseResult::Successful(_result) => "all ok".to_string(),
-        //   {
-            //   let balance = near_sdk::serde_json::from_slice::<U128>(&result).unwrap();
-            //   if balance.0 > 100000 {
-            //       "Wow!".to_string()
-            //   } else {
-            //       "Hmmmm".to_string()
-            //   }
-        //   },
+            PromiseResult::NotReady => {
+                // self.internal_remove_fpo(&offering_id);
+                format!("UNREACHABLE: STORAGE USED: {}, ATTACHED_DEPOSIT: {}", env::storage_usage(), env::attached_deposit())
+                // unreachable!()
+            }
+            PromiseResult::Failed => {
+                // self.internal_remove_fpo(&offering_id);
+                format!("FAILED: STORAGE USED: {}, ATTACHED_DEPOSIT: {}", env::storage_usage(), env::attached_deposit())
+
+                // env::panic_str("NFT Contract make_collection failed")
+            }
+            PromiseResult::Successful(_result) => {
+                format!("SUCCESS: STORAGE USED: {}, ATTACHED_DEPOSIT: {}", env::storage_usage(), env::attached_deposit())
+            }
         }
     }
 

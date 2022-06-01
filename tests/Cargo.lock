@@ -37,9 +37,9 @@ dependencies = [
 
 [[package]]
 name = "actix_derive"
-version = "0.6.0"
+version = "0.6.0-beta.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d44b8fee1ced9671ba043476deddef739dd0959bf77030b26b738cc591737a7"
+checksum = "ae749cf2582eb83efd288edd4e9704600fdce1bc4f69aa0c86ca1368a3e4c13f"
 dependencies = [
  "proc-macro2",
  "quote",

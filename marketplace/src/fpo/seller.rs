@@ -20,6 +20,14 @@ mod seller_tests;
 
 #[near_bindgen]
 impl MarketplaceContract {
+    /*  Adds new Fixed Price Offering listing
+
+        Marketplace Contract storage is:
+        a) for first FPO for a given user: 740 + 2 * account_id.len() + 2 * non-None dates
+        b) for subsequent FPO:             611 + 1 * account_id.len() + 2 * non-None dates
+
+        NFT Contract storage (new collection) is always 79 bytes
+    */
     #[payable]
     pub fn fpo_add_buy_now_only(
         &mut self,
@@ -36,12 +44,30 @@ impl MarketplaceContract {
             TOTAL_SUPPLY_MAX
         );
 
-        // make sure the attached deposit is sufficient to cover NFT collection storage
-        let nft_storage_deposit = (NFT_MAKE_COLLECTION_STORAGE as u128) * env::storage_byte_cost();
+        let offeror_id = env::predecessor_account_id();
+        let nft_contract_id = self.internal_nft_contract_id();
+
+        // make sure the attached deposit is sufficient to cover storage
+        // here we attempt to calculate required storage cost to terminate early
+        // if attached deposit is insufficient (to save seller's gas)
+        // later, we'll calculate actual usage and refund excess, if any
+        let estimated_marketplace_storage_usage = 670
+            + 2 * offeror_id.clone().to_string().len()
+            + 5 * nft_contract_id.clone().to_string().len()
+            + if start_date.is_some() { 8 } else { 0 }
+            + if end_date.is_some() { 8 } else { 0 };
+        let estimated_marketplace_storage_cost =
+            (estimated_marketplace_storage_usage as Balance) * env::storage_byte_cost();
+        let estimated_nft_storage_cost =
+            (NFT_MAKE_COLLECTION_STORAGE as Balance) * env::storage_byte_cost();
+        let estimated_total_storage_cost =
+            estimated_marketplace_storage_cost;// + estimated_nft_storage_cost;
+        let attached_deposit = env::attached_deposit();
         assert!(
-            env::attached_deposit() >= nft_storage_deposit,
-            "Must attach at least {:?} yoctoNear to cover NFT collection storage",
-            nft_storage_deposit
+            attached_deposit >= estimated_total_storage_cost,
+            "Must attach at least {:?} yoctoNear to cover NFT collection storage. Attached deposit was {:?}",
+            estimated_total_storage_cost,
+            attached_deposit
         );
 
         // TODO: we may check metadata here
@@ -64,9 +90,6 @@ impl MarketplaceContract {
             "Price must be integer multiple of {} yoctoNear",
             PRICE_STEP_YOCTO
         );
-
-        // get initial storage
-        // let initial_storage_usage = env::storage_usage();
 
         // start timestamp
         let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
@@ -114,14 +137,12 @@ impl MarketplaceContract {
         // if it fails (which should not really happen) we'll revert
         // this approach has the advantage that we can perform some unit tests
 
-        let nft_contract_id = self.internal_nft_contract_id();
         let collection_id = self.next_collection_id;
         let offering_id = OfferingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
         let offering_id_hash = hash_offering_id(&offering_id);
-        let offeror_id = env::signer_account_id();
         let fpo = FixedPriceOffering {
             offering_id: offering_id.clone(),
             offeror_id,
@@ -151,29 +172,47 @@ impl MarketplaceContract {
             next_proposal_id: 0,
         };
 
-        self.internal_add_fpo(&fpo);
+        let initial_marketplace_storage_usage = env::storage_usage();
 
+        self.internal_add_fpo(&fpo);
         self.next_collection_id += 1;
+
+        let final_marketplace_storage_usage = env::storage_usage();
+        let actual_marketplace_storage_usage =
+            final_marketplace_storage_usage - initial_marketplace_storage_usage;
+        let actual_marketplace_storage_cost =
+            env::storage_byte_cost() * Balance::from(actual_marketplace_storage_usage);
+
+        // here our estimate can be made more precise because we know the exact storage used
+        // by FPO - let's update the total storage cost to compensate for any miscalculation
+        // this will shadow our previous estimate value, which we no longer need
+        let estimated_total_storage_cost =
+            actual_marketplace_storage_cost + estimated_nft_storage_cost;
+        assert!(
+            attached_deposit >= estimated_total_storage_cost,
+            "Must attach at least {:?} yN, ACTUAL MARKETPLACE STORAGE: {}, MARKETPLACE COST: {}, DEPOSIT: {}",
+            estimated_total_storage_cost,
+            actual_marketplace_storage_usage,
+            actual_marketplace_storage_cost,
+            attached_deposit,
+        );
+        let marketplace_refund = attached_deposit - estimated_total_storage_cost;
+
+        Promise::new(env::predecessor_account_id()).transfer(marketplace_refund as Balance);
 
         nft_contract::make_collection(
             supply_total,
             collection_id,
             nft_contract_id.clone(),
-            nft_storage_deposit,
+            estimated_nft_storage_cost,
             NFT_MAKE_COLLECTION_GAS,
         )
         .then(ext_self_nft::make_collection_completion(
             offering_id,
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
-            GAS_FOR_NFT_MINT,          // GAS attached to the mint call
+            NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
         ))
-
-        // calculate the extra storage used by FPO entries
-        // let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-
-        // refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover what's required.
-        // refund_deposit(required_storage_in_bytes);
     }
 
     #[payable]
@@ -308,9 +347,10 @@ impl MarketplaceContract {
         self.next_collection_id += 1;
 
         let final_storage_usage = env::storage_usage();
-
-        println!("STORAGE USED: {}", final_storage_usage - initial_storage_usage);
-        
+        println!(
+            "STORAGE USED: {}",
+            final_storage_usage - initial_storage_usage
+        );
         nft_contract::make_collection(
             supply_total,
             collection_id,

@@ -1,10 +1,14 @@
+use colored::Colorize;
 use near_units::parse_near;
 use serde_json::json;
 use workspaces::prelude::*;
-use colored::Colorize;
 
 const MARKETPLACE_WASM_FILEPATH: &str = "../out/marketplace.wasm";
 const NFT_WASM_FILEPATH: &str = "../out/nft.wasm";
+const BALANCE_WASM_FILEPATH: &str = "../out/balance.wasm";
+
+const STORAGE_COST_YOCTO_PER_BYTE: u128 = 10000000000000000000;
+const NFT_MAKE_COLLECTION_STORAGE_BYTES: u128 = 79;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -87,7 +91,44 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Add Fixed Price Offering
-    let seller = worker.dev_create_account().await?;
+    let seller: workspaces::Account = worker.dev_create_account().await?;
+    println!("Seller account created at {}", seller.id());
+
+    // Deploy Balance Contract to seller account
+    let balance_wasm = std::fs::read(BALANCE_WASM_FILEPATH)?;
+    let outcome = seller.deploy(&worker, balance_wasm).await?;
+    assert!(
+        outcome.details.status.clone().as_success().is_some(),
+        "Balance contract deployment failed: {:#?} {}",
+        outcome.details.status,
+        "FAILED".red()
+    );
+    let balance_contract: workspaces::Contract = outcome.result;
+    println!("Balance contract deployed to {}", seller.id().to_string());
+
+    // Check initial seller balance
+    let balance: serde_json::Value = balance_contract.view(
+            &worker,
+            "balance",
+            json!({})
+            .to_string()
+            .into_bytes(),
+        )
+        .await?
+        .json()?;
+    println!("BALANCE: {}", balance);
+
+    let estimated_marketplace_storage_usage = 670
+        + 2 * seller.id().clone().to_string().len()
+        + 5 * nft_contract.id().clone().to_string().len();
+    // + if start_date.is_some() { 8 } else { 0 }
+    // + if end_date.is_some() { 8 } else { 0 };
+    let estimated_total_storage_cost = (estimated_marketplace_storage_usage as u128
+        + NFT_MAKE_COLLECTION_STORAGE_BYTES)
+        * STORAGE_COST_YOCTO_PER_BYTE;
+
+    // Add new listing, attached deposit is spot-on, no refund needed
+    // println!("Initial seller balance is {:?} yoctoNEAR", seller.balance());
     let outcome = seller
         .call(
             &worker,
@@ -98,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
             "supply_total": 10,
             "buy_now_price_yocto": "1000",
         }))?
-        .deposit(790000000000000000000)
+        .deposit(estimated_total_storage_cost)
         .gas(50_000_000_000_000)
         .transact()
         .await?;
@@ -109,6 +150,53 @@ async fn main() -> anyhow::Result<()> {
         "FAILED".red()
     );
     println!("Buy-now-only Fixed Price Offering added successfully");
+
+    // Add new listing, attached deposit is spot-on, no refund needed
+    let outcome = seller
+        .call(
+            &worker,
+            marketplace_contract.id().clone(),
+            "fpo_add_buy_now_only",
+        )
+        .args_json(json!({
+            "supply_total": 50,
+            "buy_now_price_yocto": "2000",
+        }))?
+        .deposit(estimated_total_storage_cost)
+        .gas(50_000_000_000_000)
+        .transact()
+        .await?;
+    assert!(
+        outcome.status.clone().as_success().is_some(),
+        "Adding FPO failed: {:#?} {}",
+        outcome.status,
+        "FAILED".red()
+    );
+    println!("Another buy-now-only Fixed Price Offering added successfully");
+    // Add FPO listing
+    /*    let outcome = seller
+        .call(
+            &worker,
+            marketplace_contract.id().clone(),
+            "fpo_add_accepting_proposals",
+        )
+        .args_json(json!({
+            "supply_total": 10,
+            "buy_now_price_yocto": "1000",
+            "min_proposal_price_yocto": "500",
+            "end_date": "2025-05-30T11:20:55+08:00"
+        }))?
+        .deposit(790000000000000000000)
+        .gas(50_000_000_000_000)
+        .transact()
+        .await?;
+    assert!(
+        outcome.status.clone().as_success().is_some(),
+        "fpo_add_accepting_proposals failed: {:?} {}",
+        outcome,
+        "FAILED".red()
+    );
+    println!("Proposals-accepting Fixed Price Offering added successfully");*/
 
     // let add_proposals_fpo_outcome_json: serde_json::Value = add_proposals_fpo_success.json()?;
     // let proposals_nft_account_id_str = add_proposals_fpo_outcome_json.as_str().unwrap();

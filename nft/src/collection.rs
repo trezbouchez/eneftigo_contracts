@@ -104,7 +104,14 @@ mod tests {
         testing_env!(context);
 
         let mut contract = Contract::new_default_meta("test.near".parse().unwrap());
+        
+        let storage_before = env::storage_usage();
         contract.make_collection(9007199254740991, 9007199254740991);
+        let storage_between = env::storage_usage();
         contract.make_collection(0, 10);
+        let storage_after = env::storage_usage();
+
+        println!("{}, {}", storage_between - storage_before, storage_after - storage_between);
+
     }
 }

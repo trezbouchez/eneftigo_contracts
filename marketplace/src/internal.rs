@@ -57,6 +57,7 @@ impl MarketplaceContract {
         self.internal_add_fpo_to_offeror(&fpo.offeror_id, &fpo.offering_id);
     }
 
+    // removes all FPO-related records from Marketplace without initiating any NEAR transfers
     pub(crate) fn internal_remove_fpo(&mut self, offering_id: &OfferingId) -> FixedPriceOffering {
         let removed_fpo = self
             .fpos_by_id
