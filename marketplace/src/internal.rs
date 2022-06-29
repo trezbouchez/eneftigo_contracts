@@ -108,7 +108,7 @@ impl MarketplaceContract {
         self.fpos_by_offeror_id.insert(offeror_id, &fpo_set);
     }
 
-    pub(crate) fn internal_nft_contract_id(&mut self) -> AccountId {
+    pub(crate) fn internal_nft_shared_contract_id(&mut self) -> AccountId {
         AccountId::new_unchecked(format!("nft.{}", env::current_account_id()))
     }
 }

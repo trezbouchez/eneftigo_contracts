@@ -42,8 +42,8 @@ max_num_contract_calls := prepaid_gas / contract_call_fees
 avg_worst_case_gas_cost := (1-1.01^max_num_contract_calls)/(1-1.01)/max_num_contract_calls
 cost_in_tokens := avg_worst_case_gas_cost * prepaid_gas
 
-So the gas is purchased at higher than nominal a price. This explains the greater-than-expected NEAR amount
-being refunded.
+So the gas is purchased at higher than nominal a price. How much higher depends on the amount of gas attached.
+This explains the greater-than-expected NEAR amount being refunded.
 
 TODO: Why we can attach less gas than the amount burnt by function call execution, as in this example:
 testnet ReceiptID: 58oawu7SbU16tAfGHmDLHz6Q61Q3RkGzCsovX5X1dx2Y

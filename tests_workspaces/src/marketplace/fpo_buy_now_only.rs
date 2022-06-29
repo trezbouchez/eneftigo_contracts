@@ -124,8 +124,8 @@ async fn main() -> anyhow::Result<()> {
             "supply_total": 10,
             "buy_now_price_yocto": "1000",
         }))?
-        // .deposit(estimated_total_storage_cost)
-        .gas(3_193_528_175_642)
+        .deposit(10_000_000_000_000_000_000_000)
+        .gas(300_000_000_000_000)
         .transact()
         .await?;
     assert!(

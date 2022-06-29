@@ -6,8 +6,7 @@ use near_sdk::{
     Promise, CryptoHash, BorshStorageKey,
 };
 use std::collections::HashMap;
-
-//use near_sdk::env::STORAGE_PRICE_PER_BYTE;
+use std::fmt;
 
 use crate::external::*;
 pub use crate::fpo::lib::*;
@@ -28,6 +27,16 @@ pub type CollectionId = u64;
 pub struct OfferingId {
     pub nft_contract_id: AccountId,
     pub collection_id: CollectionId,
+}
+
+impl fmt::Display for OfferingId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{{ nft_contract_id: {}, collection_id: {}}}",
+            self.nft_contract_id, self.collection_id,
+        )
+    }
 }
 
 //main contract struct to store all the information

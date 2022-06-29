@@ -1,5 +1,4 @@
 use crate::*;
-use near_sdk::{AccountId,PromiseResult};
 
 #[ext_contract(ext_self)]
 trait FixedPriceOfferingResolver {
