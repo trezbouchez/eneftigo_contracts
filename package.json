@@ -5,7 +5,6 @@
     "author": "Hubert Pietrzykowski",
     "license": "ISC",
     "scripts": {
-        "build": "cd ft && ./build.sh && cd .. && cd nft && ./build.sh && cd .. && cd marketplace && ./build.sh && cd ..",
-        "build_balance": "cd balance && ./build.sh && cd .."
+        "build": "./build.sh"
     }
 }

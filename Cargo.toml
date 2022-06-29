@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "ft",
+    "nft",
+    "marketplace"
+]
+exclude = [
+    "tests_workspaces"
+]
+
+[profile.release]
+codegen-units=1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

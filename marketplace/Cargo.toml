@@ -10,11 +10,3 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 near-sdk = "=4.0.0-pre.4"
 chrono = "0.4.19"
-
-[profile.release]
-codegen-units=1
-opt-level = "z"
-lto = true
-debug = false
-panic = "abort"
-overflow-checks = true

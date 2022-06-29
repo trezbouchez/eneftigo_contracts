@@ -36,7 +36,10 @@ impl MarketplaceContract {
         // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
-    ) -> Promise {
+    ) {
+        let prepaid_gas: String = format!("{}", u64::from(env::prepaid_gas()));
+        env::log_str(prepaid_gas.as_str());
+
         // ensure max supply does not exceed limit
         assert!(
             supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
@@ -63,12 +66,12 @@ impl MarketplaceContract {
         let estimated_total_storage_cost =
             estimated_marketplace_storage_cost;// + estimated_nft_storage_cost;
         let attached_deposit = env::attached_deposit();
-        assert!(
-            attached_deposit >= estimated_total_storage_cost,
-            "Must attach at least {:?} yoctoNear to cover NFT collection storage. Attached deposit was {:?}",
-            estimated_total_storage_cost,
-            attached_deposit
-        );
+        // assert!(
+        //     attached_deposit >= estimated_total_storage_cost,
+        //     "Must attach at least {:?} yoctoNear to cover NFT collection storage. Attached deposit was {:?}",
+        //     estimated_total_storage_cost,
+        //     attached_deposit
+        // );
 
         // TODO: we may check metadata here
         // // make sure it's not yet listed
@@ -174,10 +177,10 @@ impl MarketplaceContract {
 
         let initial_marketplace_storage_usage = env::storage_usage();
 
-        self.internal_add_fpo(&fpo);
-        self.next_collection_id += 1;
+        // self.internal_add_fpo(&fpo);
+        // self.next_collection_id += 1;
 
-        let final_marketplace_storage_usage = env::storage_usage();
+/*        let final_marketplace_storage_usage = env::storage_usage();
         let actual_marketplace_storage_usage =
             final_marketplace_storage_usage - initial_marketplace_storage_usage;
         let actual_marketplace_storage_cost =
@@ -212,7 +215,7 @@ impl MarketplaceContract {
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-        ))
+        ))*/
     }
 
     #[payable]

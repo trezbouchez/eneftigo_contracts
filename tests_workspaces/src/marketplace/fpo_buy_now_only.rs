@@ -2,20 +2,20 @@ use colored::Colorize;
 use near_units::parse_near;
 use serde_json::json;
 use workspaces::prelude::*;
+use workspaces::result::CallExecutionDetails;
 
 const MARKETPLACE_WASM_FILEPATH: &str = "../out/marketplace.wasm";
 const NFT_WASM_FILEPATH: &str = "../out/nft.wasm";
-const BALANCE_WASM_FILEPATH: &str = "../out/balance.wasm";
 
 const STORAGE_COST_YOCTO_PER_BYTE: u128 = 10000000000000000000;
 const NFT_MAKE_COLLECTION_STORAGE_BYTES: u128 = 79;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let worker = workspaces::sandbox();
+    let worker = workspaces::testnet().await?;
 
     let marketplace_wasm = std::fs::read(MARKETPLACE_WASM_FILEPATH)?;
-    let marketplace_contract: workspaces::Contract = worker.dev_deploy(marketplace_wasm).await?;
+    let marketplace_contract: workspaces::Contract = worker.dev_deploy(&marketplace_wasm).await?;
     println!(
         "Marketplace contract deployed to {}",
         marketplace_contract.id().to_string()
@@ -30,9 +30,9 @@ async fn main() -> anyhow::Result<()> {
         .transact()
         .await?;
     assert!(
-        outcome.status.clone().as_success().is_some(),
+        outcome.is_success(),
         "Marketplace initialization failed: {:#?} {}",
-        outcome.status,
+        outcome,
         "FAILED".red()
     );
     println!(
@@ -48,9 +48,9 @@ async fn main() -> anyhow::Result<()> {
         .transact()
         .await?;
     assert!(
-        outcome.details.status.clone().as_success().is_some(),
+        outcome.details.is_success(),
         "NFT subaccont creation failed: {:#?} {}",
-        outcome.details.status,
+        outcome.details,
         "FAILED".red()
     );
     let nft_account: workspaces::Account = outcome.result;
@@ -60,12 +60,12 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Deploy NFT Contract
-    let nft_wasm = std::fs::read(NFT_WASM_FILEPATH)?;
-    let outcome = nft_account.deploy(&worker, nft_wasm).await?;
+    let nft_wasm = std::fs::read(&NFT_WASM_FILEPATH)?;
+    let outcome = nft_account.deploy(&worker, &nft_wasm).await?;
     assert!(
-        outcome.details.status.clone().as_success().is_some(),
+        outcome.details.is_success(),
         "NFT contract deployment failed: {:#?} {}",
-        outcome.details.status,
+        outcome.details,
         "FAILED".red()
     );
     let nft_contract: workspaces::Contract = outcome.result;
@@ -73,16 +73,16 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize NFT Contract
     let outcome = nft_account
-        .call(&worker, nft_contract.id().clone(), "new_default_meta")
+        .call(&worker, &nft_contract.id(), "new_default_meta")
         .args_json(json!({
             "owner_id": marketplace_contract.id(),
         }))?
         .transact()
         .await?;
     assert!(
-        outcome.clone().status.as_success().is_some(),
+        outcome.is_success(),
         "NFT contract initialization failed {:?} {}",
-        outcome.status,
+        outcome,
         "FAILED".red()
     );
     println!(
@@ -94,29 +94,14 @@ async fn main() -> anyhow::Result<()> {
     let seller: workspaces::Account = worker.dev_create_account().await?;
     println!("Seller account created at {}", seller.id());
 
-    // Deploy Balance Contract to seller account
-    let balance_wasm = std::fs::read(BALANCE_WASM_FILEPATH)?;
-    let outcome = seller.deploy(&worker, balance_wasm).await?;
-    assert!(
-        outcome.details.status.clone().as_success().is_some(),
-        "Balance contract deployment failed: {:#?} {}",
-        outcome.details.status,
-        "FAILED".red()
-    );
-    let balance_contract: workspaces::Contract = outcome.result;
-    println!("Balance contract deployed to {}", seller.id().to_string());
+    // Check initial balances
+    let seller_info = seller.view_account(&worker).await?;
+    let seller_balance_0 = seller_info.balance;
+    println!("Seller account initial balance: {}", seller_balance_0);
 
-    // Check initial seller balance
-    let balance: serde_json::Value = balance_contract.view(
-            &worker,
-            "balance",
-            json!({})
-            .to_string()
-            .into_bytes(),
-        )
-        .await?
-        .json()?;
-    println!("BALANCE: {}", balance);
+    let marketplace_info = marketplace_contract.view_account(&worker).await?;
+    println!("Marketplace account initial balance: {}, initial storage: {}", marketplace_info.balance, marketplace_info.storage_usage);
+    let marketplace_balance_0 = marketplace_info.balance;
 
     let estimated_marketplace_storage_usage = 670
         + 2 * seller.id().clone().to_string().len()
@@ -132,30 +117,41 @@ async fn main() -> anyhow::Result<()> {
     let outcome = seller
         .call(
             &worker,
-            marketplace_contract.id().clone(),
+            &marketplace_contract.id(),
             "fpo_add_buy_now_only",
         )
         .args_json(json!({
             "supply_total": 10,
             "buy_now_price_yocto": "1000",
         }))?
-        .deposit(estimated_total_storage_cost)
-        .gas(50_000_000_000_000)
+        // .deposit(estimated_total_storage_cost)
+        .gas(3_193_528_175_642)
         .transact()
         .await?;
     assert!(
-        outcome.status.clone().as_success().is_some(),
+        outcome.is_success(),
         "Adding FPO failed: {:#?} {}",
-        outcome.status,
+        outcome,
         "FAILED".red()
     );
-    println!("Buy-now-only Fixed Price Offering added successfully");
+    println!("outcomes: {:#?}", outcome.outcomes());
 
-    // Add new listing, attached deposit is spot-on, no refund needed
-    let outcome = seller
+    println!("Buy-now-only Fixed Price Offering added successfully. Gas burnt {}", outcome.total_gas_burnt);
+
+        // Check  seller balance
+        let seller_info = seller.view_account(&worker).await?;
+        let seller_balance_1 = seller_info.balance;
+        println!("Seller balance: {} - {}, spent: {}", seller_balance_0, seller_balance_1, seller_balance_0 - seller_balance_1);
+
+        let marketplace_info = marketplace_contract.view_account(&worker).await?;
+        let marketplace_balance_1 = marketplace_info.balance;
+        println!("Marketplace account updated balance: {}, storage: {}", marketplace_balance_1, marketplace_info.storage_usage);
+    
+        // Add new listing, attached deposit is spot-on, no refund needed
+/*    let outcome = seller
         .call(
             &worker,
-            marketplace_contract.id().clone(),
+            &marketplace_contract.id(),
             "fpo_add_buy_now_only",
         )
         .args_json(json!({
@@ -167,12 +163,13 @@ async fn main() -> anyhow::Result<()> {
         .transact()
         .await?;
     assert!(
-        outcome.status.clone().as_success().is_some(),
+        outcome.is_success(),
         "Adding FPO failed: {:#?} {}",
-        outcome.status,
+        outcome,
         "FAILED".red()
     );
-    println!("Another buy-now-only Fixed Price Offering added successfully");
+    println!("Another buy-now-only Fixed Price Offering added successfully");*/
+
     // Add FPO listing
     /*    let outcome = seller
         .call(
@@ -246,4 +243,15 @@ async fn main() -> anyhow::Result<()> {
     println!("{}", "PASSED".green());
 
     Ok(())
+}
+
+fn gas_paid_by_signer(ced: &CallExecutionDetails) -> u64 {
+    ced.outcomes()
+    .into_iter()
+    .filter(|outcome| !outcome.receipt_ids.is_empty())
+    .fold(0, |accu, paid_outcome| accu + paid_outcome.gas_burnt)
+}
+
+fn gas_cost(gas: u64) -> u128 {
+    (gas * 100_000_000).into()
 }
