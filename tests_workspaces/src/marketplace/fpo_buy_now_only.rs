@@ -3,12 +3,14 @@ use near_units::parse_near;
 use serde_json::json;
 use workspaces::prelude::*;
 use workspaces::result::CallExecutionDetails;
+use workspaces::{types::Balance, AccountId};
 
 const MARKETPLACE_WASM_FILEPATH: &str = "../out/marketplace.wasm";
 const NFT_WASM_FILEPATH: &str = "../out/nft.wasm";
 
 const STORAGE_COST_YOCTO_PER_BYTE: u128 = 10000000000000000000;
 const NFT_MAKE_COLLECTION_STORAGE_BYTES: u128 = 79;
+const CONTRACT_GAS_REWARD_RATE: u64 = 30;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -18,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
     let marketplace_contract: workspaces::Contract = worker.dev_deploy(&marketplace_wasm).await?;
     println!(
         "Marketplace contract deployed to {}",
-        marketplace_contract.id().to_string()
+        marketplace_contract.id().to_string(),
     );
 
     // Initialize Marketplace Contract
@@ -37,14 +39,14 @@ async fn main() -> anyhow::Result<()> {
     );
     println!(
         "Marketplace contract initialized with owner {}",
-        marketplace_contract.id().to_string()
+        marketplace_contract.id().to_string(),
     );
 
     // Create NFT subaccount
     let outcome = marketplace_contract
         .as_account()
         .create_subaccount(&worker, "nft")
-        .initial_balance(parse_near!("5 N")) // some 3.5N is required for storage or deploy will fail
+        .initial_balance(parse_near!("5 N")) // about 3.5N required for wasm storage, deducted from signer (marketplace) account
         .transact()
         .await?;
     assert!(
@@ -56,7 +58,7 @@ async fn main() -> anyhow::Result<()> {
     let nft_account: workspaces::Account = outcome.result;
     println!(
         "NFT contract subaccount created at {}",
-        nft_account.id().to_string()
+        nft_account.id().to_string(),
     );
 
     // Deploy NFT Contract
@@ -90,19 +92,11 @@ async fn main() -> anyhow::Result<()> {
         marketplace_contract.id().to_string()
     );
 
-    // Add Fixed Price Offering
+    // Create seller account
     let seller: workspaces::Account = worker.dev_create_account().await?;
     println!("Seller account created at {}", seller.id());
 
-    // Check initial balances
-    let seller_info = seller.view_account(&worker).await?;
-    let seller_balance_0 = seller_info.balance;
-    println!("Seller account initial balance: {}", seller_balance_0);
-
-    let marketplace_info = marketplace_contract.view_account(&worker).await?;
-    println!("Marketplace account initial balance: {}, initial storage: {}", marketplace_info.balance, marketplace_info.storage_usage);
-    let marketplace_balance_0 = marketplace_info.balance;
-
+    // Calculate storage usage
     let estimated_marketplace_storage_usage = 670
         + 2 * seller.id().clone().to_string().len()
         + 5 * nft_contract.id().clone().to_string().len();
@@ -112,20 +106,55 @@ async fn main() -> anyhow::Result<()> {
         + NFT_MAKE_COLLECTION_STORAGE_BYTES)
         * STORAGE_COST_YOCTO_PER_BYTE;
 
-    // Add new listing, attached deposit is spot-on, no refund needed
-    // println!("Initial seller balance is {:?} yoctoNEAR", seller.balance());
+    /*
+    CASE #01: Deposit won't cover marketplace storage
+    */
+    print!(
+        "{}: Deposit won't cover marketplace storage",
+        "CASE #01".cyan()
+    );
+
     let outcome = seller
-        .call(
-            &worker,
-            &marketplace_contract.id(),
-            "fpo_add_buy_now_only",
-        )
+        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .args_json(json!({
+            "supply_total": 10,
+            "buy_now_price_yocto": "1000",
+        }))?
+        .deposit(8_000_000_000_000_000_000_000)
+        .gas(10_000_000_000_000)
+        .transact()
+        .await;
+    assert!(
+        outcome.is_err(),
+        "Adding FPO succeeded despite insifficient deposit. {}",
+        "FAILED".red()
+    );
+
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #02: All offering parameters correct
+    */
+    print!("{}: All offering parameters correct", "CASE #02".cyan());
+
+    let seller_info = seller.view_account(&worker).await?;
+    let seller_balance_0 = seller_info.balance;
+    let seller_storage_0 = seller_info.storage_usage;
+    let nft_info = nft_account.view_account(&worker).await?;
+    let nft_balance_0 = nft_info.balance;
+    let nft_storage_0 = nft_info.storage_usage;
+    let marketplace_info = marketplace_contract.view_account(&worker).await?;
+    let marketplace_balance_0 = marketplace_info.balance;
+    let marketplace_storage_0 = marketplace_info.storage_usage;
+
+    let outcome = seller
+        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
         .args_json(json!({
             "supply_total": 10,
             "buy_now_price_yocto": "1000",
         }))?
         .deposit(10_000_000_000_000_000_000_000)
-        .gas(300_000_000_000_000)
+        .gas(10_000_000_000_000)
         .transact()
         .await?;
     assert!(
@@ -134,21 +163,32 @@ async fn main() -> anyhow::Result<()> {
         outcome,
         "FAILED".red()
     );
-    println!("outcomes: {:#?}", outcome.outcomes());
 
-    println!("Buy-now-only Fixed Price Offering added successfully. Gas burnt {}", outcome.total_gas_burnt);
+    let seller_info = seller.view_account(&worker).await?;
+    let seller_balance_1 = seller_info.balance;
+    let seller_storage_1 = seller_info.storage_usage;
+    let nft_info = nft_account.view_account(&worker).await?;
+    let nft_balance_1 = nft_info.balance;
+    let nft_storage_1 = nft_info.storage_usage;
+    let marketplace_info = marketplace_contract.view_account(&worker).await?;
+    let marketplace_balance_1 = marketplace_info.balance;
+    let marketplace_storage_1 = marketplace_info.storage_usage;
 
-        // Check  seller balance
-        let seller_info = seller.view_account(&worker).await?;
-        let seller_balance_1 = seller_info.balance;
-        println!("Seller balance: {} - {}, spent: {}", seller_balance_0, seller_balance_1, seller_balance_0 - seller_balance_1);
+    verify_add_outcome(
+        &outcome,
+        marketplace_contract.id(),
+        marketplace_storage_0,
+        marketplace_storage_1,
+        marketplace_balance_0,
+        marketplace_balance_1,
+        seller_balance_0,
+        seller_balance_1,
+    );
 
-        let marketplace_info = marketplace_contract.view_account(&worker).await?;
-        let marketplace_balance_1 = marketplace_info.balance;
-        println!("Marketplace account updated balance: {}, storage: {}", marketplace_balance_1, marketplace_info.storage_usage);
-    
-        // Add new listing, attached deposit is spot-on, no refund needed
-/*    let outcome = seller
+    println!(" - {}", "PASSED".green());
+
+    // Add new listing, attached deposit is spot-on, no refund needed
+    /*    let outcome = seller
         .call(
             &worker,
             &marketplace_contract.id(),
@@ -240,18 +280,81 @@ async fn main() -> anyhow::Result<()> {
     */
 
     // All OK
-    println!("{}", "PASSED".green());
+    // println!("{}", "PASSED".green());
 
     Ok(())
 }
 
 fn gas_paid_by_signer(ced: &CallExecutionDetails) -> u64 {
     ced.outcomes()
-    .into_iter()
-    .filter(|outcome| !outcome.receipt_ids.is_empty())
-    .fold(0, |accu, paid_outcome| accu + paid_outcome.gas_burnt)
+        .into_iter()
+        .filter(|outcome| !outcome.receipt_ids.is_empty())
+        .fold(0, |accu, paid_outcome| accu + paid_outcome.gas_burnt)
 }
 
 fn gas_cost(gas: u64) -> u128 {
     (gas * 100_000_000).into()
+}
+
+fn verify_add_outcome(
+    execution_details: &CallExecutionDetails,
+    marketplace_account_id: &AccountId,
+    marketplace_storage_before: u64,
+    marketplace_storage_after: u64,
+    marketplace_balance_before: Balance,
+    marketplace_balance_after: Balance,
+    seller_balance_before: Balance,
+    seller_balance_after: Balance,
+) {
+    // https://docs.near.org/concepts/basics/transactions/gas#:~:text=**How-,much,-of%20the%20gas
+
+    // println!("{:#?}", execution_details);
+
+    let transaction = execution_details.outcome();
+    let receipts = execution_details.receipt_outcomes();
+
+    // static execution gas (for converting transaction into receipt)
+    let static_execution_gas = transaction.gas_burnt;
+    let static_execution_gas_cost = transaction.tokens_burnt;
+    // println!("static execution gas {}", static_execution_gas);
+
+    // total exeuction gas (and its cost) consumed by the contract execution
+    let execution_receipt = receipts
+        .iter()
+        .find(|&receipt| receipt.executor_id == *marketplace_account_id)
+        .expect("Could not locate call execution receipt");
+    let dynamic_execution_gas = execution_receipt.gas_burnt;
+    let dynamic_execution_gas_cost = execution_receipt.tokens_burnt;
+
+    // here we assume that the contract gas reward will be calculated using this gas price
+    let execution_gas_price = dynamic_execution_gas_cost / u128::from(dynamic_execution_gas);
+
+    // println!("total execution gas {}", total_execution_gas);
+
+    // calculate contract gas reward
+    let marketplace_gas_reward_base = dynamic_execution_gas - static_execution_gas;
+    let marketplace_gas_reward = marketplace_gas_reward_base * CONTRACT_GAS_REWARD_RATE / 100;
+    let marketplace_reward = execution_gas_price * u128::from(marketplace_gas_reward);
+
+    // println!("Contract reward {}", marketplace_reward);
+
+    // verify marketplace balance
+    let marketplace_storage_usage: u128 =
+        (marketplace_storage_after - marketplace_storage_before).into();
+    let marketplace_storage_cost = marketplace_storage_usage * STORAGE_COST_YOCTO_PER_BYTE;
+    let marketplace_balance_correct =
+        marketplace_balance_before + marketplace_storage_cost + marketplace_reward;
+    assert_eq!(marketplace_balance_correct, marketplace_balance_after, "Marketplace balance {} is wrong. It should be {}. The computation results from: initial_balance ({}) + marketplace_storage_cost ({}) + gas_reward ({})", marketplace_balance_after, marketplace_balance_correct, marketplace_balance_before, marketplace_storage_cost, marketplace_reward);
+
+    // verify seller balance
+    let seller_gas_cost = receipts
+        .iter()
+        .fold(0, |acc, receipt| acc + receipt.tokens_burnt)
+        + transaction.tokens_burnt;
+    let seller_balance_correct = seller_balance_before - seller_gas_cost - marketplace_storage_cost;
+    assert_eq!(
+        seller_balance_after, seller_balance_correct,
+        "Seller balance {} is wrong. Should be {}.",
+        seller_balance_after, seller_balance_correct
+    );
 }

@@ -36,9 +36,10 @@ impl MarketplaceContract {
         // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
-    ) -> Promise {
+    ) -> Promise
+    {
         let prepaid_gas: String = format!("{}", u64::from(env::prepaid_gas()));
-        env::log_str(prepaid_gas.as_str());
+        // env::log_str(format!("fpo_add_buy_now_only prepaid gas {}", prepaid_gas.as_str()));
 
         // ensure max supply does not exceed limit
         assert!(
@@ -66,12 +67,12 @@ impl MarketplaceContract {
         let estimated_total_storage_cost =
             estimated_marketplace_storage_cost + estimated_nft_storage_cost;
         let attached_deposit = env::attached_deposit();
-        assert!(
-            attached_deposit >= estimated_total_storage_cost,
-            "Must attach at least {:?} yoctoNear to cover NFT collection storage. Attached deposit was {:?}",
-            estimated_total_storage_cost,
-            attached_deposit
-        );
+        // assert!(
+        //     attached_deposit >= estimated_total_storage_cost,
+        //     "Must attach at least {:?} yoctoNear to cover NFT collection storage. Attached deposit was {:?}",
+        //     estimated_total_storage_cost,
+        //     attached_deposit
+        // );
 
         // TODO: check NFT metadata for duplicates here
         // // make sure it's not yet listed
@@ -189,21 +190,34 @@ impl MarketplaceContract {
         // here our estimate can be made more precise because we know the exact storage used
         // by FPO - let's update the total storage cost to compensate for any miscalculation
         // this will shadow our previous estimate value, which we no longer need
-        let estimated_total_storage_cost =
-            actual_marketplace_storage_cost + estimated_nft_storage_cost;
+        // let estimated_total_storage_cost =
+        //     actual_marketplace_storage_cost + estimated_nft_storage_cost;
+
+        let total_storage_cost = actual_marketplace_storage_cost;
         assert!(
-            attached_deposit >= estimated_total_storage_cost,
-            "Must attach at least {:?} yN, ACTUAL MARKETPLACE STORAGE: {}, MARKETPLACE COST: {}, DEPOSIT: {}",
-            estimated_total_storage_cost,
-            actual_marketplace_storage_usage,
-            actual_marketplace_storage_cost,
-            attached_deposit,
+            attached_deposit >= total_storage_cost,
+            "Insufficient storage deposit. Need at least {} yoctoNear",
+            total_storage_cost,
         );
-        let marketplace_refund = attached_deposit - estimated_total_storage_cost;
+        let refund_deposit = attached_deposit - total_storage_cost;
+        let refund_string = format!("returning deposit {}", refund_deposit);
+        env::log_str(&refund_string);
 
-        Promise::new(env::predecessor_account_id()).transfer(marketplace_refund as Balance);
+        Promise::new(env::predecessor_account_id()).transfer(refund_deposit as Balance)
 
-        nft_contract::make_collection(
+        // assert!(
+        //     attached_deposit >= estimated_total_storage_cost,
+        //     "Must attach at least {:?} yN, ACTUAL MARKETPLACE STORAGE: {}, MARKETPLACE COST: {}, DEPOSIT: {}",
+        //     estimated_total_storage_cost,
+        //     actual_marketplace_storage_usage,
+        //     actual_marketplace_storage_cost,
+        //     attached_deposit,
+        // );
+        // let marketplace_refund = attached_deposit - estimated_total_storage_cost;
+
+        // Promise::new(env::predecessor_account_id()).transfer(marketplace_refund as Balance)
+
+        /*        nft_contract::make_collection(
             supply_total,
             collection_id,
             nft_contract_id.clone(),
@@ -215,7 +229,7 @@ impl MarketplaceContract {
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-        ))
+        ))*/
     }
 
     #[payable]
