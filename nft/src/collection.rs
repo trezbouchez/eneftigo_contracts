@@ -2,9 +2,8 @@ use crate::*;
 
 #[near_bindgen]
 impl Contract {
-
     #[payable]
-    pub fn make_collection(&mut self, collection_id: u64, max_supply: u64) {
+    pub fn make_collection(&mut self, asset_url: String, collection_id: u64, max_supply: u64) {
         // assert_eq!(
         //     &env::predecessor_account_id(),
         //     &self.owner_id,
@@ -14,8 +13,16 @@ impl Contract {
         // measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
 
+        let previous_collection = self.collections_by_url.insert(&asset_url, &collection_id);
+        assert!(
+            previous_collection.is_none(),
+            "Collection exists for {}",
+            asset_url
+        );
+
         let new_collection = Collection {
-            max_supply: max_supply,
+            asset_url,
+            max_supply,
             is_frozen: false,
             tokens: Vector::new(
                 StorageKey::CollectionsInner {
@@ -37,7 +44,18 @@ impl Contract {
 
         // refund excess storage deposit
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-        println!("required storage: {}", required_storage_in_bytes);
+        let storage_str = format!("NFT make_collection storage: {}", required_storage_in_bytes);
+        env::log_str(&storage_str);
+
+        // println!("required storage: {}", required_storage_in_bytes);
+
+        // let required_cost = env::storage_byte_cost() * Balance::from(required_storage_in_bytes);
+        // let storage_string = format!("STORAGE {}, PREDICTED {}", required_storage_in_bytes, predicted_cost);
+        // env::log_str(&storage_string);
+
+        // let log_string = format!("NFT deposit attached {} required {}, will refund to {}", required_cost, env::attached_deposit(), env::predecessor_account_id());
+        // env::log_str(&log_string);
+
         refund_excess_deposit(required_storage_in_bytes);
     }
 
@@ -80,10 +98,21 @@ impl Contract {
         );
         self.collections_by_id
             .remove(&collection_id)
-            .expect("Could not remove collection");
+            .expect("Could not remove collection from collections_by_id");
 
+        self.collections_by_url
+            .remove(&collection.asset_url)
+            .expect("Could not remove collection from collections_by_url");
         let storage_freed = initial_storage_usage - env::storage_usage();
         refund(storage_freed);
+    }
+}
+
+impl Contract {
+    #[allow(dead_code)]
+    pub(crate) fn make_collection_storage(asset_url: &str) -> u64 {
+        let asset_url_len: u64 = asset_url.len().try_into().unwrap();
+        136 + 2 * asset_url_len
     }
 }
 
@@ -94,24 +123,52 @@ mod tests {
     use near_sdk::testing_env;
 
     #[test]
-    fn test_storage() {
+    #[should_panic(expected = r#"Collection exists for http://eneftigo/asset.png"#)]
+    fn test_nft_make_collection_duplcated_asset_url() {
         let account_id = AccountId::new_unchecked("marketplace.near".to_string());
         let context = VMContextBuilder::new()
             .predecessor_account_id(account_id.clone())
             .signer_account_id(account_id.clone())
-            .attached_deposit(790000000000000000000)
+            .attached_deposit(1880000000000000000000)
             .build();
         testing_env!(context);
 
         let mut contract = Contract::new_default_meta("test.near".parse().unwrap());
-        
         let storage_before = env::storage_usage();
-        contract.make_collection(9007199254740991, 9007199254740991);
+        contract.make_collection(
+            String::from("http://eneftigo/asset.png"),
+            9007199254740991,
+            9007199254740991,
+        );
         let storage_between = env::storage_usage();
-        contract.make_collection(0, 10);
+        contract.make_collection(String::from("http://eneftigo/asset.png"), 0, 10);
+    }
+
+    #[test]
+    fn test_nft_make_collection() {
+        let account_id = AccountId::new_unchecked("marketplace.near".to_string());
+        let context = VMContextBuilder::new()
+            .predecessor_account_id(account_id.clone())
+            .signer_account_id(account_id.clone())
+            .attached_deposit(1880000000000000000000)
+            .build();
+        testing_env!(context);
+
+        let mut contract = Contract::new_default_meta("test.near".parse().unwrap());
+        let storage_before = env::storage_usage();
+        contract.make_collection(
+            String::from("http://eneftigo/asset1.png"),
+            9007199254740991,
+            9007199254740991,
+        );
+        let storage_between = env::storage_usage();
+        contract.make_collection(String::from("http://eneftigo/asset2.png"), 0, 10);
         let storage_after = env::storage_usage();
 
-        println!("{}, {}", storage_between - storage_before, storage_after - storage_between);
-
+        println!(
+            "{}, {}",
+            storage_between - storage_before,
+            storage_after - storage_between
+        );
     }
 }

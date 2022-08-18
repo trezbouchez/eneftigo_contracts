@@ -9,7 +9,7 @@ pub const NO_DEPOSIT: Balance = 0;
 
 /* NFT contract cross call constants */
 pub const NFT_MAKE_COLLECTION_STORAGE: StorageUsage = 79;           // make_collection storage
-pub const NFT_MAKE_COLLECTION_GAS: Gas = Gas(5_789_462_639_555);            // make_collection gas consumption
+pub const NFT_MAKE_COLLECTION_GAS: Gas = Gas(8_789_462_639_555);            // make_collection gas consumption TODO: estimate
 pub const NFT_MAKE_COLLECTION_COMPLETION_GAS: Gas = Gas(1_000_000_000_000);
 
 // minimum balance needed by an NFT account

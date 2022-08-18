@@ -40,6 +40,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,         // total_supply
             U128(800), // buy_now_price_yocto
             U128(50),  // min_proposal_price_yocto
@@ -63,6 +64,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1115), // buy_now_price_yocto
             U128(50),   // min_proposal_price_yocto
@@ -86,6 +88,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1200), // buy_now_price_yocto
             U128(55),   // min_proposal_price_yocto
@@ -108,6 +111,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(1100), // min_proposal_price_yocto
@@ -131,6 +135,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -154,6 +159,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -177,6 +183,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -200,6 +207,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -223,6 +231,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             0,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -246,6 +255,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             101,        // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -270,6 +280,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -295,6 +306,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
+            String::from("http://eneftigo/asset.png"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -354,6 +366,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             2,         // total_supply
             U128(800), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -376,6 +389,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1115), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -397,6 +411,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -419,6 +434,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -441,6 +457,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -463,6 +480,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             0,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -485,6 +503,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             101,        // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -508,6 +527,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                              // nft_metadata
@@ -532,6 +552,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                // nft_metadata
@@ -582,6 +603,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
+            String::from("http://eneftigo/asset.png"),
             10,         // total_supply
             U128(1000), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata

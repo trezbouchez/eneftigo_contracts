@@ -45,6 +45,9 @@ pub(crate) fn refund_excess_deposit(storage_used: u64) {
     //get the refund amount from the attached deposit - required cost
     let refund = attached_deposit - required_cost;
 
+    let refund_str = format!("NFT refund storage deposit of {} to {}", refund, env::predecessor_account_id());
+    env::log_str(&refund_str);
+
     //if the refund is greater than 1 yocto NEAR, we refund the predecessor that amount
     if refund > 1 {
         Promise::new(env::predecessor_account_id()).transfer(refund);
