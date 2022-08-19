@@ -1,10 +1,10 @@
 use crate::*;
 
 #[near_bindgen]
-impl Contract {
+impl NftContract {
 
     //Query for nft tokens on the contract regardless of the owner using pagination
-    pub fn nft_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonToken> {
+    pub fn nft_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonNft> {
         //get a vector of the keys in the token_metadata_by_id collection.
         let keys = self.token_metadata_by_id.keys_as_vector();
         //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
@@ -35,7 +35,7 @@ impl Contract {
         account_id: AccountId,
         from_index: Option<U128>,
         limit: Option<u64>,
-    ) -> Vec<JsonToken> {
+    ) -> Vec<JsonNft> {
         //get the set of tokens for the passed in owner
         let tokens_for_owner_set = self.tokens_per_owner.get(&account_id);
         if let Some(tokens_for_owner_set) = tokens_for_owner_set {
@@ -60,10 +60,10 @@ impl Contract {
     //Get tokens belonging to a collection
     pub fn tokens_by_collection_id(
         &self,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         from_index: Option<u64>,
         limit: Option<u64>,
-    ) -> Vec<JsonToken> {
+    ) -> Vec<JsonNft> {
         //get the set of tokens for the passed in owner
         let collection = self
             .collections_by_id

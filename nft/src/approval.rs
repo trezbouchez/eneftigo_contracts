@@ -7,21 +7,21 @@ const NO_DEPOSIT: Balance = 0;
 pub trait NonFungibleTokenCore {
     
     //approve an account ID to transfer a token on your behalf
-    fn nft_approve(&mut self, token_id: TokenId, account_id: AccountId, msg: Option<String>);
+    fn nft_approve(&mut self, token_id: NftId, account_id: AccountId, msg: Option<String>);
 
     //check if the passed in account has access to approve the token ID
 	fn nft_is_approved(
         &self,
-        token_id: TokenId,
+        token_id: NftId,
         approved_account_id: AccountId,
         approval_id: Option<u64>,
     ) -> bool;
 
     //revoke a specific account from transferring the token on your behalf
-    fn nft_revoke(&mut self, token_id: TokenId, account_id: AccountId);
+    fn nft_revoke(&mut self, token_id: NftId, account_id: AccountId);
 
     //revoke all accounts from transferring the token on your behalf
-    fn nft_revoke_all(&mut self, token_id: TokenId);
+    fn nft_revoke_all(&mut self, token_id: NftId);
 }
 
 #[ext_contract(ext_non_fungible_approval_receiver)]
@@ -29,7 +29,7 @@ trait NonFungibleTokenApprovalsReceiver {
     //cross contract call to an external contract that is initiated during nft_approve
     fn nft_on_approve(
         &mut self,
-        token_id: TokenId,
+        token_id: NftId,
         owner_id: AccountId,
         approval_id: u64,
         msg: String,
@@ -37,11 +37,11 @@ trait NonFungibleTokenApprovalsReceiver {
 }
 
 #[near_bindgen]
-impl NonFungibleTokenCore for Contract {
+impl NonFungibleTokenCore for NftContract {
 
     //allow a specific account ID to approve a token on your behalf
     #[payable]
-    fn nft_approve(&mut self, token_id: TokenId, account_id: AccountId, msg: Option<String>) {
+    fn nft_approve(&mut self, token_id: NftId, account_id: AccountId, msg: Option<String>) {
         // assert at least one yocto for security reasons - this will cause a redirect to the NEAR wallet.
         // The user needs to attach enough to pay for storage on the contract
         assert_at_least_one_yocto();
@@ -100,7 +100,7 @@ impl NonFungibleTokenCore for Contract {
     //check if the passed in account has access to approve the token ID
 	fn nft_is_approved(
         &self,
-        token_id: TokenId,
+        token_id: NftId,
         approved_account_id: AccountId,
         approval_id: Option<u64>,
     ) -> bool {
@@ -128,7 +128,7 @@ impl NonFungibleTokenCore for Contract {
     
     //revoke a specific account from transferring the token on your behalf 
     #[payable]
-    fn nft_revoke(&mut self, token_id: TokenId, account_id: AccountId) {
+    fn nft_revoke(&mut self, token_id: NftId, account_id: AccountId) {
         // assert that the user attached exactly 1 yoctoNEAR for security reasons
         assert_one_yocto();
 
@@ -155,7 +155,7 @@ impl NonFungibleTokenCore for Contract {
 
     //revoke all accounts from transferring the token on your behalf
     #[payable]
-    fn nft_revoke_all(&mut self, token_id: TokenId) {
+    fn nft_revoke_all(&mut self, token_id: NftId) {
         // assert that the caller attached exactly 1 yoctoNEAR for security
         assert_one_yocto();
 

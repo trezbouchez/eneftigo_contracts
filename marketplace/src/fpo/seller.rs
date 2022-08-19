@@ -422,7 +422,7 @@ impl MarketplaceContract {
     pub fn fpo_accept_proposals(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         accepted_proposals_count: u64,
     ) {
         let offering_id = OfferingId {
@@ -500,7 +500,7 @@ impl MarketplaceContract {
     // this is because there may be multiple acceptable proposals pending which have active deposits
     // they need to be returned
     // must be called by the offeror!
-    pub(crate) fn fpo_conclude(&mut self, nft_contract_id: AccountId, collection_id: CollectionId) {
+    pub(crate) fn fpo_conclude(&mut self, nft_contract_id: AccountId, collection_id: NftCollectionId) {
         let offering_id = OfferingId {
             nft_contract_id,
             collection_id,

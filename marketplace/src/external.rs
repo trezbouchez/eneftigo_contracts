@@ -8,7 +8,7 @@ trait NFTContract {
 
     fn mint(
         &mut self,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
     );

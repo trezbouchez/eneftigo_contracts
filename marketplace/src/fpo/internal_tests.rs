@@ -292,7 +292,7 @@ mod internal_tests {
 
     fn test_fpo(
         nft_contract_id_str: &str,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         offeror_id_str: &str,
         start_date: Option<&str>, 
         end_date: Option<&str>

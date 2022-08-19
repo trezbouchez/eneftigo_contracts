@@ -1,7 +1,7 @@
 use crate::*;
 
 #[near_bindgen]
-impl Contract {
+impl NftContract {
     #[payable]
     pub fn make_collection(&mut self, asset_url: String, collection_id: u64, max_supply: u64) {
         // assert_eq!(
@@ -20,7 +20,7 @@ impl Contract {
             asset_url
         );
 
-        let new_collection = Collection {
+        let new_collection = NftCollection {
             asset_url,
             max_supply,
             is_frozen: false,
@@ -108,7 +108,7 @@ impl Contract {
     }
 }
 
-impl Contract {
+impl NftContract {
     #[allow(dead_code)]
     pub(crate) fn make_collection_storage(asset_url: &str) -> u64 {
         let asset_url_len: u64 = asset_url.len().try_into().unwrap();
@@ -133,7 +133,7 @@ mod tests {
             .build();
         testing_env!(context);
 
-        let mut contract = Contract::new_default_meta("test.near".parse().unwrap());
+        let mut contract = NftContract::new_default_meta("test.near".parse().unwrap());
         let storage_before = env::storage_usage();
         contract.make_collection(
             String::from("http://eneftigo/asset.png"),
@@ -154,7 +154,7 @@ mod tests {
             .build();
         testing_env!(context);
 
-        let mut contract = Contract::new_default_meta("test.near".parse().unwrap());
+        let mut contract = NftContract::new_default_meta("test.near".parse().unwrap());
         let storage_before = env::storage_usage();
         contract.make_collection(
             String::from("http://eneftigo/asset1.png"),

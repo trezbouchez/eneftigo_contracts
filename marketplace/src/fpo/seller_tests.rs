@@ -694,7 +694,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -720,7 +720,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         marketplace.fpo_accept_proposals(
             AccountId::new_unchecked(NONEXISTENT_NFT_CONTRACT_ID.to_string()),
@@ -740,7 +740,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -761,7 +761,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -853,7 +853,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -915,7 +915,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_account_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -957,7 +957,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -989,7 +989,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -1022,7 +1022,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let mut fpo = test_fpo(3);
@@ -1042,7 +1042,7 @@ mod seller_tests {
         testing_env!(context);
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
 
         let mut marketplace = test_marketplace();
         let fpo = test_fpo(0);
@@ -1093,7 +1093,7 @@ mod seller_tests {
 
     fn test_fpo(supply: u64) -> FixedPriceOffering {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
-        let collection_id: CollectionId = 0;
+        let collection_id: NftCollectionId = 0;
         let offering_id = OfferingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,

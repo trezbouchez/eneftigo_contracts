@@ -1,13 +1,13 @@
 use crate::*;
 
 #[near_bindgen]
-impl Contract {
+impl NftContract {
 
     #[payable]
     pub fn mint(
         &mut self,
         receiver_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         metadata: TokenMetadata,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
     ) {
@@ -52,7 +52,7 @@ impl Contract {
         }
 
         let new_token_id = new_token_index.to_string();
-        let new_token = Token {
+        let new_token = Nft {
             //set the owner ID equal to the receiver ID passed into the function
             owner_id: receiver_id,
             collection_id: collection_id,
@@ -104,7 +104,7 @@ impl Contract {
     }
 
     /*    #[payable]
-    pub fn nft_burn(&mut self, token_id: TokenId) {
+    pub fn nft_burn(&mut self, token_id: NftId) {
         //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
         let owner_id = self.tokens_by_id.get(&token_id).unwrap().owner_id;

@@ -1,9 +1,6 @@
 use crate::*;
 use near_sdk::StorageUsage;
 
-// Non-Fungible Token Id
-// pub type TokenId = String;
-
 //constant used to attach 0 NEAR to a call
 pub const NO_DEPOSIT: Balance = 0;
 

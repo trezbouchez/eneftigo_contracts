@@ -18,7 +18,7 @@ impl MarketplaceContract {
     pub fn fpo_buy(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
     ) {
         let offering_id = OfferingId{ nft_contract_id, collection_id };
 
@@ -86,7 +86,7 @@ impl MarketplaceContract {
     pub fn fpo_place_proposal(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         price_yocto: U128,
     ) -> ProposalId {
         let offering_id = OfferingId{ nft_contract_id, collection_id };
@@ -199,7 +199,7 @@ impl MarketplaceContract {
     pub fn fpo_modify_proposal(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         proposal_id: ProposalId,
         price_yocto: U128,
     ) {
@@ -333,7 +333,7 @@ impl MarketplaceContract {
     pub fn fpo_revoke_proposal(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         proposal_id: ProposalId
     ) {
         let offering_id = OfferingId { nft_contract_id, collection_id };

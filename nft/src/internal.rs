@@ -95,17 +95,17 @@ pub(crate) fn royalty_to_payout(royalty_percentage: u32, amount_to_pay: Balance)
     U128(royalty_percentage as u128 * amount_to_pay / 10_000u128)
 }
 
-impl Contract {
+impl NftContract {
 
     //transfers the NFT to the receiver_id (internal method and can't be called directly via CLI).
     pub(crate) fn internal_transfer(
         &mut self,
         sender_id: &AccountId,
         receiver_id: &AccountId,
-        token_id: &TokenId,
+        token_id: &NftId,
         approval_id: Option<u64>,
         memo: Option<String>,
-    ) -> Token {
+    ) -> Nft {
         //get the token object by passing in the token_id
         let token = self.tokens_by_id.get(token_id).expect("No token");
 
@@ -145,7 +145,7 @@ impl Contract {
         self.internal_add_token_to_owner(receiver_id, token_id);
 
         // create a new token struct 
-        let updated_token = Token {
+        let updated_token = Nft {
             owner_id: receiver_id.clone(),
             collection_id: token.collection_id,
             approved_account_ids: Default::default(),   // reset approvals, new owner doesn't want them to be there
@@ -191,7 +191,7 @@ impl Contract {
     pub(crate) fn internal_add_token_to_owner(
         &mut self,
         account_id: &AccountId,
-        token_id: &TokenId,
+        token_id: &NftId,
     ) {
         //get the set of tokens for the given account
         let mut tokens_set = self.tokens_per_owner.get(account_id).unwrap_or_else(|| {
@@ -216,7 +216,7 @@ impl Contract {
     pub(crate) fn internal_remove_token_from_owner(
         &mut self,
         account_id: &AccountId,
-        token_id: &TokenId,
+        token_id: &NftId,
     ) {
         let mut tokens_set = self
             .tokens_per_owner

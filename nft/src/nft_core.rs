@@ -11,7 +11,7 @@ pub trait NonFungibleTokenCore {
     fn nft_transfer(
         &mut self,
         receiver_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         approval_id: u64,
         memo: Option<String>,
     );
@@ -21,14 +21,14 @@ pub trait NonFungibleTokenCore {
     fn nft_transfer_call(
         &mut self,
         receiver_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         approval_id: u64,
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<bool>;
 
     //get information about the NFT token passed in
-    fn nft_token(&self, token_id: TokenId) -> Option<JsonToken>;
+    fn nft_token(&self, token_id: NftId) -> Option<JsonNft>;
 }
 
 #[ext_contract(ext_non_fungible_token_receiver)]
@@ -39,7 +39,7 @@ trait NonFungibleTokenReceiver {
         &mut self,
         sender_id: AccountId,
         previous_owner_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         msg: String,
     ) -> Promise;
 }
@@ -56,7 +56,7 @@ trait NonFungibleTokenResolver {
         authorized_id: Option<String>,  // for logging event if we need to revert the transfer
         previous_owner_id: AccountId,
         receiver_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         previous_approved_account_ids: HashMap<AccountId, u64>,
         memo: Option<String>,           // this is for logging, too
     ) -> bool;
@@ -73,21 +73,21 @@ trait NonFungibleTokenResolver {
         authorized_id: Option<String>,  // for logging event if we need to revert the transfer
         previous_owner_id: AccountId,
         receiver_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         previous_approved_account_ids: HashMap<AccountId, u64>,
         memo: Option<String>,           // this is for logging, too
     ) -> bool;
 }
 
 #[near_bindgen]
-impl NonFungibleTokenCore for Contract {
+impl NonFungibleTokenCore for NftContract {
 
     //implementation of the nft_transfer method. This transfers the NFT from the current owner to the receiver. 
     #[payable]
     fn nft_transfer(
         &mut self,
         receiver_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         approval_id: u64,
         memo: Option<String>,
     ) {
@@ -118,7 +118,7 @@ impl NonFungibleTokenCore for Contract {
     fn nft_transfer_call(
         &mut self,
         receiver_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         approval_id: u64,
         memo: Option<String>,
         msg: String,
@@ -186,13 +186,13 @@ impl NonFungibleTokenCore for Contract {
     }
 
     //get the information for a specific token ID
-    fn nft_token(&self, token_id: TokenId) -> Option<JsonToken> {
+    fn nft_token(&self, token_id: NftId) -> Option<JsonNft> {
         //if there is some token ID in the tokens_by_id collection
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
             let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
-            //we return the JsonToken (wrapped by Some since we return an option)
-            Some(JsonToken {
+            //we return the JsonNft (wrapped by Some since we return an option)
+            Some(JsonNft {
                 token_id,
                 owner_id: token.owner_id,
                 collection_id: token.collection_id,
@@ -207,7 +207,7 @@ impl NonFungibleTokenCore for Contract {
 }
 
 #[near_bindgen]
-impl NonFungibleTokenResolver for Contract {
+impl NonFungibleTokenResolver for NftContract {
     // resolves the cross contract call when calling nft_on_transfer in the nft_transfer_call method
     // returns true if the token was successfully transferred to the receiver_id
     #[private]
@@ -216,7 +216,7 @@ impl NonFungibleTokenResolver for Contract {
         authorized_id: Option<String>,  // for logging event if we need to revert the transfer
         previous_owner_id: AccountId,
         receiver_id: AccountId,
-        token_id: TokenId,
+        token_id: NftId,
         previous_approved_account_ids: HashMap<AccountId, u64>,
         memo: Option<String>,           // for logging, too
     ) -> bool {

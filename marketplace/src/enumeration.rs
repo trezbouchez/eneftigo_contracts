@@ -7,7 +7,7 @@ use near_sdk::json_types::{U128, U64};
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonFixedPriceOffering {
     pub nft_contract_id: AccountId,
-    pub collection_id: CollectionId,
+    pub collection_id: NftCollectionId,
     pub offeror_id: AccountId,
     pub supply_total: U64,
     pub buy_now_price_yocto: U128,
@@ -61,7 +61,7 @@ impl MarketplaceContract {
     pub fn fpo(
         &self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
     ) -> JsonFixedPriceOffering {
         let offering_id = OfferingId {
             nft_contract_id: nft_contract_id.clone(),
@@ -89,7 +89,7 @@ impl MarketplaceContract {
     pub fn fpo_proposal(
         &self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         proposal_id: ProposalId,
     ) -> Option<JsonFixedPriceOfferingProposal> {
         let offering_id = OfferingId {
@@ -107,7 +107,7 @@ impl MarketplaceContract {
     pub fn fpo_proposals_by_proposer(
         &self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         proposer_id: AccountId,
         from_index: Option<U128>,
         limit: Option<u64>,
@@ -140,7 +140,7 @@ impl MarketplaceContract {
     pub fn fpo_acceptable_proposals(
         &self,
         nft_contract_id: AccountId,
-        collection_id: CollectionId,
+        collection_id: NftCollectionId,
         from_index: Option<U128>,
         limit: Option<u64>,
     ) -> Vec<JsonFixedPriceOfferingProposal> {

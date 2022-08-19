@@ -33,16 +33,16 @@ pub const NFT_STANDARD_NAME: &str = "nep171";
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct Collection {
+pub struct NftCollection {
     pub asset_url: String,
     pub max_supply: u64,
     pub is_frozen: bool,        // if frozen, no more minting is allowed
-    pub tokens: Vector<TokenId>,
+    pub tokens: Vector<NftId>,
 }
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
-pub struct Contract {
+pub struct NftContract {
     // contract owner (Eneftigo Marketplace Account)
     pub owner_id: AccountId,
 
@@ -50,17 +50,17 @@ pub struct Contract {
     pub metadata: LazyOption<NFTContractMetadata>,
 
     //keeps track of all the token IDs for a given account
-    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<NftId>>,
 
     //keeps tokens organized into collections
-    pub collections_by_id: LookupMap<CollectionId, Collection>,
-    pub collections_by_url: LookupMap<String, CollectionId>,
+    pub collections_by_id: LookupMap<NftCollectionId, NftCollection>,
+    pub collections_by_url: LookupMap<String, NftCollectionId>,
 
     //keeps track of the token struct for a given token ID
-    pub tokens_by_id: LookupMap<TokenId, Token>,
+    pub tokens_by_id: LookupMap<NftId, Nft>,
 
     //keeps track of the token metadata for a given token ID
-    pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
+    pub token_metadata_by_id: UnorderedMap<NftId, TokenMetadata>,
 }
 
 /// Helper structure for keys of the persistent collections.
@@ -80,7 +80,7 @@ pub enum StorageKey {
 }
 
 #[near_bindgen]
-impl Contract {
+impl NftContract {
     /*
         initialization function (can only be called once).
         this initializes the contract with default metadata so the

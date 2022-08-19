@@ -18,7 +18,7 @@ mod external;
 mod config;
 mod callback;
 
-pub type CollectionId = u64;
+pub type NftCollectionId = u64;
 
 #[derive(BorshDeserialize, BorshSerialize)]
 #[derive(Serialize,Deserialize)]
@@ -26,7 +26,7 @@ pub type CollectionId = u64;
 #[derive(Clone)]
 pub struct OfferingId {
     pub nft_contract_id: AccountId,
-    pub collection_id: CollectionId,
+    pub collection_id: NftCollectionId,
 }
 
 impl fmt::Display for OfferingId {

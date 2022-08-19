@@ -1,6 +1,6 @@
 use crate::*;
-pub type TokenId = String;
-pub type CollectionId = u64;
+pub type NftId = String;
+pub type NftCollectionId = u64;
 
 //defines the payout type we'll be returning as a part of the royalty standards.
 #[derive(Serialize, Deserialize)]
@@ -39,11 +39,11 @@ pub struct TokenMetadata {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct Token {
+pub struct Nft {
     // owner of the token
     pub owner_id: AccountId,
     // collection id
-    pub collection_id: CollectionId,
+    pub collection_id: NftCollectionId,
     // list of approved accounts and their approval IDs
     pub approved_account_ids: HashMap<AccountId, u64>,
     // the next approval ID to give out. 
@@ -55,13 +55,13 @@ pub struct Token {
 //The Json token is what will be returned from view calls. 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct JsonToken {
+pub struct JsonNft {
     //token ID
-    pub token_id: TokenId,
+    pub token_id: NftId,
     //owner of the token
     pub owner_id: AccountId,
     //collection_id
-    pub collection_id: CollectionId,
+    pub collection_id: NftCollectionId,
     //token metadata
     pub metadata: TokenMetadata,
     //list of approved accounts and their approval IDs
@@ -76,7 +76,7 @@ pub trait NonFungibleTokenMetadata {
 }
 
 #[near_bindgen]
-impl NonFungibleTokenMetadata for Contract {
+impl NonFungibleTokenMetadata for NftContract {
     fn nft_metadata(&self) -> NFTContractMetadata {
         self.metadata.get().unwrap()
     }
