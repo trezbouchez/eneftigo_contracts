@@ -158,7 +158,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit won't cover marketplace storage:",
-        "CASE #01".cyan()
+        "fpo_add_buy_now_only case #01".cyan()
     );
 
     // let seller_info = seller.view_account(&worker).await?;
@@ -203,11 +203,11 @@ async fn main() -> anyhow::Result<()> {
 
 
     /*
-    CASE #02: All offering parameters correct, storage deposit spot-on.
+    CASE #02: Deposit will only cover Marketplace storage, not Nft.
     */
     println!(
-        "{}: All offering parameters correct, storage deposit spot-on:",
-        "CASE #02".cyan()
+        "{}: Deposit will only cover Marketplace storage, not Nft:",
+        "fpo_add_buy_now_only case #02".cyan()
     );
 
     let seller_info = seller.view_account(&worker).await?;
@@ -218,6 +218,52 @@ async fn main() -> anyhow::Result<()> {
         marketplace: marketplace_info,
         nft: nft_info,
     };
+
+    let asset_url = "http://eneftigo/asset0.png";
+    let worst_case_marketplace_storage_usage =
+        fpo_add_worst_case_marketplace_storage_usage(seller.id(), nft_account.id(), None, None);
+    let worst_case_marketplace_storage_cost =
+        worst_case_marketplace_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+
+    let outcome = seller
+        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .args_json(json!({
+            "asset_url": asset_url,
+            "supply_total": 10,
+            "buy_now_price_yocto": "1000",
+        }))?
+        .deposit(worst_case_marketplace_storage_cost)
+        .gas(50_000_000_000_000)
+        .transact()
+        .await?;
+
+    let seller_info = seller.view_account(&worker).await?;
+    let marketplace_info = marketplace_contract.view_account(&worker).await?;
+    let nft_info = nft_account.view_account(&worker).await?;
+    let state_after = State {
+        seller: seller_info,
+        marketplace: marketplace_info,
+        nft: nft_info,
+    };
+
+        println!("BEFORE: {:#?}", state_before);
+    println!("AFTER: {:#?}", state_after);
+    println!("OUTCOME: {:#?}", outcome);
+
+    verify_signer_balance(&outcome, &state_before, &state_after);
+
+    println!(" - {}", "PASSED".green());
+
+
+    /*
+    CASE #03: All offering parameters correct, storage deposit spot-on.
+    */
+    println!(
+        "{}: All offering parameters correct, storage deposit spot-on:",
+        "fpo_add_buy_now_only case #03".cyan()
+    );
+
+    let state_before = state_after;
 
     let asset_url = "http://eneftigo/asset1.png";
     let worst_case_storage_usage =
@@ -245,10 +291,6 @@ async fn main() -> anyhow::Result<()> {
         nft: nft_info,
     };
 
-    // println!("BEFORE: {:#?}", state_before);
-    // println!("AFTER: {:#?}", state_after);
-    // println!("OUTCOME: {:#?}", outcome);
-
     // Verify our worst case storage computation is valid. This is not really a showstopper
     // (as long as we attach sufficient deposit) but we want to ensure the computation is ok
     // and all balances are ok in the case no refund is needed at all
@@ -265,11 +307,11 @@ async fn main() -> anyhow::Result<()> {
     println!(" - {}", "PASSED".green());
 
     /*
-    CASE #03: All offering parameters correct, excess storage deposit
+    CASE #04: All offering parameters correct, excess storage deposit
     */
     println!(
         "{}: All offering parameters correct, excess storage deposit:",
-        "CASE #03".cyan()
+        "fpo_add_buy_now_only case #04".cyan()
     );
 
     let state_before = state_after;
@@ -308,11 +350,11 @@ async fn main() -> anyhow::Result<()> {
 
 
     /*
-    CASE #04:Attempt to place offer for an already-existing asset causing NFT make_collection failure.
+    CASE #05:Attempt to place offer for an already-existing asset causing NFT make_collection panic.
     */
     println!(
-        "{}: Attempt to place offer for an already-existing asset causing NFT make_collection failure:",
-        "CASE #04".cyan()
+        "{}: Attempt to add offering for an already-existing asset causing NFT make_collection panic:",
+        "fpo_add_buy_now_only case #05".cyan()
     );
 
     let state_before = state_after;
@@ -348,6 +390,7 @@ async fn main() -> anyhow::Result<()> {
 
     println!(" - {}", "PASSED".green());
     
+
 
 
     /*        let fpo_buy_outcome = buyer
