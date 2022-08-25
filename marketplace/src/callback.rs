@@ -19,10 +19,6 @@ impl NFTContractCompletionHandler for MarketplaceContract {
     #[private]
     fn make_collection_completion(&mut self, offering_id: OfferingId, nft_attached_deposit: Balance) {
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
-        // In case of failure we remove the dangling offering and return the full deposit
-        // amount to the client
-        let res_str = format!("CALLBACK RESULT {:#?}", env::promise_result(0));
-        env::log_str(&res_str);
         match env::promise_result(0) {
             PromiseResult::NotReady | PromiseResult::Failed => {
                 let storage_before = env::storage_usage();

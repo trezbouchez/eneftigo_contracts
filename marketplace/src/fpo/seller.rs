@@ -36,10 +36,7 @@ impl MarketplaceContract {
         // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
-    ) -> Promise {
-        // let prepaid_gas: String = format!("{}", u64::from(env::prepaid_gas()));
-        // env::log_str(format!("fpo_add_buy_now_only prepaid gas {}", prepaid_gas.as_str()));
-
+    ) -> u64 {
         // make sure asset_url is a valid URL
         assert!(Url::parse(&asset_url).is_ok(), "asset URL invalid");
 
@@ -189,7 +186,9 @@ impl MarketplaceContract {
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-        ))
+        ));
+
+        collection_id
     }
 
     #[payable]
@@ -202,7 +201,7 @@ impl MarketplaceContract {
         // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
-    ) -> Promise {
+    ) -> u64 {
         // make sure asset_url is a valid URL
         assert!(Url::parse(&asset_url).is_ok(), "asset URL invalid");
 
@@ -375,7 +374,9 @@ impl MarketplaceContract {
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-        ))
+        ));
+
+        collection_id
     }
 
     pub fn fpo_accept_proposals(

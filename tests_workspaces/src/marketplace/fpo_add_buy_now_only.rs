@@ -246,10 +246,6 @@ async fn main() -> anyhow::Result<()> {
         nft: nft_info,
     };
 
-        println!("BEFORE: {:#?}", state_before);
-    println!("AFTER: {:#?}", state_after);
-    println!("OUTCOME: {:#?}", outcome);
-
     verify_signer_balance(&outcome, &state_before, &state_after);
 
     println!(" - {}", "PASSED".green());

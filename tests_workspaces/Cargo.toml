@@ -25,9 +25,13 @@ path = "src/nft/nft_make_collection.rs"
 # Marketplace Contract 
 
 [[example]]
-name = "fpo_buy_now_only"
-path = "src/marketplace/fpo_buy_now_only.rs"
+name = "fpo_add_buy_now_only"
+path = "src/marketplace/fpo_add_buy_now_only.rs"
 
 [[example]]
-name = "fpo_accepting_proposals"
+name = "fpo_add_accepting_proposals"
 path = "src/marketplace/fpo_accepting_proposals.rs"
+
+[[example]]
+name = "fpo_buy"
+path = "src/marketplace/fpo_buy.rs"

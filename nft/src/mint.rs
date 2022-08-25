@@ -3,12 +3,12 @@ use crate::*;
 #[near_bindgen]
 impl NftContract {
 
+    // TODO: is asset per-collection or per-token?! Maybe there's both?
     #[payable]
     pub fn mint(
         &mut self,
         receiver_id: AccountId,
         collection_id: NftCollectionId,
-        metadata: TokenMetadata,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
     ) {
         assert_eq!(
@@ -30,7 +30,7 @@ impl NftContract {
             new_token_index < collection.max_supply,
             "Max collection supply reached. No more tokens can be minted"
         );
-
+        
         // measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
 
@@ -70,6 +70,21 @@ impl NftContract {
         );
 
         // insert the token ID and metadata
+        // TODO: fill other fields?
+        let metadata = TokenMetadata {
+            title: None, 
+            description: None, 
+            media: Some(collection.asset_url.clone()),
+            media_hash: None, 
+            copies: None, 
+            issued_at: None, 
+            expires_at: None, 
+            starts_at: None, 
+            updated_at: None, 
+            extra: None, 
+            reference: None, 
+            reference_hash: None
+        };
         self.token_metadata_by_id.insert(&new_token_id, &metadata);
 
         // call the internal method for adding the token to the owner

@@ -60,7 +60,7 @@ impl MarketplaceContract {
         nft_contract::mint(
             offering_id.collection_id,
             buyer_id,
-            None,
+            None,       // perpetual royalties
             offering_id.nft_contract_id.clone(),
             1,
             GAS_FOR_NFT_MINT,
