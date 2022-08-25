@@ -2,8 +2,15 @@ use crate::*;
 
 #[near_bindgen]
 impl NftContract {
+    // Makes new NFT collection. Asset URL and collecton_id must be unique.
+    // Returns storage used by the collection (in bytes)
     #[payable]
-    pub fn make_collection(&mut self, asset_url: String, collection_id: u64, max_supply: u64) {
+    pub fn make_collection(
+        &mut self,
+        asset_url: String,
+        collection_id: u64,
+        max_supply: u64,
+    ) -> u64 {
         // assert_eq!(
         //     &env::predecessor_account_id(),
         //     &self.owner_id,
@@ -43,20 +50,22 @@ impl NftContract {
         );
 
         // refund excess storage deposit
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-        let storage_str = format!("NFT make_collection storage: {}", required_storage_in_bytes);
-        env::log_str(&storage_str);
+        let storage_usage = env::storage_usage() - initial_storage_usage;
+        let storage_cost = storage_usage as Balance * env::storage_byte_cost();
+        let attached_deposit = env::attached_deposit();
+        assert!(
+            attached_deposit >= storage_cost,
+            "The attached deposit of {} yN is insufficient to cover the storage costs of {} yN.",
+            attached_deposit,
+            storage_cost
+        );
 
-        // println!("required storage: {}", required_storage_in_bytes);
+        let refund_amount = attached_deposit - storage_cost;
+        if refund_amount > 0 {
+            Promise::new(env::predecessor_account_id()).transfer(refund_amount);
+        }
 
-        // let required_cost = env::storage_byte_cost() * Balance::from(required_storage_in_bytes);
-        // let storage_string = format!("STORAGE {}, PREDICTED {}", required_storage_in_bytes, predicted_cost);
-        // env::log_str(&storage_string);
-
-        // let log_string = format!("NFT deposit attached {} required {}, will refund to {}", required_cost, env::attached_deposit(), env::predecessor_account_id());
-        // env::log_str(&log_string);
-
-        refund_excess_deposit(required_storage_in_bytes);
+        storage_usage
     }
 
     pub fn freeze_collection(&mut self, collection_id: u64) {

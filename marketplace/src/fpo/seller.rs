@@ -12,8 +12,6 @@ use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::json_types::U128;
 use near_sdk::AccountId;
 
-// const NFT_CONTRACT_CODE: &[u8] = include_bytes!("../../../out/nft.wasm");
-
 #[cfg(test)]
 #[path = "seller_tests.rs"]
 mod seller_tests;
@@ -55,31 +53,11 @@ impl MarketplaceContract {
         let offeror_id = env::predecessor_account_id();
         let nft_contract_id = self.internal_nft_shared_contract_id();
 
-        // make sure the attached deposit is sufficient to cover storage
-        // here we attempt to come up with a safe estimate of the  required storage
-        // so that we can terminate early if the attached deposit is insufficient (to save seller's gas)
-        // later, we'll calculate actual usage and refund excess, if any
-        let (marketplace_estimated_storage, nft_estimated_storage) =
-            fpo_add_estimated_storage(&offeror_id.to_string(), &nft_contract_id.to_string(), &asset_url);
-            let storage_cost_per_byte = env::storage_byte_cost();
-        let nft_estimated_storage_cost =
-            (nft_estimated_storage as Balance) * storage_cost_per_byte;
-        let marketplace_estimated_storage_cost = (marketplace_estimated_storage as Balance) * storage_cost_per_byte;
-        let total_estimated_storage_cost = marketplace_estimated_storage_cost + nft_estimated_storage_cost;
-        let attached_deposit = env::attached_deposit();
-        assert!(
-            attached_deposit >= total_estimated_storage_cost,
-            "Must attach at least {:?} yoctoNear to cover Marketplace and NFT storage. Attached deposit was {:?}",
-            total_estimated_storage_cost,
-            attached_deposit
-        );
-
-        // TODO: check NFT metadata for duplicates here
-        // // make sure it's not yet listed
-        // assert!(
-        //     self.fpos_by_contract_id.get(&nft_account_id).is_none(),
-        //     "Already listed"
-        // );
+        // compute required storage
+        let storage_byte_cost = env::storage_byte_cost();
+        let nft_worst_case_storage_usage = nft_make_collection_worst_case_storage(&asset_url);
+        let nft_worst_case_storage_cost =
+            nft_worst_case_storage_usage as Balance * storage_byte_cost;
 
         // price must be at least MIN_PRICE_YOCTO
         assert!(
@@ -177,61 +155,41 @@ impl MarketplaceContract {
             next_proposal_id: 0,
         };
 
-        let initial_marketplace_storage_usage = env::storage_usage();
+        let marketplace_storage_before = env::storage_usage();
 
         self.internal_add_fpo(&fpo);
         self.next_collection_id += 1;
 
-        let final_marketplace_storage_usage = env::storage_usage();
-        let actual_marketplace_storage_usage =
-            final_marketplace_storage_usage - initial_marketplace_storage_usage;
-        let actual_marketplace_storage_cost =
-            env::storage_byte_cost() * Balance::from(actual_marketplace_storage_usage);
-
-        // here our estimate can be made more precise because we know the exact storage used
-        // by FPO - let's update the total storage cost to compensate for any miscalculation
-        // this will shadow our previous estimate value, which we no longer need
-        // let estimated_total_storage_cost =
-        //     actual_marketplace_storage_cost + estimated_nft_storage_cost;
-
-        let total_storage_cost = actual_marketplace_storage_cost;
+        let marketplace_storage_usage = env::storage_usage() - marketplace_storage_before;
+        let marketplace_storage_cost = marketplace_storage_usage as Balance * storage_byte_cost;
+        let attached_deposit = env::attached_deposit();
         assert!(
-            attached_deposit >= total_storage_cost,
-            "Insufficient storage deposit. Need at least {} yoctoNear",
-            total_storage_cost,
+            attached_deposit >= marketplace_storage_cost,
+            "The attached deposit of ({} yN) is insufficient to cover marketplace storage ({} yN).",
+            attached_deposit,
+            marketplace_storage_cost
         );
-        let refund_deposit = attached_deposit - total_storage_cost;
-        // let refund_string = format!("returning deposit {}", refund_deposit);
-        // env::log_str(&refund_string);
 
-        Promise::new(env::predecessor_account_id()).transfer(refund_deposit as Balance);
+        let deposit_left = attached_deposit - marketplace_storage_cost;
 
-        // assert!(
-        //     attached_deposit >= estimated_total_storage_cost,
-        //     "Must attach at least {:?} yN, ACTUAL MARKETPLACE STORAGE: {}, MARKETPLACE COST: {}, DEPOSIT: {}",
-        //     estimated_total_storage_cost,
-        //     actual_marketplace_storage_usage,
-        //     actual_marketplace_storage_cost,
-        //     attached_deposit,
-        // );
-        // let marketplace_refund = attached_deposit - estimated_total_storage_cost;
-
-        // Promise::new(env::predecessor_account_id()).transfer(marketplace_refund as Balance)
+        // Refund excess storage deposit
+        // let storage_deposit_refund = attached_deposit - marketplace_storage_cost_actual - nft_storage_cost;
+        // Promise::new(env::predecessor_account_id()).transfer(storage_deposit_refund as Balance);
 
         nft_contract::make_collection(
             asset_url,
-            supply_total,
             collection_id,
+            supply_total,
             nft_contract_id.clone(),
-            nft_estimated_storage_cost,
+            deposit_left,
             NFT_MAKE_COLLECTION_GAS,
-        )
-        // .then(ext_self_nft::make_collection_completion(
-        //     offering_id,
-        //     env::current_account_id(), // we are invoking this function on the current contract
-        //     NO_DEPOSIT,                // don't attach any deposit
-        //     NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-        // ))
+        ).then(ext_self_nft::make_collection_completion(
+            offering_id,
+            deposit_left,
+            env::current_account_id(), // we are invoking this function on the current contract
+            NO_DEPOSIT,                // don't attach any deposit
+            NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
+        ))
     }
 
     #[payable]
@@ -405,14 +363,15 @@ impl MarketplaceContract {
 
         nft_contract::make_collection(
             asset_url,
-            supply_total,
             collection_id,
+            supply_total,
             nft_contract_id.clone(),
             estimated_nft_storage_cost,
             NFT_MAKE_COLLECTION_GAS,
         )
         .then(ext_self_nft::make_collection_completion(
             offering_id,
+            attached_deposit,
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
@@ -500,7 +459,11 @@ impl MarketplaceContract {
     // this is because there may be multiple acceptable proposals pending which have active deposits
     // they need to be returned
     // must be called by the offeror!
-    pub(crate) fn fpo_conclude(&mut self, nft_contract_id: AccountId, collection_id: NftCollectionId) {
+    pub(crate) fn fpo_conclude(
+        &mut self,
+        nft_contract_id: AccountId,
+        collection_id: NftCollectionId,
+    ) {
         let offering_id = OfferingId {
             nft_contract_id,
             collection_id,
@@ -541,15 +504,7 @@ impl MarketplaceContract {
     }
 }
 
-pub(crate) fn fpo_add_estimated_storage(
-    seller_id: &str,
-    nft_id: &str,
-    asset_url: &str,
-) -> (u64, u64) {
-    let seller_id_len: u64 = seller_id.len().try_into().unwrap();
-    let nft_id_len: u64 = nft_id.len().try_into().unwrap();
+pub(crate) fn nft_make_collection_worst_case_storage(asset_url: &str) -> u64 {
     let asset_url_len: u64 = asset_url.len().try_into().unwrap();
-    let marketplace_storage: u64 = 670 + 2 * seller_id_len + 5 * nft_id_len;
-    let nft_storage: u64 = 136 + 2 * asset_url_len;
-    (marketplace_storage, nft_storage)
+    136 + 2 * asset_url_len
 }
