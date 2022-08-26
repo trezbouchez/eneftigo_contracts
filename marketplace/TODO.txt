@@ -1,0 +1,6 @@
+What if there's already another bid for this account?
+Review U vs u
+Proposal are not sorted!
+
+DONE: How to handle price step? Should it be just 1 yocto?
+DONE: Proposal price must be multiple of price step
