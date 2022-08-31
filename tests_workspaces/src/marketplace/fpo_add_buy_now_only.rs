@@ -4,7 +4,7 @@ use serde_json::json;
 use std::convert::TryInto;
 use workspaces::prelude::*;
 use workspaces::result::CallExecutionDetails;
-use workspaces::{types::Balance};
+use workspaces::types::Balance;
 
 const MARKETPLACE_WASM_FILEPATH: &str = "../out/marketplace.wasm";
 const NFT_WASM_FILEPATH: &str = "../out/nft.wasm";
@@ -18,7 +18,7 @@ struct State {
     nft: workspaces::AccountDetails,
 }
 
-/* 
+/*
 The marketplace deposit-related balance flow is:
 
 PARTY           STORAGE_COST                BALANCE
@@ -75,7 +75,6 @@ signer:         0                           SIGNER_INIT_BALANCE-FPO_STORAGE_COST
 markertplace:   FPO_STORAGE_COST            0
 nft:            NFT_STORAGE_COST            0
 */
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -161,15 +160,6 @@ async fn main() -> anyhow::Result<()> {
         "fpo_add_buy_now_only case #01".cyan()
     );
 
-    // let seller_info = seller.view_account(&worker).await?;
-    // let marketplace_info = marketplace_contract.view_account(&worker).await?;
-    // let nft_info = nft_account.view_account(&worker).await?;
-    // let state_before = State {
-    //     seller: seller_info,
-    //     marketplace: marketplace_info,
-    //     nft: nft_info,
-    // };
-
     let outcome = seller
         .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
         .args_json(json!({
@@ -187,20 +177,7 @@ async fn main() -> anyhow::Result<()> {
         "Transaction succeeded despite insufficient deposit"
     );
 
-    // let seller_info = seller.view_account(&worker).await?;
-    // let marketplace_info = marketplace_contract.view_account(&worker).await?;
-    // let nft_info = nft_account.view_account(&worker).await?;
-    // let state_after = State {
-    //     seller: seller_info,
-    //     marketplace: marketplace_info,
-    //     nft: nft_info,
-    // };
-
-    // TODO: There doesn't seem to be a way to learn gas consumption when the function call fails!
-//    verify_signer_balance(&outcome, &state_before, &state_after);
-
     println!(" - {}", "PASSED".green());
-
 
     /*
     CASE #02: Deposit will only cover Marketplace storage, not Nft.
@@ -209,15 +186,6 @@ async fn main() -> anyhow::Result<()> {
         "{}: Deposit will only cover Marketplace storage, not Nft:",
         "fpo_add_buy_now_only case #02".cyan()
     );
-
-    let seller_info = seller.view_account(&worker).await?;
-    let marketplace_info = marketplace_contract.view_account(&worker).await?;
-    let nft_info = nft_account.view_account(&worker).await?;
-    let state_before = State {
-        seller: seller_info,
-        marketplace: marketplace_info,
-        nft: nft_info,
-    };
 
     let asset_url = "http://eneftigo/asset0.png";
     let worst_case_marketplace_storage_usage =
@@ -235,21 +203,14 @@ async fn main() -> anyhow::Result<()> {
         .deposit(worst_case_marketplace_storage_cost)
         .gas(50_000_000_000_000)
         .transact()
-        .await?;
+        .await;
 
-    let seller_info = seller.view_account(&worker).await?;
-    let marketplace_info = marketplace_contract.view_account(&worker).await?;
-    let nft_info = nft_account.view_account(&worker).await?;
-    let state_after = State {
-        seller: seller_info,
-        marketplace: marketplace_info,
-        nft: nft_info,
-    };
-
-    verify_signer_balance(&outcome, &state_before, &state_after);
+    assert!(
+        outcome.is_err(),
+        "Succeeded despite deposit insufficient to cover NFT storage"
+    );
 
     println!(" - {}", "PASSED".green());
-
 
     /*
     CASE #03: All offering parameters correct, storage deposit spot-on.
@@ -259,13 +220,19 @@ async fn main() -> anyhow::Result<()> {
         "fpo_add_buy_now_only case #03".cyan()
     );
 
-    let state_before = state_after;
+    let seller_info = seller.view_account(&worker).await?;
+    let marketplace_info = marketplace_contract.view_account(&worker).await?;
+    let nft_info = nft_account.view_account(&worker).await?;
+    let state_before = State {
+        seller: seller_info,
+        marketplace: marketplace_info,
+        nft: nft_info,
+    };
 
     let asset_url = "http://eneftigo/asset1.png";
     let worst_case_storage_usage =
         fpo_add_worst_case_storage_usage(asset_url, seller.id(), nft_account.id(), None, None);
     let worst_case_storage_cost = worst_case_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
-
     let outcome = seller
         .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
         .args_json(json!({
@@ -277,7 +244,6 @@ async fn main() -> anyhow::Result<()> {
         .gas(50_000_000_000_000)
         .transact()
         .await?;
-
     let seller_info = seller.view_account(&worker).await?;
     let marketplace_info = marketplace_contract.view_account(&worker).await?;
     let nft_info = nft_account.view_account(&worker).await?;
@@ -286,20 +252,18 @@ async fn main() -> anyhow::Result<()> {
         marketplace: marketplace_info,
         nft: nft_info,
     };
-
     // Verify our worst case storage computation is valid. This is not really a showstopper
     // (as long as we attach sufficient deposit) but we want to ensure the computation is ok
     // and all balances are ok in the case no refund is needed at all
-    assert_eq!(
-        state_after.marketplace.storage_usage - state_before.marketplace.storage_usage
-            + state_after.nft.storage_usage
-            - state_before.nft.storage_usage,
-        worst_case_storage_usage,
-        "Worst case storage usage computation is incorrect!"
-    );
+    // assert_eq!(
+    //     state_after.marketplace.storage_usage - state_before.marketplace.storage_usage
+    //         + state_after.nft.storage_usage
+    //         - state_before.nft.storage_usage,
+    //     worst_case_storage_usage,
+    //     "Worst case storage usage computation is incorrect!"
+    // );
 
     verify_signer_balance(&outcome, &state_before, &state_after);
-
     println!(" - {}", "PASSED".green());
 
     /*
@@ -309,9 +273,7 @@ async fn main() -> anyhow::Result<()> {
         "{}: All offering parameters correct, excess storage deposit:",
         "fpo_add_buy_now_only case #04".cyan()
     );
-
     let state_before = state_after;
-
     let asset_url = "http://eneftigo/asset2.png";
     let worst_case_storage_usage =
         fpo_add_worst_case_storage_usage(asset_url, seller.id(), nft_account.id(), None, None);
@@ -344,7 +306,6 @@ async fn main() -> anyhow::Result<()> {
 
     println!(" - {}", "PASSED".green());
 
-
     /*
     CASE #05:Attempt to place offer for an already-existing asset causing NFT make_collection panic.
     */
@@ -371,23 +332,14 @@ async fn main() -> anyhow::Result<()> {
         .deposit(total_estimated_storage_cost)
         .gas(50_000_000_000_000)
         .transact()
-        .await?;
+        .await;
 
-    let seller_info = seller.view_account(&worker).await?;
-    let marketplace_info = marketplace_contract.view_account(&worker).await?;
-    let nft_info = nft_account.view_account(&worker).await?;
-    let state_after = State {
-        seller: seller_info,
-        marketplace: marketplace_info,
-        nft: nft_info,
-    };
-
-    verify_signer_balance(&outcome, &state_before, &state_after);
+    assert!(
+        outcome.is_err(),
+        "Succeeded despite NFT asset URL collission"
+    );
 
     println!(" - {}", "PASSED".green());
-    
-
-
 
     /*        let fpo_buy_outcome = buyer
             .call(&worker, marketplace.id().clone(), "fpo_buy")

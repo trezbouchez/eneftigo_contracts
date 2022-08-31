@@ -19,7 +19,7 @@ pub use crate::collection::*;
 mod internal;
 mod approval; 
 mod enumeration; 
-mod metadata; 
+pub mod metadata; 
 mod mint; 
 mod nft_core; 
 mod royalty; 

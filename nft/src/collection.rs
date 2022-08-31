@@ -3,14 +3,14 @@ use crate::*;
 #[near_bindgen]
 impl NftContract {
     // Makes new NFT collection. Asset URL and collecton_id must be unique.
-    // Returns storage used by the collection (in bytes)
+    // Returns collection ID and the storage used by the collection (in bytes)
     #[payable]
     pub fn make_collection(
         &mut self,
         asset_url: String,
         collection_id: u64,
         max_supply: u64,
-    ) -> u64 {
+    ) -> (NftCollectionId, u64) {
         // assert_eq!(
         //     &env::predecessor_account_id(),
         //     &self.owner_id,
@@ -65,7 +65,7 @@ impl NftContract {
             Promise::new(env::predecessor_account_id()).transfer(refund_amount);
         }
 
-        storage_usage
+        (collection_id, storage_usage)
     }
 
     pub fn freeze_collection(&mut self, collection_id: u64) {

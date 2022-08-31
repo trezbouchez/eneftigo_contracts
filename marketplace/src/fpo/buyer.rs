@@ -4,11 +4,16 @@ use crate::fpo::config::*;
 use crate::FixedPriceOfferingStatus::*;
 use crate::internal::*;
 use crate::*;
-use near_sdk::json_types::{U128};
+use near_sdk::{
+    PromiseResult,
+    json_types::{U128},
+};
 
 #[cfg(test)]
 #[path = "buyer_tests.rs"]
 mod buyer_tests;
+
+pub type NftId = String;
 
 #[near_bindgen]
 impl MarketplaceContract {
@@ -19,7 +24,7 @@ impl MarketplaceContract {
         &mut self,
         nft_contract_id: AccountId,
         collection_id: NftCollectionId,
-    ) {
+    ) -> Promise {
         let offering_id = OfferingId{ nft_contract_id, collection_id };
 
         // get FPO
@@ -43,42 +48,37 @@ impl MarketplaceContract {
         );
 
         // ensure the attached balance is sufficient
-        let attached_balance_yocto = env::attached_deposit();
+        let attached_deposit = env::attached_deposit();
+        let price = fpo.buy_now_price_yocto;
         assert!(
-            attached_balance_yocto >= fpo.buy_now_price_yocto, 
+            attached_deposit >= price, 
             "Attached Near must be sufficient to pay the price of {:?} yocto Near", 
             fpo.buy_now_price_yocto
         );
 
-        // self.fpo_process_purchase(
-        //     fpo.nft_contract_id.clone(),
-        //     mint_token_id.to_string(),
-        //     buyer_id,
-        //     fpo.buy_now_price_yocto
-        // );
+        fpo.supply_left -= 1;
+
+        self.fpos_by_id.insert(&offering_id, &fpo);
+
+        let deposit_left = attached_deposit - price;
 
         nft_contract::mint(
             offering_id.collection_id,
             buyer_id,
-            None,       // perpetual royalties
+            None,               // perpetual royalties
             offering_id.nft_contract_id.clone(),
-            1,
-            GAS_FOR_NFT_MINT,
-        );
-
-        // };
-
-        // TODO: move to resolve
-        fpo.supply_left -= 1;
-        fpo.prune_supply_exceeding_acceptable_proposals();
-
-        self.fpos_by_id.insert(&offering_id, &fpo);
-
-        // return surplus deposit
-        let surplus_deposit = attached_balance_yocto - fpo.buy_now_price_yocto;
-        if surplus_deposit > 0 {
-            Promise::new(env::predecessor_account_id()).transfer(surplus_deposit);
-        }
+            deposit_left,       // should be >= 7_060_000_000_000_000_000_000 yN
+            NFT_MINT_GAS,
+        )
+        .then(ext_self_nft::fpo_buy_now_mint_completion(
+            fpo.offeror_id.clone(),
+            attached_deposit,
+            price,
+            offering_id.clone(),
+            env::current_account_id(), // we are invoking this function on the current contract
+            NO_DEPOSIT,                // don't attach any deposit
+            NFT_MINT_COMPLETION_GAS, // GAS attached to the completion call
+        ))
     }
 
     // place price proposal
@@ -271,12 +271,31 @@ impl MarketplaceContract {
                 fpo.proposals_by_proposer.insert(&predecessor_account_id, &proposals_by_this_proposer);
             }
 
+            // TODO:
+/*            nft_contract::mint(
+                offering_id.collection_id,
+                predecessor_account_id,
+                None,               // perpetual royalties
+                offering_id.nft_contract_id.clone(),
+                deposit_left,       // should be >= 7_060_000_000_000_000_000_000 yN
+                NFT_MINT_GAS,
+            )
+            .then(ext_self_nft::fpo__mint_completion(
+                fpo.offeror_id,
+                attached_deposit,
+                price,
+                offering_id,
+                env::current_account_id(), // we are invoking this function on the current contract
+                NO_DEPOSIT,                // don't attach any deposit
+                NFT_MINT_COMPLETION_GAS, // GAS attached to the completion call
+            ));*/
             // process purchase (mint and transfer)
-            self.fpo_process_purchase(
-                offering_id.clone(),
-                predecessor_account_id.clone(),
-                fpo.buy_now_price_yocto
-            );
+            // self.fpo_process_purchase(
+            //     offering_id.clone(),
+            //     predecessor_account_id.clone(),
+            //     fpo.buy_now_price_yocto
+            // );
+
             // return surplus deposit
             let surplus_deposit = attached_balance_yocto + proposal.price_yocto - fpo.buy_now_price_yocto;
             if surplus_deposit > 0 {
@@ -401,3 +420,73 @@ impl MarketplaceContract {
     }
 }
 
+#[ext_contract(ext_self_nft)]
+trait FPOBuyerCallback {
+    fn fpo_buy_now_mint_completion(
+        &mut self,
+        seller_id: AccountId,
+        attached_deposit: Balance,
+        price: Balance,
+        offering_id: OfferingId,
+    );
+}
+
+trait FPOBuyerCallback {
+    fn fpo_buy_now_mint_completion(
+        &mut self,
+        seller_id: AccountId,
+        attached_deposit: Balance,
+        price: Balance,
+        offering_id: OfferingId,
+    );
+}
+
+#[near_bindgen]
+impl FPOBuyerCallback for MarketplaceContract {
+    #[private]
+    fn fpo_buy_now_mint_completion(
+        &mut self,
+        seller_id: AccountId,
+        attached_deposit: Balance,
+        price: Balance,
+        offering_id: OfferingId,
+    ) {
+        // Here the attached_deposit is the deposit attach buy buyer to the marketplace call (like buy_now)
+        // The price is the amount due to be transferred to the seller's account if minting succeeds
+        // Pruning the proposals will return deposit provided by respective proposers
+        assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
+        match env::promise_result(0) {
+            PromiseResult::NotReady | PromiseResult::Failed => {
+                let refund = attached_deposit;
+                if refund > 0 {
+                    Promise::new(env::signer_account_id()).transfer(refund);
+                }
+                let mut fpo = self.fpos_by_id.get(&offering_id)
+                    .expect("Could not find the offering");
+                fpo.supply_left += 1; // supply was decremented before attempting to mint
+                self.fpos_by_id.insert(&offering_id, &fpo);
+                panic!("NFT mint failed");
+            }
+            PromiseResult::Successful(val) => {
+                if price > 0 {
+                    Promise::new(seller_id).transfer(price);
+                }
+                let (token_id, mint_storage_bytes) =
+                    near_sdk::serde_json::from_slice::<(NftId, u64)>(&val)
+                        .expect("NFT mint returned unexpected value.");
+                let mint_storage_cost = mint_storage_bytes as Balance * env::storage_byte_cost();
+                let refund = attached_deposit - price - mint_storage_cost;
+                if refund > 0 {
+                    Promise::new(env::signer_account_id()).transfer(refund);
+                }
+                let mut fpo = self
+                    .fpos_by_id.get(&offering_id)
+                    .expect("Could not find the offering");
+                fpo.prune_supply_exceeding_acceptable_proposals();
+                self.fpos_by_id.insert(&offering_id, &fpo);
+                let token_id_str = format!("ALL OK, NFT minted with TokenId {}", token_id);
+                env::log_str(&token_id_str);
+            }
+        }
+    }
+}

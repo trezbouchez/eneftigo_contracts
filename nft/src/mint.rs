@@ -4,13 +4,14 @@ use crate::*;
 impl NftContract {
 
     // TODO: is asset per-collection or per-token?! Maybe there's both?
+    // Returns token ID and storage used by just-minted token
     #[payable]
     pub fn mint(
         &mut self,
         receiver_id: AccountId,
         collection_id: NftCollectionId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
-    ) {
+    ) -> (NftId, u64) {
         assert_eq!(
             &env::predecessor_account_id(),
             &self.owner_id,
@@ -97,6 +98,12 @@ impl NftContract {
         }
         self.collections_by_id.insert(&collection_id, &collection);
 
+        //calculate the required storage which was the used - initial
+        let storage_usage = env::storage_usage() - initial_storage_usage;
+
+        //refund any excess storage if the user attached too much. Will panic if deposit was insufficient
+        refund_excess_deposit(storage_usage);
+
         // construct the mint log as per the events standard.
         let nft_mint_log: EventLog = EventLog {
             standard: NFT_STANDARD_NAME.to_string(),
@@ -107,15 +114,9 @@ impl NftContract {
                 memo: None,                                // memo (optional)
             }]),
         };
-
-        // log the serialized json.
         env::log_str(&nft_mint_log.to_string());
 
-        //calculate the required storage which was the used - initial
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-
-        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover what's required.
-        refund_excess_deposit(required_storage_in_bytes);
+        (new_token_id, storage_usage)
     }
 
     /*    #[payable]

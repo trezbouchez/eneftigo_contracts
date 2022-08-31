@@ -36,7 +36,7 @@ impl MarketplaceContract {
         // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
-    ) -> u64 {
+    ) -> Promise {
         // make sure asset_url is a valid URL
         assert!(Url::parse(&asset_url).is_ok(), "asset URL invalid");
 
@@ -186,9 +186,7 @@ impl MarketplaceContract {
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-        ));
-
-        collection_id
+        ))
     }
 
     #[payable]
@@ -423,11 +421,15 @@ impl MarketplaceContract {
                 .get(&proposal_being_accepted_id)
                 .expect("Proposal being accepted is missing, inconsistent state");
             let proposer_id = proposal_being_accepted.proposer_id;
-            self.fpo_process_purchase(
-                offering_id.clone(),
-                proposer_id.clone(),
-                proposal_being_accepted.price_yocto.clone(),
-            );
+
+            // TODO:
+
+            // TODO: make more specific callback function to rollback 
+            // self.fpo_process_purchase(
+            //     offering_id.clone(),
+            //     proposer_id.clone(),
+            //     proposal_being_accepted.price_yocto.clone(),
+            // );
 
             // TODO: move these to fpo_process_purchase resolve
             let _removed_proposal = fpo

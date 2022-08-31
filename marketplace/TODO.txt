@@ -1,3 +1,7 @@
+1. Keep track of (next)collecton ID in NFT
+2. Only add FPO if make_collection succeeds
+3. 
+
 What if there's already another bid for this account?
 Review U vs u
 Proposal are not sorted!

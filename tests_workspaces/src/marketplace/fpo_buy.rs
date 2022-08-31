@@ -143,15 +143,46 @@ async fn main() -> anyhow::Result<()> {
         .deposit(worst_case_storage_cost)
         .gas(50_000_000_000_000)
         .transact()
-        .await?;
-    let collection_id = outcome.json::<u64>()?;
+        .await;
+    println!("OUTCOME {:#?}", outcome);
+    assert!(false, "FFF");
+    let collection_id = outcome?.json::<u64>()?;
     println!(
         "FPO added successfully. NFT collection id: {}",
         collection_id
     );
 
-    // Buy first one
-    let state_before = get_state(&worker, &parties);
+    /*
+    CASE #01: Deposit won't cover the price
+    */
+    println!(
+        "{}: Deposit won't cover the price:",
+        "fpo_buy case #01".cyan()
+    );
+    let outcome = buyer1_account
+        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+        }))?
+        .gas(100_000_000_000_000)
+        .deposit(900)
+        .transact()
+        .await;
+    assert!(
+        outcome.is_err(),
+        "Succeeded even though it should have panicked!"
+    );
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #02:  Deposit sufficient to pay the price but won't cover NFT storage
+    */
+    println!(
+        "{}:  Deposit sufficient to pay the price but won't cover NFT storage:",
+        "fpo_buy case #02".cyan()
+    );
+    let state_before = get_state(&worker, &parties).await;
     let outcome = buyer1_account
         .call(&worker, marketplace_contract.id(), "fpo_buy")
         .args_json(json!({
@@ -161,29 +192,20 @@ async fn main() -> anyhow::Result<()> {
         .gas(100_000_000_000_000)
         .deposit(1000)
         .transact()
-        .await?;
-    println!("BUY OUTCOME: {:#?}", outcome);
-
-    //
-    // let place_proposal_outcome_json: serde_json::Value = place_proposal_outcome.json()?;
-    // let proposal_id = place_proposal_outcome_json.as_u64().unwrap();
-
-    /*        let fpo_accept_proposal_outcome = seller
-            .call(&worker, marketplace.id().clone(), "fpo_accept_proposals")
-            .args_json(json!({
-                "nft_contract_id": proposals_nft_account_id_str,
-                "accepted_proposals_count": 1,
-            }))?
-            .gas(100_000_000_000_000)
-            .transact()
-            .await;
-        println!("fpo_accept_proposals: {:?}", fpo_accept_proposal_outcome);
-        let fpo_accept_proposal_success = fpo_accept_proposal_outcome.expect("fpo_accept_proposals call failed");
-        assert!(fpo_accept_proposal_success.status.as_success().is_some(), "fpo_accept_proposals call returned error");
-    */
-
-    // All OK
-    // println!("{}", "PASSED".green());
+        .await;
+    assert!(
+        outcome.is_err(),
+        "Succeeded even though it should have failed!"
+    );
+    let state_after = get_state(&worker, &parties).await;
+    assert!(
+        state_before.marketplace.storage_usage == state_after.marketplace.storage_usage
+            && state_before.seller.storage_usage == state_after.seller.storage_usage
+            && state_before.nft.storage_usage == state_after.nft.storage_usage
+            && state_before.buyer1.storage_usage == state_after.buyer1.storage_usage,
+        "Storages have changed even though purchase failed!"
+    );
+    println!(" - {}", "PASSED".green());
 
     Ok(())
 }
