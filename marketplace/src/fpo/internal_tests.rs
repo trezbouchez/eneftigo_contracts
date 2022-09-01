@@ -315,10 +315,15 @@ mod internal_tests {
         let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
         let offering_id = OfferingId { nft_contract_id, collection_id };
         let offeror_id = AccountId::new_unchecked(offeror_id_str.to_string());
-
+        let nft_metadata = NftMetadata::new(
+            &String::from("Bored Grapes"),
+            &String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
+        );
+        
         FixedPriceOffering {
             offering_id: offering_id,
             offeror_id: offeror_id,
+            nft_metadata,
             supply_total: 5,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: Some(500),

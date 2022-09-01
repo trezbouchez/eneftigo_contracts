@@ -34,7 +34,7 @@ pub const NFT_STANDARD_NAME: &str = "nep171";
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct NftCollection {
-    pub asset_url: String,
+    pub nft_metadata: TokenMetadata,
     pub max_supply: u64,
     pub is_frozen: bool,        // if frozen, no more minting is allowed
     pub tokens: Vector<NftId>,
@@ -55,6 +55,7 @@ pub struct NftContract {
     //keeps tokens organized into collections
     pub collections_by_id: LookupMap<NftCollectionId, NftCollection>,
     pub collections_by_url: LookupMap<String, NftCollectionId>,
+    pub next_collection_id: u64,
 
     //keeps track of the token struct for a given token ID
     pub tokens_by_id: LookupMap<NftId, Nft>,
@@ -116,6 +117,7 @@ impl NftContract {
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             collections_by_id: LookupMap::new(StorageKey::CollectionsById.try_to_vec().unwrap()),
             collections_by_url: LookupMap::new(StorageKey::CollectionsByUrl.try_to_vec().unwrap()),
+            next_collection_id: 0u64,
             token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
             owner_id,
             metadata: LazyOption::new(StorageKey::NFTContractMetadata.try_to_vec().unwrap(), Some(&metadata)),

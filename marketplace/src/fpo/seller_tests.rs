@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod seller_tests {
+    use crate::fpo::seller::{MAX_TITLE_LEN,IPFS_URL_LEN};
     use crate::internal::{hash_account_id, hash_offering_id};
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
@@ -40,7 +41,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,         // total_supply
             U128(800), // buy_now_price_yocto
             U128(50),  // min_proposal_price_yocto
@@ -64,7 +66,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1115), // buy_now_price_yocto
             U128(50),   // min_proposal_price_yocto
@@ -88,7 +91,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1200), // buy_now_price_yocto
             U128(55),   // min_proposal_price_yocto
@@ -111,7 +115,8 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(1100), // min_proposal_price_yocto
@@ -135,7 +140,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -159,7 +165,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -183,7 +190,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -207,7 +215,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -231,7 +240,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             0,          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -255,7 +265,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             101,        // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -280,7 +291,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -306,7 +318,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_accepting_proposals(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
@@ -366,7 +379,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,         // total_supply
             U128(800), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -389,7 +403,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1115), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -411,7 +426,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -434,7 +450,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -457,7 +474,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -480,7 +498,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             0,          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -503,7 +522,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             101,        // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
@@ -527,7 +547,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                              // nft_metadata
@@ -552,7 +573,8 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
 
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            String::from("Bored Grapes"),
+            String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                // nft_metadata
@@ -590,6 +612,33 @@ mod seller_tests {
     //     );
     // }
 
+/*    #[test]
+    fn test_buy_now_worst_case_storage_usage() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
+            10450000000000000000000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+
+        let title = String::from("abcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefgh");
+        assert_eq!(title.len(), MAX_TITLE_LEN);
+        let media_url = String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF");
+        assert_eq!(media_url.len(), IPFS_URL_LEN);
+
+        marketplace.fpo_add_buy_now_only(
+            title,
+            media_url,
+            10,         // total_supply
+            U128(1000), // buy_now_price_yocto
+            Some(String::from("2022-09-01T00:00:00+00:00")),
+            Some(String::from("2022-09-20T00:00:00+00:00")),
+        );
+    }*/
+    
     #[test]
     fn test_buy_now_success() {
         let context = test_get_context(
@@ -602,14 +651,21 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
+        let title = String::from("abcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefgh");
+        assert_eq!(title.len(), MAX_TITLE_LEN);
+        let media_url = String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF");
+        assert_eq!(media_url.len(), IPFS_URL_LEN);
+
         marketplace.fpo_add_buy_now_only(
-            String::from("http://eneftigo/asset.png"),
+            title,
+            media_url,
             10,         // total_supply
             U128(1000), // buy_now_price_yocto
-            //nft_metadata(1), // nft_metadata
-            None,
-            None,
+            Some(String::from("2022-09-01T00:00:00+00:00")),
+            Some(String::from("2022-09-20T00:00:00+00:00")),
         );
+
+        assert!(false, "");
     }
 
     /*
@@ -1107,9 +1163,14 @@ mod seller_tests {
         let end_timestamp = DateTime::parse_from_rfc3339("1975-06-10T00:00:00+00:00")
             .unwrap()
             .timestamp_nanos();
+        let nft_metadata = NftMetadata::new(
+            &String::from("Bored Grapes"),
+            &String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
+        );
         let fpo = FixedPriceOffering {
             offering_id,
             offeror_id: offeror_account_id.clone(),
+            nft_metadata,
             supply_total: supply,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: Some(500),

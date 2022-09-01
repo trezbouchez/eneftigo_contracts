@@ -9,6 +9,12 @@ use near_sdk::{
     json_types::{U128},
 };
 
+const NFT_MINT_GAS: Gas = Gas(15_000_000_000_000);                  // TODO: measure
+const NFT_MINT_COMPLETION_GAS: Gas = Gas(5_000_000_000_000);        // TODO: measure
+
+const NFT_MINT_WORST_CASE_STORAGE: u64 = 830;                       // actual, measured
+
+
 #[cfg(test)]
 #[path = "buyer_tests.rs"]
 mod buyer_tests;
@@ -26,11 +32,10 @@ impl MarketplaceContract {
         collection_id: NftCollectionId,
     ) -> Promise {
         let offering_id = OfferingId{ nft_contract_id, collection_id };
-
-        // get FPO
+        // update FPO status, won't change storage usage
         let mut fpo = self.fpos_by_id.get(&offering_id).expect("Could not find NFT listing");
-
         fpo.update_status();
+        self.fpos_by_id.insert(&offering_id, &fpo);
 
         assert!(
             fpo.status == Running,
@@ -49,25 +54,22 @@ impl MarketplaceContract {
 
         // ensure the attached balance is sufficient
         let attached_deposit = env::attached_deposit();
+        let nft_storage_cost = NFT_MINT_WORST_CASE_STORAGE as Balance * env::storage_byte_cost();
         let price = fpo.buy_now_price_yocto;
+        let total_cost = price + nft_storage_cost;
+
         assert!(
-            attached_deposit >= price, 
-            "Attached Near must be sufficient to pay the price of {:?} yocto Near", 
-            fpo.buy_now_price_yocto
+            attached_deposit >= total_cost, 
+            "Attached Near must be at least {}, enough to pay the price and the NFT minting storage", 
+            total_cost,
         );
-
-        fpo.supply_left -= 1;
-
-        self.fpos_by_id.insert(&offering_id, &fpo);
-
-        let deposit_left = attached_deposit - price;
 
         nft_contract::mint(
             offering_id.collection_id,
             buyer_id,
             None,               // perpetual royalties
             offering_id.nft_contract_id.clone(),
-            deposit_left,       // should be >= 7_060_000_000_000_000_000_000 yN
+            nft_storage_cost,
             NFT_MINT_GAS,
         )
         .then(ext_self_nft::fpo_buy_now_mint_completion(
@@ -420,6 +422,12 @@ impl MarketplaceContract {
     }
 }
 
+// If extra fields get added to the NFT metadata this will need to be updated
+fn nft_mint_worst_case_storage(receiver_id: AccountId) -> u64 {
+    let mint_worst_case_storage_base: u64 = 830;        // actual, measured
+    mint_worst_case_storage_base + receiver_id.to_string().len() as u64 * 2
+}
+
 #[ext_contract(ext_self_nft)]
 trait FPOBuyerCallback {
     fn fpo_buy_now_mint_completion(
@@ -428,7 +436,7 @@ trait FPOBuyerCallback {
         attached_deposit: Balance,
         price: Balance,
         offering_id: OfferingId,
-    );
+    ) -> NftId;
 }
 
 trait FPOBuyerCallback {
@@ -438,7 +446,7 @@ trait FPOBuyerCallback {
         attached_deposit: Balance,
         price: Balance,
         offering_id: OfferingId,
-    );
+    ) -> NftId;
 }
 
 #[near_bindgen]
@@ -450,7 +458,7 @@ impl FPOBuyerCallback for MarketplaceContract {
         attached_deposit: Balance,
         price: Balance,
         offering_id: OfferingId,
-    ) {
+    ) -> NftId {
         // Here the attached_deposit is the deposit attach buy buyer to the marketplace call (like buy_now)
         // The price is the amount due to be transferred to the seller's account if minting succeeds
         // Pruning the proposals will return deposit provided by respective proposers
@@ -468,24 +476,32 @@ impl FPOBuyerCallback for MarketplaceContract {
                 panic!("NFT mint failed");
             }
             PromiseResult::Successful(val) => {
-                if price > 0 {
-                    Promise::new(seller_id).transfer(price);
-                }
+                // here the NFT was minted and transferred so we pay the seller before we can panic
+                // so that at least this part of the transaction is ok
+                Promise::new(seller_id).transfer(price);
+                // update offering supply
+                let mut fpo = self.fpos_by_id.get(&offering_id).expect("Could not find NFT listing");
+                fpo.supply_left -= 1;
+                fpo.prune_supply_exceeding_acceptable_proposals();
+                self.fpos_by_id.insert(&offering_id, &fpo);
+                // get the token ID and NFT storage and compute refund
                 let (token_id, mint_storage_bytes) =
                     near_sdk::serde_json::from_slice::<(NftId, u64)>(&val)
                         .expect("NFT mint returned unexpected value.");
                 let mint_storage_cost = mint_storage_bytes as Balance * env::storage_byte_cost();
-                let refund = attached_deposit - price - mint_storage_cost;
+                let total_storage_cost  = price + mint_storage_cost;
+                // this should never happen. when it does to be totally correct we should revert the minting
+                // and seller payment but it's water under the bridge now. to avoid it we pessimistically 
+                // compute the storage cost at the beginning of the fpo_buy contract call 
+                assert!(attached_deposit >= total_storage_cost, "Attached deposit won't cover the price and NFT storage");
+                let refund = attached_deposit - total_storage_cost;
                 if refund > 0 {
                     Promise::new(env::signer_account_id()).transfer(refund);
                 }
-                let mut fpo = self
-                    .fpos_by_id.get(&offering_id)
-                    .expect("Could not find the offering");
-                fpo.prune_supply_exceeding_acceptable_proposals();
-                self.fpos_by_id.insert(&offering_id, &fpo);
-                let token_id_str = format!("ALL OK, NFT minted with TokenId {}", token_id);
-                env::log_str(&token_id_str);
+                // let token_id_str = format!("ALL OK, NFT minted with TokenId {}", token_id);
+                // env::log_str(&token_id_str);
+
+                token_id
             }
         }
     }

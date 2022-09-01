@@ -468,6 +468,7 @@ version = "0.1.0"
 dependencies = [
  "near-sdk 4.0.0-pre.4",
  "serde_json",
+ "url",
 ]
 
 [[package]]

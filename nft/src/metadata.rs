@@ -22,6 +22,7 @@ pub struct NFTContractMetadata {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenMetadata {
     pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
@@ -36,6 +37,25 @@ pub struct TokenMetadata {
     pub extra: Option<String>, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
     pub reference: Option<String>, // URL to an off-chain JSON file with more info.
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+}
+
+impl TokenMetadata {
+    pub(crate) fn new(title: &str, media: &str) -> TokenMetadata {
+        TokenMetadata { 
+            title: Some(String::from(title)), 
+            description: None, 
+            media: Some(String::from(media)), 
+            media_hash: None, 
+            copies: None, 
+            issued_at: None, 
+            expires_at: None, 
+            starts_at: None, 
+            updated_at: None, 
+            extra: None, 
+            reference: None, 
+            reference_hash: None
+        }
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]

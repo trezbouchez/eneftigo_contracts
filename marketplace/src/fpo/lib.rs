@@ -93,6 +93,7 @@ impl FixedPriceOfferingStatus {
 pub struct FixedPriceOffering {
     pub offering_id: OfferingId,
     pub offeror_id: AccountId,
+    pub nft_metadata: NftMetadata,
     pub supply_total: u64,
     pub buy_now_price_yocto: u128,
     pub min_proposal_price_yocto: Option<u128>, // if None then no proposals will be accepted
@@ -116,37 +117,3 @@ impl fmt::Display for FixedPriceOffering {
         )
     }
 }
-
-// place a fixed-price offering. The sale will go through as long as your deposit is greater than or equal to the list price
-//#[payable]
-//pub fn offer(&mut self, nft_contract_id: AccountId, token_id: String) {
-/*    //get the attached deposit and make sure it's greater than 0
-let deposit = env::attached_deposit();
-assert!(deposit > 0, "Attached deposit must be greater than 0");
-
-//convert the nft_contract_id from a AccountId to an AccountId
-let contract_id: AccountId = nft_contract_id.into();
-//get the unique sale ID (contract + DELIMITER + token ID)
-let contract_and_token_id = format!("{}{}{}", contract_id, DELIMETER, token_id);
-
-//get the sale object from the unique sale ID. If the sale doesn't exist, panic.
-let sale = self.sales.get(&contract_and_token_id).expect("No sale");
-
-//get the buyer ID which is the person who called the function and make sure they're not the owner of the sale
-let buyer_id = env::predecessor_account_id();
-assert_ne!(sale.owner_id, buyer_id, "Cannot bid on your own sale.");
-
-//get the u128 price of the token (dot 0 converts from U128 to u128)
-let price = sale.sale_conditions.0;
-
-//make sure the deposit is greater than the price
-assert!(deposit >= price, "Attached deposit must be greater than or equal to the current price: {:?}", price);
-
-//process the purchase (which will remove the sale, transfer and get the payout from the nft contract, and then distribute royalties)
-self.process_purchase(
-    contract_id,
-    token_id,
-    U128(deposit),
-    buyer_id,
-);*/
-// }

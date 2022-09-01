@@ -12,7 +12,7 @@ pub trait NonFungibleTokenCore {
         &mut self,
         receiver_id: AccountId,
         token_id: NftId,
-        approval_id: u64,
+        approval_id: Option<u64>,
         memo: Option<String>,
     );
 
@@ -22,7 +22,7 @@ pub trait NonFungibleTokenCore {
         &mut self,
         receiver_id: AccountId,
         token_id: NftId,
-        approval_id: u64,
+        approval_id: Option<u64>,
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<bool>;
@@ -88,7 +88,7 @@ impl NonFungibleTokenCore for NftContract {
         &mut self,
         receiver_id: AccountId,
         token_id: NftId,
-        approval_id: u64,
+        approval_id: Option<u64>,
         memo: Option<String>,
     ) {
         //assert that the user attached exactly 1 yoctoNEAR. This is for security and so that the user will be redirected to the NEAR wallet. 
@@ -102,7 +102,7 @@ impl NonFungibleTokenCore for NftContract {
             &sender_id, 
             &receiver_id, 
             &token_id, 
-            Some(approval_id),
+            approval_id,
             memo,
         );
 
@@ -119,7 +119,7 @@ impl NonFungibleTokenCore for NftContract {
         &mut self,
         receiver_id: AccountId,
         token_id: NftId,
-        approval_id: u64,
+        approval_id: Option<u64>,
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<bool> {
@@ -147,7 +147,7 @@ impl NonFungibleTokenCore for NftContract {
             &sender_id, 
             &receiver_id, 
             &token_id, 
-            Some(approval_id),
+            approval_id,
             memo.clone(),
         );
 

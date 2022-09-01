@@ -1,5 +1,12 @@
 use crate::*;
 
+use url::Url;
+
+const MAX_TITLE_LEN: usize = 128;
+const IPFS_URL_LEN: usize = 21 + 46; //https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF
+// this was computed assuming MAX_TITLE_LEN and IPFS_URL_LEN
+pub const NEW_COLLECTION_WORST_CASE_STORAGE: u64 = 422;            // actual, measured
+
 #[near_bindgen]
 impl NftContract {
     // Makes new NFT collection. Asset URL and collecton_id must be unique.
@@ -7,8 +14,7 @@ impl NftContract {
     #[payable]
     pub fn make_collection(
         &mut self,
-        asset_url: String,
-        collection_id: u64,
+        nft_metadata: TokenMetadata,
         max_supply: u64,
     ) -> (NftCollectionId, u64) {
         // assert_eq!(
@@ -17,18 +23,27 @@ impl NftContract {
         //     "Only contract owner (Eneftigo Marketplace) can create collections"
         // );
 
-        // measure the initial storage being used on the contract
+        let title = nft_metadata.title.clone().expect("NFT metadata must include title");
+        // this is because the storage usage is (pesimistacally) computed for this max title length
+        assert!(title.len() <= MAX_TITLE_LEN, "Title length cannot exceed {} characters", MAX_TITLE_LEN);
+        let media_url = nft_metadata.media.clone().expect("NFT metadata must include media (URL)");
+        assert!(Url::parse(&media_url).is_ok(), "NFT asset URL is invalid");
+        assert!(media_url.len() == IPFS_URL_LEN, "Not an IPFS URL");        // TODO: do stricter regex match
+
         let initial_storage_usage = env::storage_usage();
 
-        let previous_collection = self.collections_by_url.insert(&asset_url, &collection_id);
+        let collection_id = self.next_collection_id;
+        self.next_collection_id += 1;
+
+        let previous_collection = self.collections_by_url.insert(&media_url, &collection_id);
         assert!(
             previous_collection.is_none(),
-            "Collection exists for {}",
-            asset_url
+            "Collection exists for media at {}",
+            media_url,
         );
 
         let new_collection = NftCollection {
-            asset_url,
+            nft_metadata,
             max_supply,
             is_frozen: false,
             tokens: Vector::new(
@@ -110,7 +125,7 @@ impl NftContract {
             .expect("Could not remove collection from collections_by_id");
 
         self.collections_by_url
-            .remove(&collection.asset_url)
+            .remove(&collection.nft_metadata.media.unwrap())
             .expect("Could not remove collection from collections_by_url");
         let storage_freed = initial_storage_usage - env::storage_usage();
         refund(storage_freed);
@@ -143,14 +158,9 @@ mod tests {
         testing_env!(context);
 
         let mut contract = NftContract::new_default_meta("test.near".parse().unwrap());
-        let storage_before = env::storage_usage();
-        contract.make_collection(
-            String::from("http://eneftigo/asset.png"),
-            9007199254740991,
-            9007199254740991,
-        );
-        let storage_between = env::storage_usage();
-        contract.make_collection(String::from("http://eneftigo/asset.png"), 0, 10);
+        let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset.png");
+        contract.make_collection(nft_metadata.clone(), 5);
+        contract.make_collection(nft_metadata.clone(), 10);
     }
 
     #[test]
@@ -164,20 +174,9 @@ mod tests {
         testing_env!(context);
 
         let mut contract = NftContract::new_default_meta("test.near".parse().unwrap());
-        let storage_before = env::storage_usage();
-        contract.make_collection(
-            String::from("http://eneftigo/asset1.png"),
-            9007199254740991,
-            9007199254740991,
-        );
-        let storage_between = env::storage_usage();
-        contract.make_collection(String::from("http://eneftigo/asset2.png"), 0, 10);
-        let storage_after = env::storage_usage();
-
-        println!(
-            "{}, {}",
-            storage_between - storage_before,
-            storage_after - storage_between
-        );
+        let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset1.png");
+        contract.make_collection(nft_metadata, 5);
+        let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset2.png");
+        contract.make_collection(nft_metadata, 10);
     }
 }

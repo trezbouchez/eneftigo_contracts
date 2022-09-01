@@ -4,13 +4,13 @@ use near_sdk::StorageUsage;
 //constant used to attach 0 NEAR to a call
 pub const NO_DEPOSIT: Balance = 0;
 
+pub const ACCOUNT_NAME_LEN_MAX: usize = 64;     //https://nomicon.io/DataStructures/Account
+
 /* NFT contract cross call constants */
 // TODO: measure them, they're overshoot for sure
-pub const NFT_MAKE_COLLECTION_STORAGE: StorageUsage = 79;
-pub const NFT_MAKE_COLLECTION_GAS: Gas = Gas(5_000_000_000_000);            // make_collection gas consumption TODO: estimate
-pub const NFT_MAKE_COLLECTION_COMPLETION_GAS: Gas = Gas(5_000_000_000_000);
-pub const NFT_MINT_GAS: Gas = Gas(15_000_000_000_000);              
-pub const NFT_MINT_COMPLETION_GAS: Gas = Gas(5_000_000_000_000);
+
+// pub const NFT_MINT_GAS: Gas = Gas(15_000_000_000_000);              
+// pub const NFT_MINT_COMPLETION_GAS: Gas = Gas(5_000_000_000_000);
 // minimum balance needed by an NFT account
 //pub const NFT_NAKED_ACCOUNT_REQUIRED_BALANCE: Balance = 1_000_000_000_000_000_000_000;
 // pub const NFT_CONTRACT_STORAGE_COST: Balance = 3_154_650_000_000_000_000_000_000

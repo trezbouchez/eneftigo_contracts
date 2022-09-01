@@ -9,6 +9,13 @@ use workspaces::types::Balance;
 const MARKETPLACE_WASM_FILEPATH: &str = "../out/marketplace.wasm";
 const NFT_WASM_FILEPATH: &str = "../out/nft.wasm";
 
+const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1349; // actual, measured
+const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 422; // actual, measured
+const FPO_ADD_WORST_CASE_STORAGE: u64 =
+    FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE + NEW_COLLECTION_WORST_CASE_NFT_STORAGE;
+
+const NFT_MINT_WORST_CASE_STORAGE: u64 = 830; // actual, measured
+
 const STORAGE_COST_YOCTO_PER_BYTE: u128 = 10000000000000000000;
 
 struct Parties<'a> {
@@ -62,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
     let outcome = marketplace_contract
         .as_account()
         .create_subaccount(&worker, "nft")
-        .initial_balance(parse_near!("5 N")) // about 3.5N required for wasm storage, deducted from signer (marketplace) account
+        .initial_balance(parse_near!("10 N")) // about 3.5N required for wasm storage, deducted from signer (marketplace) account
         .transact()
         .await?;
     assert!(
@@ -106,6 +113,26 @@ async fn main() -> anyhow::Result<()> {
     let seller_account = worker.dev_create_account().await?;
     println!("SELLER accountId: {}", seller_account.id());
 
+    // Place offerring
+    let title = "Bored Aardvark";
+    let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF";
+    let fpo_add_worst_case_storage_cost =
+        FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+
+    let outcome = seller_account
+        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .args_json(json!({
+            "title": title,
+            "media_url": media_url,
+            "supply_total": 2,
+            "buy_now_price_yocto": "1000",
+        }))?
+        .deposit(fpo_add_worst_case_storage_cost)
+        .gas(50_000_000_000_000)
+        .transact()
+        .await?;
+    let collection_id = outcome.json::<u64>()?;
+
     // Create buyer accounts
     let buyer1_account = worker.dev_create_account().await?;
     println!("BUYER #1 accountId: {}", buyer1_account.id());
@@ -122,35 +149,6 @@ async fn main() -> anyhow::Result<()> {
         buyer2: &buyer2_account,
         buyer3: &buyer3_account,
     };
-
-    // Place offerring
-    let asset_url = "http://eneftigo/asset.png";
-    let worst_case_storage_usage = fpo_add_worst_case_storage_usage(
-        asset_url,
-        seller_account.id(),
-        nft_account.id(),
-        None,
-        None,
-    );
-    let worst_case_storage_cost = worst_case_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
-    let outcome = seller_account
-        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
-        .args_json(json!({
-            "asset_url": asset_url,
-            "supply_total": 2,
-            "buy_now_price_yocto": "1000",
-        }))?
-        .deposit(worst_case_storage_cost)
-        .gas(50_000_000_000_000)
-        .transact()
-        .await;
-    println!("OUTCOME {:#?}", outcome);
-    assert!(false, "FFF");
-    let collection_id = outcome?.json::<u64>()?;
-    println!(
-        "FPO added successfully. NFT collection id: {}",
-        collection_id
-    );
 
     /*
     CASE #01: Deposit won't cover the price
@@ -173,13 +171,14 @@ async fn main() -> anyhow::Result<()> {
         outcome.is_err(),
         "Succeeded even though it should have panicked!"
     );
+
     println!(" - {}", "PASSED".green());
 
     /*
-    CASE #02:  Deposit sufficient to pay the price but won't cover NFT storage
+    CASE #02: Deposit sufficient to pay the price but won't cover NFT storage
     */
     println!(
-        "{}:  Deposit sufficient to pay the price but won't cover NFT storage:",
+        "{}: Deposit sufficient to pay the price but won't cover NFT storage:",
         "fpo_buy case #02".cyan()
     );
     let state_before = get_state(&worker, &parties).await;
@@ -197,6 +196,8 @@ async fn main() -> anyhow::Result<()> {
         outcome.is_err(),
         "Succeeded even though it should have failed!"
     );
+
+    // check if everything has been rolled back
     let state_after = get_state(&worker, &parties).await;
     assert!(
         state_before.marketplace.storage_usage == state_after.marketplace.storage_usage
@@ -205,6 +206,86 @@ async fn main() -> anyhow::Result<()> {
             && state_before.buyer1.storage_usage == state_after.buyer1.storage_usage,
         "Storages have changed even though purchase failed!"
     );
+
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #03: Deposit sufficient to succeed:
+    */
+    println!(
+        "{}: Deposit sufficient to succeed:",
+        "fpo_buy case #03".cyan()
+    );
+    let state_before = get_state(&worker, &parties).await;
+
+    let nft_mint_worst_case_storage_cost =
+        NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let outcome = buyer1_account
+        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+        }))?
+        .gas(100_000_000_000_000)
+        .deposit(1000 + nft_mint_worst_case_storage_cost)
+        .transact()
+        .await?;
+
+    let state_after = get_state(&worker, &parties).await;
+    verify_balances(&outcome, &state_before, &state_after, 1000, 1);
+
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #04: Buying the last available item
+    */
+    println!(
+        "{}: Buying the last available item:",
+        "fpo_buy case #04".cyan()
+    );
+    let state_before = state_after;
+
+    let nft_mint_worst_case_storage_cost =
+        NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let outcome = buyer2_account
+        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+        }))?
+        .gas(100_000_000_000_000)
+        .deposit(2000 + nft_mint_worst_case_storage_cost)
+        .transact()
+        .await?;
+
+    let state_after = get_state(&worker, &parties).await;
+    verify_balances(&outcome, &state_before, &state_after, 1000, 2);
+
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #05: Attempt to buy when no supply left
+    */
+    println!(
+        "{}: Attempt to buy when no supply left:",
+        "fpo_buy case #05".cyan()
+    );
+
+    let nft_mint_worst_case_storage_cost =
+        NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let outcome = buyer3_account
+        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+        }))?
+        .gas(100_000_000_000_000)
+        .deposit(1000 + nft_mint_worst_case_storage_cost)
+        .transact()
+        .await;
+
+    assert!(outcome.is_err(), "Succeeded even though no supply was left!");
+
     println!(" - {}", "PASSED".green());
 
     Ok(())
@@ -257,40 +338,12 @@ where
     }
 }
 
-fn fpo_add_worst_case_storage_usage(
-    asset_url: &str,
-    seller_id: &str,
-    nft_id: &str,
-    start_date: Option<String>,
-    end_date: Option<String>,
-) -> u64 {
-    fpo_add_worst_case_marketplace_storage_usage(seller_id, nft_id, start_date, end_date)
-        + fpo_add_worst_case_nft_storage_usage(asset_url)
-}
-
-fn fpo_add_worst_case_marketplace_storage_usage(
-    seller_id: &str,
-    nft_id: &str,
-    start_date: Option<String>,
-    end_date: Option<String>,
-) -> u64 {
-    let seller_id_len: u64 = seller_id.len().try_into().unwrap();
-    let nft_id_len: u64 = nft_id.len().try_into().unwrap();
-    670 + 2 * seller_id_len
-        + 5 * nft_id_len
-        + if start_date.is_some() { 8 } else { 0 }
-        + if end_date.is_some() { 8 } else { 0 }
-}
-
-fn fpo_add_worst_case_nft_storage_usage(asset_url: &str) -> u64 {
-    let asset_url_len: u64 = asset_url.len().try_into().unwrap();
-    136 + 2 * asset_url_len
-}
-
-fn verify_seller_balance(
+fn verify_balances(
     execution_details: &CallExecutionDetails,
     state_before: &State,
     state_after: &State,
+    price_paid: Balance,
+    buyer_index: usize, // 1-based
 ) {
     let transaction = execution_details.outcome();
     let receipts = execution_details.receipt_outcomes();
@@ -305,17 +358,36 @@ fn verify_seller_balance(
     let nft_storage_cost = nft_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
     // gas
-    let seller_gas_cost = receipts
+    let buyer_gas_cost = receipts
         .iter()
         .fold(0, |acc, receipt| acc + receipt.tokens_burnt)
         + transaction.tokens_burnt;
 
     // overall
-    let seller_balance_correct =
-        state_before.seller.balance - seller_gas_cost - marketplace_storage_cost - nft_storage_cost;
+    let (buyer_state_before, buyer_state_after) = match buyer_index {
+        1 => (&state_before.buyer1, &state_after.buyer1),
+        2 => (&state_before.buyer2, &state_after.buyer2),
+        3 => (&state_before.buyer3, &state_after.buyer3),
+        _ => panic!("Wrong buyer index"),
+    };
+
+    // buyer balance
+    let buyer_balance_correct = buyer_state_before.balance
+        - buyer_gas_cost
+        - marketplace_storage_cost
+        - nft_storage_cost
+        - price_paid;
+    assert_eq!(
+        buyer_state_after.balance, buyer_balance_correct,
+        "Buyer{} balance of {} is wrong. Should be {}",
+        buyer_index, buyer_state_after.balance, buyer_balance_correct
+    );
+
+    // seller balance
+    let seller_balance_correct = state_before.seller.balance + price_paid;
     assert_eq!(
         state_after.seller.balance, seller_balance_correct,
-        "Seller balance {} is wrong. Should be {}.",
+        "Seller balance of {} is wrong. Should be {}",
         state_after.seller.balance, seller_balance_correct
     );
 }

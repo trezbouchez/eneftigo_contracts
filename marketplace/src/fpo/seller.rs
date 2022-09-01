@@ -1,4 +1,3 @@
-use crate::callback::*;
 use crate::config::*;
 use crate::fpo::config::*;
 use crate::internal::*;
@@ -8,9 +7,20 @@ use crate::*;
 use chrono::DateTime;
 use url::Url;
 
-use near_sdk::collections::{LookupMap, Vector};
-use near_sdk::json_types::U128;
-use near_sdk::AccountId;
+use near_sdk::{
+    collections::{LookupMap, Vector},
+    json_types::U128,
+    AccountId, PromiseResult,
+};
+
+const NFT_MAKE_COLLECTION_GAS: Gas = Gas(5_000_000_000_000); // highest measured 3_920_035_683_889
+const NFT_MAKE_COLLECTION_COMPLETION_GAS: Gas = Gas(6_000_000_000_000); // highest measured 5_089_357_803_858
+
+pub const MAX_TITLE_LEN: usize = 128;
+pub const IPFS_URL_LEN: usize = 21 + 46; //https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF
+
+const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1349; // actual, measured for longest possible account ids & title and IPFS URL
+const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 422; // actual, measured
 
 #[cfg(test)]
 #[path = "seller_tests.rs"]
@@ -18,27 +28,33 @@ mod seller_tests;
 
 #[near_bindgen]
 impl MarketplaceContract {
-    /*  Adds new Fixed Price Offering listing
-
-        Marketplace Contract storage is:
-        a) for first FPO for a given user: 740 + 2 * account_id.len() + 2 * non-None dates
-        b) for subsequent FPO:             611 + 1 * account_id.len() + 2 * non-None dates
-
-        NFT Contract storage (new collection) is always 79 bytes
-    */
-
     #[payable]
     pub fn fpo_add_buy_now_only(
         &mut self,
-        asset_url: String,
+        title: String,
+        media_url: String,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
     ) -> Promise {
-        // make sure asset_url is a valid URL
-        assert!(Url::parse(&asset_url).is_ok(), "asset URL invalid");
+        let attached_deposit = env::attached_deposit();
+        let worst_case_total_storage_cost = (FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE
+            + NEW_COLLECTION_WORST_CASE_NFT_STORAGE)
+            as Balance
+            * env::storage_byte_cost();
+        assert!(
+            attached_deposit >= worst_case_total_storage_cost,
+            "Attach at least {} yN",
+            worst_case_total_storage_cost
+        );
+        assert!(
+            title.len() <= MAX_TITLE_LEN,
+            "Title length cannot exceed {} characters",
+            MAX_TITLE_LEN
+        );
+        assert!(Url::parse(&media_url).is_ok(), "NFT media URL is invalid");
+        assert!(media_url.len() == IPFS_URL_LEN, "Not an IPFS URL"); // TODO: do stricter regex match
 
         // ensure max supply does not exceed limit
         assert!(
@@ -46,15 +62,6 @@ impl MarketplaceContract {
             "Max NFT supply must be between 1 and {}.",
             TOTAL_SUPPLY_MAX
         );
-
-        let offeror_id = env::predecessor_account_id();
-        let nft_contract_id = self.internal_nft_shared_contract_id();
-
-        // compute required storage
-        let storage_byte_cost = env::storage_byte_cost();
-        let nft_worst_case_storage_usage = nft_make_collection_worst_case_storage(&asset_url);
-        let nft_worst_case_storage_cost =
-            nft_worst_case_storage_usage as Balance * storage_byte_cost;
 
         // price must be at least MIN_PRICE_YOCTO
         assert!(
@@ -111,97 +118,48 @@ impl MarketplaceContract {
             }
         }
 
-        // we first add the FPO to the marketplace hoping the NFT contract call
-        // creating new collection will succeed
-        // if it fails (which should not really happen) we'll revert
-        // this approach has the advantage that we can perform some unit tests which
-        // cannot check cross-contract call effects
-
-        let collection_id = self.next_collection_id;
-        let offering_id = OfferingId {
-            nft_contract_id: nft_contract_id.clone(),
-            collection_id,
-        };
-        let offering_id_hash = hash_offering_id(&offering_id);
-        let fpo = FixedPriceOffering {
-            offering_id: offering_id.clone(),
-            offeror_id,
-            supply_total,
-            buy_now_price_yocto: buy_now_price_yocto.0,
-            min_proposal_price_yocto: None,
-            // nft_metadata,
-            start_timestamp,
-            end_timestamp,
-            status: Unstarted,
-            supply_left: supply_total,
-            proposals: LookupMap::new(
-                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            proposals_by_proposer: LookupMap::new(
-                FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            acceptable_proposals: Vector::new(
-                FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            next_proposal_id: 0,
-        };
-
-        let marketplace_storage_before = env::storage_usage();
-
-        self.internal_add_fpo(&fpo);
-        self.next_collection_id += 1;
-
-        let marketplace_storage_usage = env::storage_usage() - marketplace_storage_before;
-        let marketplace_storage_cost = marketplace_storage_usage as Balance * storage_byte_cost;
+        let nft_contract_id = self.internal_nft_shared_contract_id();
         let attached_deposit = env::attached_deposit();
-        assert!(
-            attached_deposit >= marketplace_storage_cost,
-            "The attached deposit of ({} yN) is insufficient to cover marketplace storage ({} yN).",
-            attached_deposit,
-            marketplace_storage_cost
-        );
-
-        let deposit_left = attached_deposit - marketplace_storage_cost;
-
-        // Refund excess storage deposit
-        // let storage_deposit_refund = attached_deposit - marketplace_storage_cost_actual - nft_storage_cost;
-        // Promise::new(env::predecessor_account_id()).transfer(storage_deposit_refund as Balance);
-
+        let nft_metadata = NftMetadata::new(&title, &media_url);
         nft_contract::make_collection(
-            asset_url,
-            collection_id,
+            nft_metadata.clone(),
             supply_total,
             nft_contract_id.clone(),
-            deposit_left,
+            attached_deposit,
             NFT_MAKE_COLLECTION_GAS,
-        ).then(ext_self_nft::make_collection_completion(
-            offering_id,
-            deposit_left,
-            env::current_account_id(), // we are invoking this function on the current contract
-            NO_DEPOSIT,                // don't attach any deposit
-            NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
+        )
+        .then(ext_self_nft::fpo_add_make_collection_completion(
+            nft_contract_id,
+            attached_deposit,
+            nft_metadata,
+            supply_total,
+            buy_now_price_yocto,
+            start_timestamp,
+            end_timestamp,
+            env::current_account_id(),
+            NO_DEPOSIT,
+            NFT_MAKE_COLLECTION_COMPLETION_GAS,
         ))
     }
 
     #[payable]
     pub fn fpo_add_accepting_proposals(
         &mut self,
-        asset_url: String,
+        title: String,
+        media_url: String,
         supply_total: u64,
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: U128,
-        // nft_metadata: TokenMetadata,
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
-    ) -> u64 {
-        // make sure asset_url is a valid URL
-        assert!(Url::parse(&asset_url).is_ok(), "asset URL invalid");
+    ) -> Promise {
+        assert!(
+            title.len() <= MAX_TITLE_LEN,
+            "Title length cannot exceed {} characters",
+            MAX_TITLE_LEN
+        );
+        assert!(Url::parse(&media_url).is_ok(), "NFT media URL is invalid");
+        assert!(media_url.len() == IPFS_URL_LEN, "Not an IPFS URL"); // TODO: do stricter regex match
 
         // ensure max supply does not exceed limit
         assert!(
@@ -209,34 +167,6 @@ impl MarketplaceContract {
             "Max NFT supply must be between 1 and {}.",
             TOTAL_SUPPLY_MAX
         );
-
-        let offeror_id = env::predecessor_account_id();
-        let nft_contract_id = self.internal_nft_shared_contract_id();
-
-        // make sure the attached deposit is sufficient to cover storage
-        // here we attempt to come up with a safe estimate of the  required storage
-        // so that we can terminate early if the attached deposit is insufficient (to save seller's gas)
-        // later, we'll calculate actual usage and refund excess, if any
-        let estimated_marketplace_storage_usage = 670
-            + 2 * offeror_id.clone().to_string().len()
-            + 5 * nft_contract_id.clone().to_string().len()
-            + if start_date.is_some() { 8 } else { 0 }
-            + 8; // end_date
-        let estimated_marketplace_storage_cost =
-            (estimated_marketplace_storage_usage as Balance) * env::storage_byte_cost();
-        let estimated_nft_storage_cost =
-            (NFT_MAKE_COLLECTION_STORAGE as Balance) * env::storage_byte_cost();
-        let estimated_total_storage_cost =
-            estimated_marketplace_storage_cost + estimated_nft_storage_cost;
-        let attached_deposit = env::attached_deposit();
-        assert!(
-            attached_deposit >= estimated_total_storage_cost,
-            "Must attach at least {:?} yoctoNear to cover NFT collection storage. Attached deposit was {:?}",
-            estimated_total_storage_cost,
-            attached_deposit
-        );
-
-        // TODO: make sure it's not yet listed by comparing NFT meta
 
         // price must be at least MIN_PRICE_YOCTO
         assert!(
@@ -292,89 +222,29 @@ impl MarketplaceContract {
             );
         }
 
-        //
+        let attached_deposit = env::attached_deposit();
         let nft_contract_id = self.internal_nft_shared_contract_id();
-        let collection_id = self.next_collection_id;
-        let offering_id = OfferingId {
-            nft_contract_id: nft_contract_id.clone(),
-            collection_id,
-        };
-        let offering_id_hash = hash_offering_id(&offering_id);
-        let offeror_id = env::signer_account_id();
-        let fpo = FixedPriceOffering {
-            offering_id: offering_id.clone(),
-            offeror_id,
-            supply_total: supply_total,
-            buy_now_price_yocto: buy_now_price_yocto.0,
-            min_proposal_price_yocto: Some(min_proposal_price_yocto.0),
-            // nft_metadata,
-            start_timestamp,
-            end_timestamp: Some(end_timestamp),
-            status: Unstarted,
-            supply_left: supply_total,
-            proposals: LookupMap::new(
-                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            proposals_by_proposer: LookupMap::new(
-                FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            acceptable_proposals: Vector::new(
-                FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            next_proposal_id: 0,
-        };
-
-        let initial_marketplace_storage_usage = env::storage_usage();
-
-        self.internal_add_fpo(&fpo);
-        self.next_collection_id += 1;
-
-        let final_marketplace_storage_usage = env::storage_usage();
-        let actual_marketplace_storage_usage =
-            final_marketplace_storage_usage - initial_marketplace_storage_usage;
-        let actual_marketplace_storage_cost =
-            env::storage_byte_cost() * Balance::from(actual_marketplace_storage_usage);
-
-        // here our estimate can be made more precise because we know the exact storage used
-        // by FPO - let's update the total storage cost to compensate for any miscalculation
-        // this will shadow our previous estimate value, which we no longer need
-        let estimated_total_storage_cost =
-            actual_marketplace_storage_cost + estimated_nft_storage_cost;
-        assert!(
-            attached_deposit >= estimated_total_storage_cost,
-            "Must attach at least {:?} yN, ACTUAL MARKETPLACE STORAGE: {}, MARKETPLACE COST: {}, DEPOSIT: {}",
-            estimated_total_storage_cost,
-            actual_marketplace_storage_usage,
-            actual_marketplace_storage_cost,
-            attached_deposit,
-        );
-        let marketplace_refund = attached_deposit - estimated_total_storage_cost;
-
-        Promise::new(env::predecessor_account_id()).transfer(marketplace_refund as Balance);
+        let nft_metadata = NftMetadata::new(&title, &media_url);
 
         nft_contract::make_collection(
-            asset_url,
-            collection_id,
+            nft_metadata.clone(),
             supply_total,
             nft_contract_id.clone(),
-            estimated_nft_storage_cost,
+            attached_deposit,
             NFT_MAKE_COLLECTION_GAS,
         )
-        .then(ext_self_nft::make_collection_completion(
-            offering_id,
+        .then(ext_self_nft::fpo_add_make_collection_completion(
+            nft_contract_id,
             attached_deposit,
+            nft_metadata,
+            supply_total,
+            buy_now_price_yocto,
+            start_timestamp,
+            Some(end_timestamp),
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-        ));
-
-        collection_id
+        ))
     }
 
     pub fn fpo_accept_proposals(
@@ -424,7 +294,7 @@ impl MarketplaceContract {
 
             // TODO:
 
-            // TODO: make more specific callback function to rollback 
+            // TODO: make more specific callback function to rollback
             // self.fpo_process_purchase(
             //     offering_id.clone(),
             //     proposer_id.clone(),
@@ -507,7 +377,116 @@ impl MarketplaceContract {
     }
 }
 
-pub(crate) fn nft_make_collection_worst_case_storage(asset_url: &str) -> u64 {
-    let asset_url_len: u64 = asset_url.len().try_into().unwrap();
-    136 + 2 * asset_url_len
+#[ext_contract(ext_self_nft)]
+trait FPOSellerCallback {
+    fn fpo_add_make_collection_completion(
+        &mut self,
+        nft_account_id: AccountId,
+        attached_deposit: Balance,
+        nft_metadata: NftMetadata,
+        supply_total: u64,
+        buy_now_price_yocto: U128,
+        start_timestamp: Option<i64>,
+        end_timestamp: Option<i64>,
+    ) -> NftCollectionId;
+}
+
+trait FPOSellerCallback {
+    fn fpo_add_make_collection_completion(
+        &mut self,
+        nft_account_id: AccountId,
+        attached_deposit: Balance,
+        nft_metadata: NftMetadata,
+        supply_total: u64,
+        buy_now_price_yocto: U128,
+        start_timestamp: Option<i64>,
+        end_timestamp: Option<i64>,
+    ) -> NftCollectionId;
+}
+
+#[near_bindgen]
+impl FPOSellerCallback for MarketplaceContract {
+    #[private]
+    fn fpo_add_make_collection_completion(
+        &mut self,
+        nft_account_id: AccountId,
+        attached_deposit: Balance,
+        nft_metadata: NftMetadata,
+        supply_total: u64,
+        buy_now_price_yocto: U128,
+        start_timestamp: Option<i64>,
+        end_timestamp: Option<i64>,
+    ) -> NftCollectionId {
+        assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
+        match env::promise_result(0) {
+            PromiseResult::NotReady | PromiseResult::Failed => {
+                let refund = attached_deposit;
+                if refund > 0 {
+                    Promise::new(env::signer_account_id()).transfer(refund as Balance);
+                }
+                panic!("NFT make_collection failed");
+            },
+            PromiseResult::Successful(val) => {
+                let (collection_id, nft_storage_usage) =
+                    near_sdk::serde_json::from_slice::<(NftCollectionId, u64)>(&val)
+                        .expect("NFT make_collection returned unexpected value");
+                let offeror_id = env::signer_account_id();
+                let offering_id = OfferingId {
+                    nft_contract_id: nft_account_id.clone(),
+                    collection_id,
+                };
+                let offering_id_hash = hash_offering_id(&offering_id);
+                let fpo = FixedPriceOffering {
+                    offering_id: offering_id,
+                    offeror_id,
+                    nft_metadata,
+                    supply_total,
+                    buy_now_price_yocto: buy_now_price_yocto.0,
+                    min_proposal_price_yocto: None,
+                    // nft_metadata,
+                    start_timestamp,
+                    end_timestamp,
+                    status: Unstarted,
+                    supply_left: supply_total,
+                    proposals: LookupMap::new(
+                        FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
+                            .try_to_vec()
+                            .unwrap(),
+                    ),
+                    proposals_by_proposer: LookupMap::new(
+                        FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
+                            .try_to_vec()
+                            .unwrap(),
+                    ),
+                    acceptable_proposals: Vector::new(
+                        FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
+                            .try_to_vec()
+                            .unwrap(),
+                    ),
+                    next_proposal_id: 0,
+                };
+
+                let marketplace_storage_before = env::storage_usage();
+
+                self.internal_add_fpo(&fpo);
+
+                let storage_byte_cost = env::storage_byte_cost();
+                let marketplace_storage_usage = env::storage_usage() - marketplace_storage_before;
+                let total_storage_cost =
+                    (nft_storage_usage + marketplace_storage_usage) as Balance * storage_byte_cost;
+                assert!(
+                    attached_deposit >= total_storage_cost,
+                    "The attached deposit of ({} yN) is insufficient to cover the storage costs of {} yN",
+                    attached_deposit,
+                    total_storage_cost,
+                );
+                let refund = attached_deposit - total_storage_cost;
+                if refund > 0 {
+                    Promise::new(env::signer_account_id()).transfer(refund as Balance);
+                }
+
+                collection_id
+            },
+        }
+    }
 }

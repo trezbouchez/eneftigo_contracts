@@ -47,7 +47,6 @@ pub struct MarketplaceContract {
     pub owner_id: AccountId,
     pub fpos_by_id: UnorderedMap<OfferingId, FixedPriceOffering>,
     pub fpos_by_offeror_id: LookupMap<AccountId, UnorderedSet<OfferingId>>,
-    pub next_collection_id: u64,         // the next NFT collection created will use this prefix
     // pub storage_deposits: LookupMap<AccountId, Balance>,
 }
 
@@ -74,7 +73,6 @@ impl MarketplaceContract {
             owner_id,
             fpos_by_id: UnorderedMap::new(MarketplaceStorageKey::FposById),
             fpos_by_offeror_id: LookupMap::new(MarketplaceStorageKey::FposByOfferorId),
-            next_collection_id: 0,
         };
 
         //return the Contract object
