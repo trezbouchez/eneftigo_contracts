@@ -1,7 +1,7 @@
-1. Keep track of (next)collecton ID in NFT
-2. Only add FPO if make_collection succeeds
-3. Should fpo include asset_url? maybe just link to the collection?
-
+DONE: 1. Keep track of (next)collecton ID in NFT
+DONE: 2. Only add FPO if make_collection succeeds
+DONE: 3. Should fpo include asset_url? maybe just link to the collection?
+4. Delete collection on offering conclude if no NFTs have been sold
 
 What if there's already another bid for this account?
 Review U vs u

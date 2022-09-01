@@ -332,7 +332,7 @@ impl MarketplaceContract {
     // this is because there may be multiple acceptable proposals pending which have active deposits
     // they need to be returned
     // must be called by the offeror!
-    pub(crate) fn fpo_conclude(
+    pub fn fpo_conclude(
         &mut self,
         nft_contract_id: AccountId,
         collection_id: NftCollectionId,
@@ -348,12 +348,14 @@ impl MarketplaceContract {
             .get(&offering_id)
             .expect("Could not find NFT listing");
 
+        let storage_before = env::storage_usage();
+        
         fpo.update_status();
 
-        // make sure it's not running
+        // if there's an end date set, make sure the offering is not running
         assert!(
-            fpo.status == Unstarted || fpo.status == Ended,
-            "Cannot conclude an offering while it's running"
+            fpo.end_timestamp.is_none() || fpo.status == Unstarted || fpo.status == Ended,
+            "Cannot conclude a time-limited offering while it's running"
         );
 
         // make sure it's the offeror who's calling this
@@ -365,6 +367,14 @@ impl MarketplaceContract {
         // remove FPO
         let removed_fpo = self.internal_remove_fpo(&offering_id);
 
+        // refund seller
+        let storage_after = env::storage_usage();
+        let storage_freed = storage_before - storage_after;
+        if storage_freed > 0 {
+            let refund = storage_freed as Balance * env::storage_byte_cost();
+            Promise::new(removed_fpo.offeror_id).transfer(refund);
+        }
+
         // refund all acceptable but not accepted proposals
         for unaccepted_proposal in removed_fpo.acceptable_proposals.iter().map(|proposal_id| {
             removed_fpo
@@ -374,6 +384,8 @@ impl MarketplaceContract {
         }) {
             unaccepted_proposal.refund_deposit();
         }
+
+        assert_eq!(storage_after, env::storage_usage());
     }
 }
 
@@ -425,7 +437,7 @@ impl FPOSellerCallback for MarketplaceContract {
                     Promise::new(env::signer_account_id()).transfer(refund as Balance);
                 }
                 panic!("NFT make_collection failed");
-            },
+            }
             PromiseResult::Successful(val) => {
                 let (collection_id, nft_storage_usage) =
                     near_sdk::serde_json::from_slice::<(NftCollectionId, u64)>(&val)
@@ -486,7 +498,7 @@ impl FPOSellerCallback for MarketplaceContract {
                 }
 
                 collection_id
-            },
+            }
         }
     }
 }

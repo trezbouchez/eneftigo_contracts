@@ -6,15 +6,6 @@ use workspaces::prelude::*;
 use workspaces::result::CallExecutionDetails;
 use workspaces::types::Balance;
 
-const MARKETPLACE_WASM_FILEPATH: &str = "../out/marketplace.wasm";
-const NFT_WASM_FILEPATH: &str = "../out/nft.wasm";
-
-const ACCOUNT_NAME_LEN_MAX: usize = 64;     //https://nomicon.io/DataStructures/Account
-const STORAGE_COST_YOCTO_PER_BYTE: u128 = 10000000000000000000;
-
-const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1349; // actual, measured
-const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 422; // actual, measured
-const FPO_ADD_WORST_CASE_STORAGE = FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE + NEW_COLLECTION_WORST_CASE_NFT_STORAGE;
 
 #[derive(Debug)]
 struct State {
@@ -179,7 +170,7 @@ async fn main() -> anyhow::Result<()> {
             "buy_now_price_yocto": "1000",
         }))?
         .deposit(100)
-        .gas(10_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await;
 
@@ -219,7 +210,7 @@ async fn main() -> anyhow::Result<()> {
             "buy_now_price_yocto": "1000",
         }))?
         .deposit(fpo_add_worst_case_storage_cost)
-        .gas(80_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await?;
 
@@ -258,7 +249,7 @@ async fn main() -> anyhow::Result<()> {
             "buy_now_price_yocto": "1000",
         }))?
         .deposit(fpo_add_worst_case_storage_cost)
-        .gas(50_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await;
 

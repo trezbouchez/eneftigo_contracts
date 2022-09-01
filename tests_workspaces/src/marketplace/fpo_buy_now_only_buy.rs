@@ -6,17 +6,6 @@ use workspaces::prelude::*;
 use workspaces::result::CallExecutionDetails;
 use workspaces::types::Balance;
 
-const MARKETPLACE_WASM_FILEPATH: &str = "../out/marketplace.wasm";
-const NFT_WASM_FILEPATH: &str = "../out/nft.wasm";
-
-const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1349; // actual, measured
-const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 422; // actual, measured
-const FPO_ADD_WORST_CASE_STORAGE: u64 =
-    FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE + NEW_COLLECTION_WORST_CASE_NFT_STORAGE;
-
-const NFT_MINT_WORST_CASE_STORAGE: u64 = 830; // actual, measured
-
-const STORAGE_COST_YOCTO_PER_BYTE: u128 = 10000000000000000000;
 
 struct Parties<'a> {
     marketplace: &'a workspaces::Account,
@@ -119,6 +108,10 @@ async fn main() -> anyhow::Result<()> {
     let fpo_add_worst_case_storage_cost =
         FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
+    println!(
+        "{}: Adding listing for 2 items priced 1000yN",
+        "fpo_add_buy_now_only".purple()
+    );
     let outcome = seller_account
         .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
         .args_json(json!({
@@ -128,7 +121,7 @@ async fn main() -> anyhow::Result<()> {
             "buy_now_price_yocto": "1000",
         }))?
         .deposit(fpo_add_worst_case_storage_cost)
-        .gas(50_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await?;
     let collection_id = outcome.json::<u64>()?;
@@ -163,7 +156,7 @@ async fn main() -> anyhow::Result<()> {
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(100_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
         .deposit(900)
         .transact()
         .await;
@@ -188,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(100_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
         .deposit(1000)
         .transact()
         .await;
@@ -226,7 +219,7 @@ async fn main() -> anyhow::Result<()> {
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(100_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
         .deposit(1000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await?;
@@ -253,7 +246,7 @@ async fn main() -> anyhow::Result<()> {
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(100_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
         .deposit(2000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await?;
@@ -279,7 +272,7 @@ async fn main() -> anyhow::Result<()> {
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(100_000_000_000_000)
+        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
         .deposit(1000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await;
