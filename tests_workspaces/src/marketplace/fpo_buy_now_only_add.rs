@@ -1,11 +1,13 @@
 use colored::Colorize;
 use near_units::parse_near;
 use serde_json::json;
-use std::convert::TryInto;
 use workspaces::prelude::*;
 use workspaces::result::CallExecutionDetails;
 use workspaces::types::Balance;
+use crate::gas_and_storage::*;
 
+#[allow(dead_code)]
+mod gas_and_storage;
 
 #[derive(Debug)]
 struct State {
@@ -234,8 +236,6 @@ async fn main() -> anyhow::Result<()> {
         "{}: Attempt to add offering for an already-existing asset causing NFT make_collection panic:",
         "fpo_add_buy_now_only case #03".cyan()
     );
-
-    let state_before = state_after;
 
     let title = "Bored Grapes";
     let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbza";

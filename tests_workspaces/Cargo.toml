@@ -29,7 +29,7 @@ name = "fpo_buy_now_only_add"
 path = "src/marketplace/fpo_buy_now_only_add.rs"
 
 [[example]]
-name = "fpo_buy_now_only_buyd"
+name = "fpo_buy_now_only_buy"
 path = "src/marketplace/fpo_buy_now_only_buy.rs"
 
 [[example]]

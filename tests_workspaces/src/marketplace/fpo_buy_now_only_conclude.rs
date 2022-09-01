@@ -6,6 +6,7 @@ use workspaces::result::CallExecutionDetails;
 use workspaces::types::{Balance};
 use crate::gas_and_storage::*;
 
+#[allow(dead_code)]
 mod gas_and_storage;
 
 struct Parties<'a> {
