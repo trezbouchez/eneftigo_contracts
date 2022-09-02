@@ -1049,7 +1049,7 @@ mod seller_tests {
             supply_total: 3,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: if allow_proposals { Some(500) } else { None },
-            start_timestamp: Some(start_timestamp),
+            start_timestamp: start_timestamp,
             end_timestamp: Some(end_timestamp),
             status: Unstarted,
             // nft_metadata: nft_metadata(1),

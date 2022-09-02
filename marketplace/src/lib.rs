@@ -69,13 +69,11 @@ impl MarketplaceContract {
     #[init]
     pub fn new(owner_id: AccountId) -> Self {
         let this = Self {
-            //set the owner_id field equal to the passed in owner_id. 
             owner_id,
             fpos_by_id: UnorderedMap::new(MarketplaceStorageKey::FposById),
             fpos_by_offeror_id: LookupMap::new(MarketplaceStorageKey::FposByOfferorId),
         };
 
-        //return the Contract object
         this
     }
 
@@ -155,3 +153,4 @@ impl MarketplaceContract {
         U128(self.storage_deposits.get(&account_id).unwrap_or(0))
     }*/
 }
+

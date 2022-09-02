@@ -78,19 +78,19 @@ impl MarketplaceContract {
         );
 
         // start timestamp
-        let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
+        let current_block_timestamp = env::block_timestamp() as i64;
+        let start_timestamp: i64 = if let Some(start_date_str) = start_date {
             let start_datetime = DateTime::parse_from_rfc3339(&start_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
             );
             let start_timestamp = start_datetime.timestamp_nanos();
-            let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
                 start_timestamp >= current_block_timestamp,
                 "Start date is into the past"
             );
-            Some(start_timestamp)
+            start_timestamp
         } else {
-            None
+            current_block_timestamp
         };
 
         // end timestamp
@@ -111,11 +111,10 @@ impl MarketplaceContract {
             None
         };
 
-        if let Some(start_timestamp) = start_timestamp {
-            if let Some(end_timestamp) = end_timestamp {
-                let duration = end_timestamp - start_timestamp;
-                assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
-            }
+        if let Some(end_timestamp) = end_timestamp {
+            let duration = end_timestamp - start_timestamp;
+            // no max duration here, can last as long as the seller wishes
+            assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
         }
 
         let nft_contract_id = self.internal_nft_shared_contract_id();
@@ -190,37 +189,33 @@ impl MarketplaceContract {
         );
 
         // start timestamp
-        let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
+        let current_block_timestamp = env::block_timestamp() as i64;
+        let start_timestamp: i64 = if let Some(start_date_str) = start_date {
             let start_datetime = DateTime::parse_from_rfc3339(&start_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
             );
             let start_timestamp = start_datetime.timestamp_nanos();
-            let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
                 start_timestamp >= current_block_timestamp,
                 "Start date is into the past"
             );
-            Some(start_timestamp)
+            start_timestamp
         } else {
-            None
+            current_block_timestamp
         };
 
         // end timestamp
         let end_datetime = DateTime::parse_from_rfc3339(&end_date)
             .expect("Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)");
         let end_timestamp = end_datetime.timestamp_nanos();
+        assert!(
+            end_timestamp >= current_block_timestamp,
+            "End date is into the past"
+        );
 
-        if let Some(start_timestamp) = start_timestamp {
-            let duration = end_timestamp - start_timestamp;
-            assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
-            assert!(duration <= MAX_DURATION_NANO, "Offering duration too long");
-        } else {
-            let current_block_timestamp = env::block_timestamp() as i64;
-            assert!(
-                end_timestamp >= current_block_timestamp,
-                "End date is into the past"
-            );
-        }
+        let duration = end_timestamp - start_timestamp;
+        assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
+        assert!(duration <= MAX_DURATION_NANO, "Offering duration too long");
 
         let attached_deposit = env::attached_deposit();
         let nft_contract_id = self.internal_nft_shared_contract_id();
@@ -398,7 +393,7 @@ trait FPOSellerCallback {
         nft_metadata: NftMetadata,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        start_timestamp: Option<i64>,
+        start_timestamp: i64,
         end_timestamp: Option<i64>,
     ) -> NftCollectionId;
 }
@@ -411,7 +406,7 @@ trait FPOSellerCallback {
         nft_metadata: NftMetadata,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        start_timestamp: Option<i64>,
+        start_timestamp: i64,
         end_timestamp: Option<i64>,
     ) -> NftCollectionId;
 }
@@ -426,7 +421,7 @@ impl FPOSellerCallback for MarketplaceContract {
         nft_metadata: NftMetadata,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        start_timestamp: Option<i64>,
+        start_timestamp: i64,
         end_timestamp: Option<i64>,
     ) -> NftCollectionId {
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");

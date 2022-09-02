@@ -3,10 +3,10 @@ use workspaces::types::{Gas};
 /*
     Gas
 */
-pub const FPO_BUY_NOW_ONLY_CONCLUDE_GAS: Gas = 10_000_000_000_000; // actual measured was 7_942_179_600_919
 pub const FPO_BUY_NOW_ONLY_ADD_GAS: Gas = 50_000_000_000_000;   // TODO: measure
 pub const FPO_BUY_NOW_ONLY_BUY_GAS: Gas = 100_000_000_000_000;  // TODO: measure
-
+pub const FPO_BUY_NOW_ONLY_CONCLUDE_GAS: Gas = 10_000_000_000_000; // actual measured was 7_942_179_600_919
+pub const FPO_ACCEPTING_PROPOSALS_ADD_GAS: Gas = 50_000_000_000_000;   // TODO: measure
 /*
     Storage
 */

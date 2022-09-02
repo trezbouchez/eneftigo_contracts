@@ -8,6 +8,7 @@ mod internal_tests {
     use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::collections::{LookupMap, Vector};
     use near_sdk::{testing_env, AccountId, VMContext};
+    use std::time::{SystemTime,UNIX_EPOCH};
 
     #[test]
     fn test_lifetime() {
@@ -297,12 +298,14 @@ mod internal_tests {
         start_date: Option<&str>, 
         end_date: Option<&str>
     ) -> FixedPriceOffering {
-        let start_timestamp: Option<i64> = if let Some(start_date) = start_date {
-            Some(DateTime::parse_from_rfc3339(start_date).expect(
+        let start_timestamp: i64 = if let Some(start_date) = start_date {
+            DateTime::parse_from_rfc3339(start_date).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
-            ).timestamp_nanos())
+            ).timestamp_nanos()
         } else {
-            None
+            let now = SystemTime::now();
+            let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+            since_the_epoch.as_nanos() as i64
         };
         let end_timestamp = if let Some(end_date) = end_date {
             Some(DateTime::parse_from_rfc3339(end_date).expect(
