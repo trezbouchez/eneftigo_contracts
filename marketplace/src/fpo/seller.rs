@@ -386,6 +386,8 @@ impl MarketplaceContract {
             Promise::new(removed_fpo.offeror_id).transfer(refund);
         }
 
+        // TODO: here the refunds are not handled correctly!!!
+        
         // refund all acceptable but not accepted proposals
         for unaccepted_proposal in removed_fpo.acceptable_proposals.iter().map(|proposal_id| {
             removed_fpo
@@ -393,7 +395,7 @@ impl MarketplaceContract {
                 .get(&proposal_id)
                 .expect("Could not find proposal")
         }) {
-            unaccepted_proposal.refund_deposit();
+            // unaccepted_proposal.refund_deposit();
         }
 
         assert_eq!(storage_after, env::storage_usage());

@@ -157,7 +157,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit won't cover marketplace storage:",
-        "fpo_add_buy_now_only case #01".cyan()
+        "#01 fpo_add_buy_now_only".cyan()
     );
 
     let title = "Bored Grapes";
@@ -188,7 +188,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: All offering parameters correct, storage deposit sufficient:",
-        "fpo_add_buy_now_only case #02".cyan()
+        "#02 fpo_add_buy_now_only".cyan()
     );
 
     let seller_info = seller.view_account(&worker).await?;
@@ -234,7 +234,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Attempt to add offering for an already-existing asset causing NFT make_collection panic:",
-        "fpo_add_buy_now_only case #03".cyan()
+        "#03 fpo_add_buy_now_only".cyan()
     );
 
     let title = "Bored Grapes";

@@ -1,5 +1,5 @@
-use crate::config::*;
 use crate::callback::*;
+use crate::config::*;
 use crate::fpo::config::*;
 use crate::fpo::resolve::*;
 use crate::FixedPriceOfferingStatus::*;
@@ -71,25 +71,33 @@ impl FixedPriceOffering {
         false
     }
 
-    pub(crate) fn prune_supply_exceeding_acceptable_proposals(&mut self) {
+    pub(crate) fn prune_supply_exceeding_acceptable_proposals_and_refund_proposers(&mut self) {
         // assumes acceptable_proposals are already sorted
-        let mut acceptable_proposals_vec = self.acceptable_proposals.to_vec();
-        let supply_left = self.supply_left as usize;
-        if supply_left >= acceptable_proposals_vec.len() {
-            return;
-        }
-        let to_be_pruned_count = acceptable_proposals_vec.len() - supply_left;
-        let pruned_proposals_iter = acceptable_proposals_vec.drain(0..to_be_pruned_count);
-        for pruned_proposal_id in pruned_proposals_iter {
+        let storage_byte_cost = env::storage_byte_cost();
+        while self.acceptable_proposals.len() > self.supply_left {
+            let storage_before_proposal_was_pruned = env::storage_usage();
+            let pruned_proposal_id = self.acceptable_proposals.swap_remove(0);
+            self.acceptable_proposals.pop();
             let mut pruned_proposal = self
                 .proposals
                 .get(&pruned_proposal_id)
                 .expect("Proposal to be pruned is missing, inconsistent state");
-            pruned_proposal.mark_unacceptable_and_refund_deposit();
+            pruned_proposal.is_acceptable = false;
             self.proposals.insert(&pruned_proposal_id, &pruned_proposal);
+            let storage_after_proposal_was_pruned = env::storage_usage();
+            let storage_freed =
+                storage_before_proposal_was_pruned - storage_after_proposal_was_pruned;
+            let storage_freed_cost = storage_freed as Balance * storage_byte_cost;
+            let refund = pruned_proposal.price_yocto + storage_freed_cost;
+            // let str = format!(
+            //     "Loosing proposal refund: {}, price: {}, freed storage: {}",
+            //     refund, pruned_proposal.price_yocto, storage_freed_cost
+            // );
+            // env::log_str(&str);
+            if refund > 0 {
+                Promise::new(pruned_proposal.proposer_id).transfer(refund);
+            }
         }
-        self.acceptable_proposals.clear();
-        self.acceptable_proposals.extend(acceptable_proposals_vec);
     }
 
     pub(crate) fn acceptable_price_yocto(&self) -> u128 {
@@ -112,14 +120,14 @@ impl FixedPriceOffering {
 }
 
 impl FixedPriceOfferingProposal {
-    pub fn mark_unacceptable_and_refund_deposit(&mut self) {
-        self.is_acceptable = false;
-        self.refund_deposit();
-    }
+    // pub fn mark_unacceptable_and_refund_deposit(&mut self) {
+    //     self.is_acceptable = false;
+    //     self.refund_deposit();
+    // }
 
-    pub fn refund_deposit(&self) {
-        Promise::new(self.proposer_id.clone()).transfer(self.price_yocto);
-    }
+    // pub fn refund_deposit(&self) {
+    //     Promise::new(self.proposer_id.clone()).transfer(self.price_yocto);
+    // }
 }
 
 impl MarketplaceContract {
@@ -127,7 +135,7 @@ impl MarketplaceContract {
     // to mint the token and deposit it to the buyer's account
     // if succeeds, Near gets transfered to the seller
     // it will NEITHER (!) decrement the supply NOR close the offering
-/*    pub fn fpo_process_purchase(
+    /*    pub fn fpo_process_purchase(
         &mut self,
         offering_id: OfferingId,
         buyer_id: AccountId,

@@ -150,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit won't cover the price:",
-        "fpo_buy case #01".cyan()
+        "#01 fpo_buy".cyan()
     );
     let outcome = buyer1_account
         .call(&worker, marketplace_contract.id(), "fpo_buy")
@@ -174,7 +174,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit sufficient to pay the price but won't cover NFT storage:",
-        "fpo_buy case #02".cyan()
+        "#02 fpo_buy".cyan()
     );
     let state_before = get_state(&worker, &parties).await;
     let outcome = buyer1_account
@@ -209,7 +209,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit sufficient to succeed:",
-        "fpo_buy case #03".cyan()
+        "#03 fpo_buy".cyan()
     );
     let state_before = get_state(&worker, &parties).await;
 
@@ -236,7 +236,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buying the last available item:",
-        "fpo_buy case #04".cyan()
+        "#04 fpo_buy".cyan()
     );
     let state_before = state_after;
 
@@ -263,7 +263,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Attempt to buy when no supply left:",
-        "fpo_buy case #05".cyan()
+        "#05 fpo_buy".cyan()
     );
 
     let nft_mint_worst_case_storage_cost =

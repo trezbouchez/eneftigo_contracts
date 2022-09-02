@@ -1,11 +1,11 @@
 use crate::gas_and_storage::*;
+use chrono::{TimeZone, Utc};
 use colored::Colorize;
 use near_units::parse_near;
 use serde_json::json;
 use workspaces::prelude::*;
 use workspaces::result::CallExecutionDetails;
 use workspaces::types::Balance;
-use chrono::{Utc,TimeZone};
 
 #[allow(dead_code)]
 mod gas_and_storage;
@@ -123,9 +123,10 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let fpo_add_worst_case_storage_cost =
-    FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+        FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
-    let fpo_place_proposal_worst_case_storage_cost = FPO_ACCEPTING_PROPOSALS_PLACE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let fpo_place_proposal_worst_case_storage_cost =
+        FPO_ACCEPTING_PROPOSALS_PLACE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
     let now_timestamp = Utc::now().timestamp();
     let end_too_soon_timestamp = now_timestamp + MIN_DURATION_SECS / 2;
@@ -157,14 +158,17 @@ async fn main() -> anyhow::Result<()> {
         .transact()
         .await?;
     let collection_id = outcome.json::<u64>()?;
-    println!("Fixed Price Offering listing added, collection ID {}", collection_id);
+    println!(
+        "Fixed Price Offering listing added, collection ID {}",
+        collection_id
+    );
 
     /*
     CASE #01: Proposed price too low
     */
-    println!(
+    /*    println!(
         "{}: Proposed price too low:",
-        "fpo_place_proposal case #01".cyan()
+        "#01 fpo_place_proposal".cyan()
     );
     let outcome = buyer1_account
         .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
@@ -182,14 +186,14 @@ async fn main() -> anyhow::Result<()> {
         "Succeeded even though proposed price is too low"
     );
 
-    println!(" - {}", "PASSED".green());
+    println!(" - {}", "PASSED".green());*/
 
     /*
     CASE #02 Proposed price of 550yN acceptable, deposit 500yN is too low
     */
-    println!(
+    /*    println!(
         "{}: Proposed price of 550yN acceptable, deposit 500yN is too low:",
-        "fpo_place_proposal case #02".cyan()
+        "#02 fpo_place_proposal".cyan()
     );
 
     let outcome = buyer1_account
@@ -208,14 +212,14 @@ async fn main() -> anyhow::Result<()> {
         "Succeeded even though insufficent deposit"
     );
 
-    println!(" - {}", "PASSED".green());
+    println!(" - {}", "PASSED".green());*/
 
     /*
-    CASE #03 Proposed price of 550yN acceptable, deposit sufficient
+    CASE #03 Buyer 2 proposed price of 550yN acceptable, deposit sufficient
     */
     println!(
-        "{}: Proposed price of 550yN acceptable, deposit sufficient:",
-        "fpo_place_proposal case #03".cyan()
+        "{}: Buyer 1 proposed price of 550yN acceptable, deposit sufficient:",
+        "#03 fpo_place_proposal".cyan()
     );
 
     let proposal1_price: Balance = 550;
@@ -234,14 +238,127 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     let state_after = get_state(&worker, &parties).await;
-    let tokens_burnt = get_tokens_burnt(&outcome);
-    let marketplace_storage_usage = state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
-    let marketplace_storage_cost = marketplace_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
-    let proposer_balance_correct = state_before.buyer1.balance - tokens_burnt - proposal1_price - marketplace_storage_cost;
-    assert_eq!(state_after.buyer1.balance, proposer_balance_correct);
+    let proposal1_storage =
+        state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
+    verify_balances(&outcome, &state_before, &state_after, proposal1_price, 0);
 
     println!(" - {}", "PASSED".green());
 
+    /*
+    CASE #04 Buyer 2 proposed price of 600yN acceptable, deposit sufficient
+    */
+    println!(
+        "{}: Buyer 2 proposed price of 600yN acceptable, deposit sufficient:",
+        "#04 fpo_place_proposal".cyan()
+    );
+
+    let proposal2_price: Balance = 600;
+    let state_before = get_state(&worker, &parties).await;
+
+    let outcome = buyer2_account
+        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+            "price_yocto": "600",
+        }))?
+        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(proposal2_price + fpo_place_proposal_worst_case_storage_cost)
+        .transact()
+        .await?;
+
+    let state_after = get_state(&worker, &parties).await;
+    let proposal2_storage =
+        state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
+    verify_balances(&outcome, &state_before, &state_after, proposal2_price, 0);
+
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #05 Buyer 3 proposed price of 510yN expected to be rejected
+    */
+    println!(
+        "{}: Buyer 3 proposed price of 510yN expected to be rejected",
+        "#05 fpo_place_proposal case".cyan()
+    );
+
+    let state_before = get_state(&worker, &parties).await;
+
+    let outcome = buyer3_account
+        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+            "price_yocto": "510",
+        }))?
+        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(510 + fpo_place_proposal_worst_case_storage_cost)
+        .transact()
+        .await;
+    assert!(
+        outcome.is_err(),
+        "Accepted even though should have been rejected"
+    );
+
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #06 Buyer 3 proposed price of 700yN, outbids buyer 1 at 550yN
+    */
+    println!(
+        "{}: Buyer 3 proposed price of 700yN, outbids buyer 1 at 550yN",
+        "#06 fpo_place_proposal".cyan()
+    );
+
+    let proposal3_price: Balance = 700;
+    let state_before = get_state(&worker, &parties).await;
+
+    let outcome = buyer3_account
+        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+            "price_yocto": "700",
+        }))?
+        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(proposal3_price + fpo_place_proposal_worst_case_storage_cost)
+        .transact()
+        .await?;
+
+    let state_after = get_state(&worker, &parties).await;
+    verify_balances(&outcome, &state_before, &state_after, proposal3_price, proposal1_price);
+    // not all buyer1 proposal-related storage deposit gets returned here, so we won't reconcile their account yet
+    // we'll do it on offering conclusion
+
+    println!(" - {}", "PASSED".green());
+
+    /*
+    CASE #07 Buyer 3 buys one item at buy_now price outbidding buyer 2 bid at 600yN 
+    */
+    println!(
+        "{}: Buyer 3 buys one item at buy_now price outbidding buyer 2 bid at 600yN",
+        "#07 fpo_buy".cyan()
+    );
+
+    let state_before = get_state(&worker, &parties).await;
+
+    let nft_mint_worst_case_storage_cost =
+        NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let outcome = buyer3_account
+        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .args_json(json!({
+            "nft_contract_id": nft_account.id().clone(),
+            "collection_id": collection_id,
+        }))?
+        .gas(FPO_ACCEPTING_PROPOSALS_BUY_GAS)
+        .deposit(1000 + nft_mint_worst_case_storage_cost)
+        .transact()
+        .await?;
+
+    let state_after = get_state(&worker, &parties).await;
+    verify_balances(&outcome, &state_before, &state_after, 1000, proposal2_price);
+
+    println!(" - {}", "PASSED".green());
 
     Ok(())
 }
@@ -294,7 +411,8 @@ where
 }
 
 fn get_tokens_burnt(execution_details: &CallExecutionDetails) -> Balance {
-    execution_details.receipt_outcomes()
+    execution_details
+        .receipt_outcomes()
         .iter()
         .fold(0, |acc, receipt| acc + receipt.tokens_burnt)
         + execution_details.outcome().tokens_burnt
@@ -304,20 +422,15 @@ fn verify_balances(
     execution_details: &CallExecutionDetails,
     state_before: &State,
     state_after: &State,
-    price_paid: Balance,
-    buyer_index: usize, // 1-based
+    deposit_placed: Balance,
+    deposit_returned: Balance,
 ) {
     let transaction = execution_details.outcome();
     let receipts = execution_details.receipt_outcomes();
 
     // storage
-    let marketplace_storage_usage =
-        state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
-    let marketplace_storage_cost =
-        marketplace_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
-
-    let nft_storage_usage = state_after.nft.storage_usage - state_before.nft.storage_usage;
-    let nft_storage_cost = nft_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    // let nft_storage_usage = state_after.nft.storage_usage - state_before.nft.storage_usage;
+    // let nft_storage_cost = nft_storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
     // gas
     let buyer_gas_cost = receipts
@@ -325,31 +438,20 @@ fn verify_balances(
         .fold(0, |acc, receipt| acc + receipt.tokens_burnt)
         + transaction.tokens_burnt;
 
-    // overall
-    let (buyer_state_before, buyer_state_after) = match buyer_index {
-        1 => (&state_before.buyer1, &state_after.buyer1),
-        2 => (&state_before.buyer2, &state_after.buyer2),
-        3 => (&state_before.buyer3, &state_after.buyer3),
-        _ => panic!("Wrong buyer index"),
-    };
-
-    // buyer balance
-    let buyer_balance_correct = buyer_state_before.balance
-        - buyer_gas_cost
-        - marketplace_storage_cost
-        - nft_storage_cost
-        - price_paid;
+    // here we make sure that all the cost resulting from marketplace storage difference gets
+    // covered by buyers or refunded the buyers
     assert_eq!(
-        buyer_state_after.balance, buyer_balance_correct,
-        "Buyer{} balance of {} is wrong. Should be {}",
-        buyer_index, buyer_state_after.balance, buyer_balance_correct
-    );
-
-    // seller balance
-    let seller_balance_correct = state_before.seller.balance + price_paid;
-    assert_eq!(
-        state_after.seller.balance, seller_balance_correct,
-        "Seller balance of {} is wrong. Should be {}",
-        state_after.seller.balance, seller_balance_correct
+        state_before.buyer1.balance
+            + state_before.buyer2.balance
+            + state_before.buyer3.balance
+            + state_before.seller.balance
+            + deposit_returned
+            + state_before.marketplace.storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE
+            + state_before.nft.storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE
+            - state_after.marketplace.storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE
+            - state_after.nft.storage_usage as Balance * STORAGE_COST_YOCTO_PER_BYTE
+            - buyer_gas_cost
+            - deposit_placed,
+        state_after.buyer1.balance + state_after.buyer2.balance + state_after.buyer3.balance + state_after.seller.balance
     );
 }

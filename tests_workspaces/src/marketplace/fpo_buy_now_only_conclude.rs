@@ -120,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
 
     println!(
         "{}: Conclude an open-ended listing:",
-        "fpo_conclude case #01".cyan()
+        "#01 fpo_conclude".cyan()
     );
 
     let title = "Bored Grapes";
@@ -160,7 +160,7 @@ async fn main() -> anyhow::Result<()> {
 
     println!(
         "{}: Attempt to conclude a time-limited listing while it's still running:",
-        "fpo_conclude case #02".cyan()
+        "#02 fpo_conclude".cyan()
     );
 
     let title = "Bored Grapes";
@@ -202,7 +202,7 @@ async fn main() -> anyhow::Result<()> {
 
     println!(
         "{}: Conclude a time-limited listing after all purchased:",
-        "fpo_conclude case #03".cyan()
+        "#03 fpo_conclude".cyan()
     );
 
     let nft_mint_worst_case_storage_cost =

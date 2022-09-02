@@ -91,6 +91,8 @@ impl MarketplaceContract {
         collection_id: NftCollectionId,
         price_yocto: U128,
     ) -> ProposalId {
+        // TODO: check prepaid gas, terminate early if insufficient
+
         let offering_id = OfferingId{ nft_contract_id, collection_id };
 
         // get FPO
@@ -144,25 +146,34 @@ impl MarketplaceContract {
         );    
         
         // ensure the attached balance is sufficient to pay deposit
-        // TODO: should we adopt approvals instead?
-        let attached_balance_yocto = env::attached_deposit();
+        let attached_deposit = env::attached_deposit();
         assert!(
-            attached_balance_yocto >= price_yocto, 
+            attached_deposit >= price_yocto, 
             "Attached balance must be sufficient to pay the required deposit of {} yocto Near", 
             price_yocto 
         );
 
-        // register proposal
+        // register proposal and remove an old outbid proposal, if any
+        // here we first add the new proposal (to fpo.proposals, fpo.proposals_by_proposer and acceptable_proposals)
+        // and only then remove the outbid one (if any) - this way we can compute the storages for both the new 
+        // winning proposer and the now-outbid proposer and deduct/reimburse correct amounts
+
+        let storage_byte_cost = env::storage_byte_cost();
+        let storage_usage_before_proposal_was_added = env::storage_usage();
+
+        // create new proposal
         let new_proposal = FixedPriceOfferingProposal {
             id: fpo.next_proposal_id,
-            proposer_id: proposer_id,
+            proposer_id: proposer_id.clone(),
             price_yocto: price_yocto,
             is_acceptable: true,
         };
         fpo.next_proposal_id += 1;
 
+        // add to proposals
         fpo.proposals.insert(&new_proposal.id, &new_proposal);
 
+        // create proposals_by_proposer set if missing
         let mut proposals_by_proposer_set = fpo.proposals_by_proposer.get(&new_proposal.proposer_id).unwrap_or_else(|| {
             let offering_id_hash = hash_offering_id(&offering_id);
             let proposer_id_hash = hash_account_id(&new_proposal.proposer_id);
@@ -170,29 +181,55 @@ impl MarketplaceContract {
                     FixedPriceOfferingStorageKey::ProposalsByProposerInner { offering_id_hash, proposer_id_hash }.try_to_vec().unwrap()
                 )
         });
+
+        // add to proposals_by_proposer and put back into fpo
         proposals_by_proposer_set.insert(&new_proposal.id);
         fpo.proposals_by_proposer.insert(&new_proposal.proposer_id, &proposals_by_proposer_set);
 
-        let unmatched_supply_exists = fpo.acceptable_proposals.len() < fpo.supply_left;
-        if unmatched_supply_exists {
-            fpo.acceptable_proposals.push(&new_proposal.id);
-        } else {
-            let outbid_proposal_id = fpo.acceptable_proposals.replace(0, &new_proposal.id);
-            let mut outbid_proposal = fpo.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
-            outbid_proposal.mark_unacceptable_and_refund_deposit();
-            fpo.proposals.insert(&outbid_proposal_id, &outbid_proposal);
+        // push to acceptable proposals vector
+        fpo.acceptable_proposals.push(&new_proposal.id);
+        fpo.sort_acceptable_proposals();
+
+        // check if attached deposit is sufficient and compute proposer refund (if any)
+        let storage_usage_after_proposal_was_added = env::storage_usage();
+        let storage_usage_added = storage_usage_after_proposal_was_added - storage_usage_before_proposal_was_added;
+        let storage_cost_added = storage_usage_added as Balance * storage_byte_cost;
+        let required_deposit = price_yocto + storage_cost_added;
+        assert!(attached_deposit >= required_deposit, "Insufficient storage deposit. Please attach at least {}", required_deposit);
+        let refund = attached_deposit - required_deposit;
+// let str = format!("Proposer refund: {}, attached deposit: {}, price: {}, storage: {}", refund, attached_deposit, price_yocto, storage_cost_added);
+// env::log_str(&str);
+
+        if refund > 0 {
+            Promise::new(proposer_id).transfer(refund);
         }
 
-        fpo.sort_acceptable_proposals();
+        fpo.prune_supply_exceeding_acceptable_proposals_and_refund_proposers();
+
+        // determine outbid proposal, if any and refund the original proposer for storage they freed
+        // let supply_shortage = fpo.acceptable_proposals.len() == fpo.supply_left;
+        // if supply_shortage {
+        //     let storage_usage_before_outbid_proposal_was_removed = env::storage_usage();
+        //     assert_eq!(storage_usage_before_outbid_proposal_was_removed, storage_usage_after_proposal_was_added);
+        //     let outbid_proposal_id = fpo.acceptable_proposals.swap_remove(0);
+        //     let mut outbid_proposal = fpo.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
+        //     outbid_proposal.is_acceptable = false;
+        //     let storage_usage_after_outbid_proposal_was_removed_0 = env::storage_usage();
+        //     fpo.proposals.insert(&outbid_proposal_id, &outbid_proposal);
+        //     let storage_usage_after_outbid_proposal_was_removed = env::storage_usage();
+        //     assert_eq!(storage_usage_after_outbid_proposal_was_removed_0, storage_usage_after_outbid_proposal_was_removed);
+        // }
+
+        // let storage_checkpoint1 = env::storage_usage();
+
+        // fpo.sort_acceptable_proposals();
 
         self.fpos_by_id.insert(&offering_id, &fpo);
 
-        // return surplus deposit
-        let surplus_deposit = attached_balance_yocto - price_yocto;
-        if surplus_deposit > 0 {
-            Promise::new(env::predecessor_account_id()).transfer(surplus_deposit);
-        }
-        
+        // let storage_checkpoint2 = env::storage_usage();
+
+        // assert_eq!(storage_checkpoint1, storage_checkpoint2);
+
         new_proposal.id
     }    
 
@@ -335,7 +372,10 @@ impl MarketplaceContract {
             // so we can just replace the first acceptable proposal (worst price) with this one
             let outbid_proposal_id = fpo.acceptable_proposals.replace(0, &proposal_id);
             let mut outbid_proposal = fpo.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
-            outbid_proposal.mark_unacceptable_and_refund_deposit();
+
+            // TODO:
+            // Implement it in another way
+            // outbid_proposal.mark_unacceptable_and_refund_deposit();
             fpo.proposals.insert(&outbid_proposal_id, &outbid_proposal);
         }
         
@@ -481,7 +521,7 @@ impl FPOBuyerCallback for MarketplaceContract {
                 // update offering supply
                 let mut fpo = self.fpos_by_id.get(&offering_id).expect("Could not find NFT listing");
                 fpo.supply_left -= 1;
-                fpo.prune_supply_exceeding_acceptable_proposals();
+                fpo.prune_supply_exceeding_acceptable_proposals_and_refund_proposers();
                 self.fpos_by_id.insert(&offering_id, &fpo);
                 // get the token ID and NFT storage and compute refund
                 let (token_id, mint_storage_bytes) =

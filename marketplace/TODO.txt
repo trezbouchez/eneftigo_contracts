@@ -1,11 +1,9 @@
 DONE: 1. Keep track of (next)collecton ID in NFT
 DONE: 2. Only add FPO if make_collection succeeds
 DONE: 3. Should fpo include asset_url? maybe just link to the collection?
-4. Delete collection on offering conclude if no NFTs have been sold
-
+Delete collection on offering conclude if no NFTs have been sold
+fpo_conclude need to refund proposers for their storage and price deposits
+Check attached gas and terminate early if insufficient to ensure we have enough for rollback just in case
+Same with deposits. This may reduce the probability of a rollback
+If running out of gas, will already-created Promises be executed? This is a problem f.ex. for refunds initiated early in the contract call execution!
 What if there's already another bid for this account?
-Review U vs u
-Proposal are not sorted!
-
-DONE: How to handle price step? Should it be just 1 yocto?
-DONE: Proposal price must be multiple of price step

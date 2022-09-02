@@ -17,7 +17,7 @@ mod enumeration;
 mod external;
 mod config;
 mod callback;
-mod error;
+// mod error;
 
 pub type NftCollectionId = u64;
 

@@ -109,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: End date missing:",
-        "fpo_add_accepting_proposals case #01".cyan()
+        "#01 fpo_add_accepting_proposals".cyan()
     );
 
     let title = "Bored Grapes";
@@ -142,7 +142,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Insufficient deposit:",
-        "fpo_add_accepting_proposals case #02".cyan()
+        "#02 fpo_add_accepting_proposals".cyan()
     );
 
     let title = "Bored Grapes";
@@ -176,7 +176,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Duration too short:",
-        "fpo_add_accepting_proposals case #03".cyan()
+        "#03 fpo_add_accepting_proposals".cyan()
     );
 
     let title = "Bored Grapes";
@@ -209,7 +209,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Duration too long:",
-        "fpo_add_accepting_proposals case #04".cyan()
+        "#04 fpo_add_accepting_proposals".cyan()
     );
 
     let title = "Bored Grapes";
@@ -242,7 +242,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: All parameters correct, storage deposit sufficent:",
-        "fpo_add_accepting_proposals case #05".cyan()
+        "#05 fpo_add_accepting_proposals".cyan()
     );
 
     let seller_info = seller.view_account(&worker).await?;
@@ -294,7 +294,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Attempt to add listing for an already-used media URL:",
-        "fpo_add_accepting_proposals case #06".cyan()
+        "#06 fpo_add_accepting_proposals".cyan()
     );
 
     let title = "Bored Grapes";
