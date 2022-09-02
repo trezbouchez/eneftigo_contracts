@@ -7,9 +7,6 @@ use workspaces::prelude::*;
 use workspaces::result::CallExecutionDetails;
 use workspaces::types::Balance;
 
-pub const MIN_DURATION_SECS: i64 = 3600; // 1 hour
-pub const MAX_DURATION_SECS: i64 = 3600 * 24 * 14; // 2 weeks
-
 #[allow(dead_code)]
 mod gas_and_storage;
 
@@ -175,11 +172,11 @@ async fn main() -> anyhow::Result<()> {
     println!(" - {}", "PASSED".green());
 
     /*
-    CASE #04: Duration too short
+    CASE #03: Duration too short
     */
     println!(
         "{}: Duration too short:",
-        "fpo_add_accepting_proposals case #04".cyan()
+        "fpo_add_accepting_proposals case #03".cyan()
     );
 
     let title = "Bored Grapes";
@@ -200,7 +197,7 @@ async fn main() -> anyhow::Result<()> {
             "end_date": end_too_soon,
         }))?
         .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .gas(FPO_ACCEPTING_PROPOSALS_ADD_GAS)
         .transact()
         .await;
     assert!(outcome.is_err(), "Accepted despite too short a duration");
@@ -208,11 +205,11 @@ async fn main() -> anyhow::Result<()> {
     println!(" - {}", "PASSED".green());
 
     /*
-    CASE #05: Duration too long
+    CASE #04: Duration too long
     */
     println!(
         "{}: Duration too long:",
-        "fpo_add_accepting_proposals case #05".cyan()
+        "fpo_add_accepting_proposals case #04".cyan()
     );
 
     let title = "Bored Grapes";
@@ -233,7 +230,7 @@ async fn main() -> anyhow::Result<()> {
             "end_date": end_too_late,
         }))?
         .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .gas(FPO_ACCEPTING_PROPOSALS_ADD_GAS)
         .transact()
         .await;
     assert!(outcome.is_err(), "Accepted despite too long a duration");
@@ -241,11 +238,11 @@ async fn main() -> anyhow::Result<()> {
     println!(" - {}", "PASSED".green());
 
     /*
-    CASE #06: All parameters correct, storage deposit sufficent
+    CASE #05: All parameters correct, storage deposit sufficent
     */
     println!(
         "{}: All parameters correct, storage deposit sufficent:",
-        "fpo_add_accepting_proposals case #06".cyan()
+        "fpo_add_accepting_proposals case #05".cyan()
     );
 
     let seller_info = seller.view_account(&worker).await?;
@@ -275,7 +272,7 @@ async fn main() -> anyhow::Result<()> {
             "end_date": end_valid,
         }))?
         .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .gas(FPO_ACCEPTING_PROPOSALS_ADD_GAS)
         .transact()
         .await?;
 
@@ -293,10 +290,10 @@ async fn main() -> anyhow::Result<()> {
     println!(" - {}", "PASSED".green());
 
     /*
-    CASE #07: Attempt to add listing for an already-used media URL
+    CASE #06: Attempt to add listing for an already-used media URL
     */
     println!(
-        "{}: All parameters correct, storage deposit sufficent:",
+        "{}: Attempt to add listing for an already-used media URL:",
         "fpo_add_accepting_proposals case #06".cyan()
     );
 
@@ -318,7 +315,7 @@ async fn main() -> anyhow::Result<()> {
             "end_date": end_valid,
         }))?
         .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .gas(FPO_ACCEPTING_PROPOSALS_ADD_GAS)
         .transact()
         .await;
     assert!(

@@ -34,9 +34,13 @@ impl FixedPriceOffering {
             return;
         }
 
-        if block_timestamp >= self.start_timestamp {
+        if let Some(start_timestamp) = self.start_timestamp {
+            if block_timestamp >= start_timestamp {
+                self.status = Running;
+                return;
+            }
+        } else {
             self.status = Running;
-            return;
         }
     }
 

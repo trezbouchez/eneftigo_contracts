@@ -41,5 +41,7 @@ path = "src/marketplace/fpo_buy_now_only_conclude.rs"
 name = "fpo_accepting_proposals_add"
 path = "src/marketplace/fpo_accepting_proposals_add.rs"
 
-
+[[example]]
+name = "fpo_accepting_proposals_place"
+path = "src/marketplace/fpo_accepting_proposals_place.rs"
 

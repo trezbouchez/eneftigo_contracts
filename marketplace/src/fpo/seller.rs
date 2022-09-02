@@ -78,19 +78,19 @@ impl MarketplaceContract {
         );
 
         // start timestamp
-        let current_block_timestamp = env::block_timestamp() as i64;
-        let start_timestamp: i64 = if let Some(start_date_str) = start_date {
+        let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
             let start_datetime = DateTime::parse_from_rfc3339(&start_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
             );
             let start_timestamp = start_datetime.timestamp_nanos();
+            let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
                 start_timestamp >= current_block_timestamp,
                 "Start date is into the past"
             );
-            start_timestamp
+            Some(start_timestamp)
         } else {
-            current_block_timestamp
+            None
         };
 
         // end timestamp
@@ -112,14 +112,20 @@ impl MarketplaceContract {
         };
 
         if let Some(end_timestamp) = end_timestamp {
-            let duration = end_timestamp - start_timestamp;
-            // no max duration here, can last as long as the seller wishes
-            assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
+            if let Some(start_timestamp) = start_timestamp {
+                let duration = end_timestamp - start_timestamp;
+                assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
+            } else {
+                let current_block_timestamp = env::block_timestamp() as i64;
+                let duration = end_timestamp - current_block_timestamp;
+                assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
+            }
         }
 
-        let nft_contract_id = self.internal_nft_shared_contract_id();
         let attached_deposit = env::attached_deposit();
+        let nft_contract_id = self.internal_nft_shared_contract_id();
         let nft_metadata = NftMetadata::new(&title, &media_url);
+
         nft_contract::make_collection(
             nft_metadata.clone(),
             supply_total,
@@ -129,10 +135,11 @@ impl MarketplaceContract {
         )
         .then(ext_self_nft::fpo_add_make_collection_completion(
             nft_contract_id,
-            attached_deposit,
+            U128(attached_deposit),
             nft_metadata,
             supply_total,
             buy_now_price_yocto,
+            None,           // min_proposal_price_yocto
             start_timestamp,
             end_timestamp,
             env::current_account_id(),
@@ -152,6 +159,16 @@ impl MarketplaceContract {
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
     ) -> Promise {
+        let attached_deposit = env::attached_deposit();
+        let worst_case_total_storage_cost = (FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE
+            + NEW_COLLECTION_WORST_CASE_NFT_STORAGE)
+            as Balance
+            * env::storage_byte_cost();
+        assert!(
+            attached_deposit >= worst_case_total_storage_cost,
+            "Attach at least {} yN",
+            worst_case_total_storage_cost
+        );
         assert!(
             title.len() <= MAX_TITLE_LEN,
             "Title length cannot exceed {} characters",
@@ -190,7 +207,7 @@ impl MarketplaceContract {
 
         // start timestamp
         let current_block_timestamp = env::block_timestamp() as i64;
-        let start_timestamp: i64 = if let Some(start_date_str) = start_date {
+        let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
             let start_datetime = DateTime::parse_from_rfc3339(&start_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
             );
@@ -199,23 +216,26 @@ impl MarketplaceContract {
                 start_timestamp >= current_block_timestamp,
                 "Start date is into the past"
             );
-            start_timestamp
+            Some(start_timestamp)
         } else {
-            current_block_timestamp
+            None
         };
 
         // end timestamp
         let end_datetime = DateTime::parse_from_rfc3339(&end_date)
             .expect("Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)");
         let end_timestamp = end_datetime.timestamp_nanos();
-        assert!(
-            end_timestamp >= current_block_timestamp,
-            "End date is into the past"
-        );
 
-        let duration = end_timestamp - start_timestamp;
-        assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
-        assert!(duration <= MAX_DURATION_NANO, "Offering duration too long");
+        if let Some(start_timestamp) = start_timestamp {
+            let duration = end_timestamp - start_timestamp;
+            assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
+            assert!(duration <= MAX_DURATION_NANO, "Offering duration too long");
+        } else {
+            let current_block_timestamp = env::block_timestamp() as i64;
+            let duration = end_timestamp - current_block_timestamp;
+            assert!(duration >= MIN_DURATION_NANO, "Offering duration too short");
+            assert!(duration <= MAX_DURATION_NANO, "Offering duration too long");
+        }
 
         let attached_deposit = env::attached_deposit();
         let nft_contract_id = self.internal_nft_shared_contract_id();
@@ -230,10 +250,11 @@ impl MarketplaceContract {
         )
         .then(ext_self_nft::fpo_add_make_collection_completion(
             nft_contract_id,
-            attached_deposit,
+            U128(attached_deposit),
             nft_metadata,
             supply_total,
             buy_now_price_yocto,
+            Some(min_proposal_price_yocto),
             start_timestamp,
             Some(end_timestamp),
             env::current_account_id(), // we are invoking this function on the current contract
@@ -327,11 +348,7 @@ impl MarketplaceContract {
     // this is because there may be multiple acceptable proposals pending which have active deposits
     // they need to be returned
     // must be called by the offeror!
-    pub fn fpo_conclude(
-        &mut self,
-        nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
-    ) {
+    pub fn fpo_conclude(&mut self, nft_contract_id: AccountId, collection_id: NftCollectionId) {
         let offering_id = OfferingId {
             nft_contract_id,
             collection_id,
@@ -344,7 +361,6 @@ impl MarketplaceContract {
             .expect("Could not find NFT listing");
 
         let storage_before = env::storage_usage();
-        
         fpo.update_status();
 
         // if there's an end date set, make sure the offering is not running
@@ -389,11 +405,12 @@ trait FPOSellerCallback {
     fn fpo_add_make_collection_completion(
         &mut self,
         nft_account_id: AccountId,
-        attached_deposit: Balance,
+        attached_deposit: U128,
         nft_metadata: NftMetadata,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        start_timestamp: i64,
+        min_proposal_price_yocto: Option<U128>,
+        start_timestamp: Option<i64>,
         end_timestamp: Option<i64>,
     ) -> NftCollectionId;
 }
@@ -402,11 +419,12 @@ trait FPOSellerCallback {
     fn fpo_add_make_collection_completion(
         &mut self,
         nft_account_id: AccountId,
-        attached_deposit: Balance,
+        attached_deposit: U128,
         nft_metadata: NftMetadata,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        start_timestamp: i64,
+        min_proposal_price_yocto: Option<U128>,
+        start_timestamp: Option<i64>,
         end_timestamp: Option<i64>,
     ) -> NftCollectionId;
 }
@@ -417,19 +435,20 @@ impl FPOSellerCallback for MarketplaceContract {
     fn fpo_add_make_collection_completion(
         &mut self,
         nft_account_id: AccountId,
-        attached_deposit: Balance,
+        attached_deposit: U128,
         nft_metadata: NftMetadata,
         supply_total: u64,
         buy_now_price_yocto: U128,
-        start_timestamp: i64,
+        min_proposal_price_yocto: Option<U128>,
+        start_timestamp: Option<i64>,
         end_timestamp: Option<i64>,
     ) -> NftCollectionId {
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
         match env::promise_result(0) {
             PromiseResult::NotReady | PromiseResult::Failed => {
-                let refund = attached_deposit;
+                let refund = attached_deposit.0;
                 if refund > 0 {
-                    Promise::new(env::signer_account_id()).transfer(refund as Balance);
+                    Promise::new(env::signer_account_id()).transfer(refund);
                 }
                 panic!("NFT make_collection failed");
             }
@@ -449,8 +468,13 @@ impl FPOSellerCallback for MarketplaceContract {
                     nft_metadata,
                     supply_total,
                     buy_now_price_yocto: buy_now_price_yocto.0,
-                    min_proposal_price_yocto: None,
-                    // nft_metadata,
+                    min_proposal_price_yocto: if let Some(min_proposal_price_yocto) =
+                        min_proposal_price_yocto
+                    {
+                        Some(min_proposal_price_yocto.0)
+                    } else {
+                        None
+                    },
                     start_timestamp,
                     end_timestamp,
                     status: Unstarted,
@@ -482,12 +506,12 @@ impl FPOSellerCallback for MarketplaceContract {
                 let total_storage_cost =
                     (nft_storage_usage + marketplace_storage_usage) as Balance * storage_byte_cost;
                 assert!(
-                    attached_deposit >= total_storage_cost,
+                    attached_deposit.0 >= total_storage_cost,
                     "The attached deposit of ({} yN) is insufficient to cover the storage costs of {} yN",
-                    attached_deposit,
+                    attached_deposit.0,
                     total_storage_cost,
                 );
-                let refund = attached_deposit - total_storage_cost;
+                let refund = attached_deposit.0 - total_storage_cost;
                 if refund > 0 {
                     Promise::new(env::signer_account_id()).transfer(refund as Balance);
                 }

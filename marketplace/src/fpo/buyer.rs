@@ -194,7 +194,6 @@ impl MarketplaceContract {
         }
         
         new_proposal.id
-        // self.fpos_by_contract_id.insert(&fpo.nft_contract_id, &fpo);
     }    
 
     #[payable]
