@@ -8,7 +8,7 @@ use chrono::DateTime;
 use url::Url;
 
 use near_sdk::{
-    collections::{LookupMap, Vector},
+    collections::{LookupMap, TreeMap, Vector},
     json_types::U128,
     AccountId, PromiseResult,
 };
@@ -19,7 +19,7 @@ const NFT_MAKE_COLLECTION_COMPLETION_GAS: Gas = Gas(6_000_000_000_000); // highe
 pub const MAX_TITLE_LEN: usize = 128;
 pub const IPFS_URL_LEN: usize = 21 + 46; //https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF
 
-const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1349; // actual, measured for longest possible account ids & title and IPFS URL
+const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1671; // actual, measured for longest possible account ids & title and IPFS URL
 const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 422; // actual, measured
 
 #[cfg(test)]
@@ -159,11 +159,12 @@ impl MarketplaceContract {
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
     ) -> Promise {
+        let storage_byte_cost = env::storage_byte_cost();
         let attached_deposit = env::attached_deposit();
         let worst_case_total_storage_cost = (FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE
             + NEW_COLLECTION_WORST_CASE_NFT_STORAGE)
             as Balance
-            * env::storage_byte_cost();
+            * storage_byte_cost;
         assert!(
             attached_deposit >= worst_case_total_storage_cost,
             "Attach at least {} yN",
@@ -287,26 +288,27 @@ impl MarketplaceContract {
         );
 
         // make sure there's enough proposals
-        let num_acceptable_proposals = fpo.acceptable_proposals.len();
+        let num_proposals = fpo.proposals.len();
         assert!(
-            num_acceptable_proposals >= accepted_proposals_count,
+            num_proposals >= accepted_proposals_count,
             "There's not enough proposals ({})",
-            num_acceptable_proposals
+            num_proposals
         );
 
         // accept best proposals
-        let mut acceptable_proposals_vec = fpo.acceptable_proposals.to_vec();
+        let mut proposals_vec = fpo.proposals.to_vec();
         let first_accepted_proposal_index =
-            (num_acceptable_proposals - accepted_proposals_count) as usize;
+            (num_proposals - accepted_proposals_count) as usize;
 
-        let best_proposals_iter = acceptable_proposals_vec
-            .drain(first_accepted_proposal_index..(num_acceptable_proposals as usize));
+        let best_proposals_iter = proposals_vec
+            .drain(first_accepted_proposal_index..(num_proposals as usize));
         for proposal_being_accepted_id in best_proposals_iter {
-            let proposal_being_accepted = fpo
-                .proposals
-                .get(&proposal_being_accepted_id)
-                .expect("Proposal being accepted is missing, inconsistent state");
-            let proposer_id = proposal_being_accepted.proposer_id;
+            // TODO:
+            // let proposal_being_accepted = fpo
+            //     .proposals
+            //     .get(&proposal_being_accepted_id)
+            //     .expect("Proposal being accepted is missing, inconsistent state");
+            // let proposer_id = proposal_being_accepted.proposer_id;
 
             // TODO:
 
@@ -318,27 +320,27 @@ impl MarketplaceContract {
             // );
 
             // TODO: move these to fpo_process_purchase resolve
-            let _removed_proposal = fpo
-                .proposals
-                .remove(&proposal_being_accepted_id)
-                .expect("Could not find proposal");
+            // let _removed_proposal = fpo
+            //     .proposals
+            //     .remove(&proposal_being_accepted_id)
+            //     .expect("Could not find proposal");
 
-            let mut proposals_by_this_proposer = fpo
-                .proposals_by_proposer
-                .get(&proposer_id)
-                .expect("Could not get proposals for proposer whose proposal is being accepted");
-            let removed = proposals_by_this_proposer.remove(&proposal_being_accepted_id);
-            assert!(removed, "Could not find id for proposer's proposals");
-            if proposals_by_this_proposer.is_empty() {
-                fpo.proposals_by_proposer.remove(&proposer_id).expect("Could not remove empty array for proposer whose proposals have all been accepted");
-            } else {
-                fpo.proposals_by_proposer
-                    .insert(&proposer_id, &proposals_by_this_proposer);
-            }
+            // let mut proposals_by_this_proposer = fpo
+            //     .proposals_by_proposer
+            //     .get(&proposer_id)
+            //     .expect("Could not get proposals for proposer whose proposal is being accepted");
+            // let removed = proposals_by_this_proposer.remove(&proposal_being_accepted_id);
+            // assert!(removed, "Could not find id for proposer's proposals");
+            // if proposals_by_this_proposer.is_empty() {
+            //     fpo.proposals_by_proposer.remove(&proposer_id).expect("Could not remove empty array for proposer whose proposals have all been accepted");
+            // } else {
+            //     fpo.proposals_by_proposer
+            //         .insert(&proposer_id, &proposals_by_this_proposer);
+            // }
         }
 
-        fpo.acceptable_proposals.clear();
-        fpo.acceptable_proposals.extend(acceptable_proposals_vec);
+        fpo.proposals.clear();
+        fpo.proposals.extend(proposals_vec);
 
         fpo.supply_left -= accepted_proposals_count; // TODO: move to resolve, one by one
         self.fpos_by_id.insert(&offering_id, &fpo);
@@ -359,15 +361,13 @@ impl MarketplaceContract {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not find NFT listing");
-
-        let storage_before = env::storage_usage();
         fpo.update_status();
 
         // if there's an end date set, make sure the offering is not running
-        assert!(
-            fpo.end_timestamp.is_none() || fpo.status == Unstarted || fpo.status == Ended,
-            "Cannot conclude a time-limited offering while it's running"
-        );
+        // assert!(
+        //     fpo.end_timestamp.is_none() || fpo.status == Unstarted || fpo.status == Ended,
+        //     "Cannot conclude a time-limited offering while it's running"
+        // );
 
         // make sure it's the offeror who's calling this
         assert!(
@@ -375,30 +375,21 @@ impl MarketplaceContract {
             "Only the offeror can conclude"
         );
 
-        // remove FPO
+        // reset supply and refund proposers
+        fpo.supply_left = 0;
+        fpo.remove_supply_exceeding_proposals_and_refund_proposers();
+
+        // remove FPO and refund the seller
+        let storage_before = env::storage_usage();
+
         let removed_fpo = self.internal_remove_fpo(&offering_id);
 
-        // refund seller
         let storage_after = env::storage_usage();
         let storage_freed = storage_before - storage_after;
-        if storage_freed > 0 {
-            let refund = storage_freed as Balance * env::storage_byte_cost();
+        let refund = storage_freed as Balance * env::storage_byte_cost();
+        if refund > 0 {
             Promise::new(removed_fpo.offeror_id).transfer(refund);
         }
-
-        // TODO: here the refunds are not handled correctly!!!
-        
-        // refund all acceptable but not accepted proposals
-        for unaccepted_proposal in removed_fpo.acceptable_proposals.iter().map(|proposal_id| {
-            removed_fpo
-                .proposals
-                .get(&proposal_id)
-                .expect("Could not find proposal")
-        }) {
-            // unaccepted_proposal.refund_deposit();
-        }
-
-        assert_eq!(storage_after, env::storage_usage());
     }
 }
 
@@ -481,18 +472,8 @@ impl FPOSellerCallback for MarketplaceContract {
                     end_timestamp,
                     status: Unstarted,
                     supply_left: supply_total,
-                    proposals: LookupMap::new(
+                    proposals: Vector::new(
                         FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
-                            .try_to_vec()
-                            .unwrap(),
-                    ),
-                    proposals_by_proposer: LookupMap::new(
-                        FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
-                            .try_to_vec()
-                            .unwrap(),
-                    ),
-                    acceptable_proposals: Vector::new(
-                        FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
                             .try_to_vec()
                             .unwrap(),
                     ),
@@ -505,15 +486,15 @@ impl FPOSellerCallback for MarketplaceContract {
 
                 let storage_byte_cost = env::storage_byte_cost();
                 let marketplace_storage_usage = env::storage_usage() - marketplace_storage_before;
-                let total_storage_cost =
+                let required_storage_deposit =
                     (nft_storage_usage + marketplace_storage_usage) as Balance * storage_byte_cost;
                 assert!(
-                    attached_deposit.0 >= total_storage_cost,
+                    attached_deposit.0 >= required_storage_deposit,
                     "The attached deposit of ({} yN) is insufficient to cover the storage costs of {} yN",
                     attached_deposit.0,
-                    total_storage_cost,
+                    required_storage_deposit,
                 );
-                let refund = attached_deposit.0 - total_storage_cost;
+                let refund = attached_deposit.0 - required_storage_deposit;
                 if refund > 0 {
                     Promise::new(env::signer_account_id()).transfer(refund as Balance);
                 }

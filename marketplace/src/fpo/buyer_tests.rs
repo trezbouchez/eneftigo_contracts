@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod seller_tests {
-    use crate::external::{NftMetadata};
+    use crate::external::NftMetadata;
     use crate::internal::{hash_account_id, hash_offering_id};
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
@@ -10,7 +10,7 @@ mod seller_tests {
     use crate::{NftCollectionId, OfferingId, ProposalId};
     use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::borsh::BorshSerialize;
-    use near_sdk::collections::{LookupMap, UnorderedSet, Vector};
+    use near_sdk::collections::{LookupMap, TreeMap, UnorderedSet, Vector};
     use near_sdk::json_types::U128;
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::{testing_env, AccountId, VMContext};
@@ -146,16 +146,13 @@ mod seller_tests {
             .expect("Could not get updated FPO");
 
         assert!(fpo.supply_left == 2, "Wrong supply_left");
-        assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && fpo.proposals.get(&3).unwrap().is_acceptable,
-            "Proposals state incorrect"
-        );
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![3, 2],
-            "Proposals state incorrect"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+        assert!(proposals == vec![3, 2], "Proposals state incorrect");
 
         marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
         let fpo = marketplace
@@ -164,16 +161,13 @@ mod seller_tests {
             .expect("Could not get updated FPO");
 
         assert!(fpo.supply_left == 1, "Wrong supply_left");
-        assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && !fpo.proposals.get(&3).unwrap().is_acceptable,
-            "Proposals state incorrect"
-        );
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![2],
-            "Proposals state incorrect"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+        assert!(proposals == vec![2], "Proposals state incorrect");
 
         marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
         let fpo = marketplace
@@ -183,13 +177,7 @@ mod seller_tests {
 
         assert!(fpo.supply_left == 0, "Wrong supply_left");
         assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && !fpo.proposals.get(&2).unwrap().is_acceptable
-                && !fpo.proposals.get(&3).unwrap().is_acceptable,
-            "Proposals state incorrect"
-        );
-        assert!(
-            fpo.acceptable_proposals.to_vec().is_empty(),
+            fpo.proposals.to_vec().is_empty(),
             "Proposals state incorrect"
         );
     }
@@ -417,17 +405,14 @@ mod seller_tests {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![4, 3, 2],
-            "Wrong acceptable_proposals"
-        );
-        assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && fpo.proposals.get(&3).unwrap().is_acceptable
-                && fpo.proposals.get(&4).unwrap().is_acceptable,
-            "Proposal is_acceptable flag wrong"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+
+        assert!(proposals == vec![4, 3, 2], "Wrong acceptable_proposals");
         assert!(fpo.next_proposal_id == 5, "Wrong next_proposal_id");
 
         marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(950));
@@ -435,18 +420,14 @@ mod seller_tests {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![3, 2, 5],
-            "Wrong acceptable_proposals"
-        );
-        assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && fpo.proposals.get(&3).unwrap().is_acceptable
-                && !fpo.proposals.get(&4).unwrap().is_acceptable
-                && fpo.proposals.get(&5).unwrap().is_acceptable,
-            "Proposal is_acceptable flag wrong"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+
+        assert!(proposals == vec![3, 2, 5], "Wrong acceptable_proposals");
         assert!(fpo.next_proposal_id == 6, "Wrong next_proposal_id");
     }
 
@@ -479,15 +460,15 @@ mod seller_tests {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
         assert!(
-            fpo.acceptable_proposals.to_vec() == vec![3, 2],
+            proposals == vec![3, 2],
             "acceptable_proposals not updated on buy_now"
-        );
-        assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && fpo.proposals.get(&3).unwrap().is_acceptable,
-            "Proposal is_acceptable flag wrong"
         );
         assert!(fpo.supply_left == 2, "Supply left not updated");
 
@@ -521,15 +502,15 @@ mod seller_tests {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
         assert!(
-            fpo.acceptable_proposals.to_vec() == vec![3, 2],
+            proposals == vec![3, 2],
             "acceptable_proposals not updated on buy_now"
-        );
-        assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && fpo.proposals.get(&3).unwrap().is_acceptable,
-            "Proposal is_acceptable flag wrong"
         );
         assert!(fpo.supply_left == 2, "Supply left not updated");
 
@@ -538,16 +519,15 @@ mod seller_tests {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
         assert!(
-            fpo.acceptable_proposals.to_vec() == vec![4, 2],
+            proposals == vec![4, 2],
             "acceptable_proposals not updated on buy_now"
-        );
-        assert!(
-            !fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && !fpo.proposals.get(&3).unwrap().is_acceptable
-                && fpo.proposals.get(&4).unwrap().is_acceptable,
-            "Proposal is_acceptable flag wrong"
         );
     }
 
@@ -735,19 +715,16 @@ mod seller_tests {
             .get(&offering_id)
             .expect("Could not get updated FPO");
         assert!(
-            fpo.proposals.get(&1).unwrap().price_yocto == 850,
+            fpo.proposals.get(1).unwrap().price_yocto == 850,
             "Price has not been updated"
         );
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![3, 1, 2],
-            "Wrong acceptable_proposals"
-        );
-        assert!(
-            fpo.proposals.get(&1).unwrap().is_acceptable
-                && fpo.proposals.get(&2).unwrap().is_acceptable
-                && fpo.proposals.get(&3).unwrap().is_acceptable,
-            "is_acceptable proposal flag has incorrect value"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+        assert!(proposals == vec![3, 1, 2], "Wrong acceptable_proposals");
         assert!(fpo.supply_left == 3, "supply_left incorrect");
     }
 
@@ -778,19 +755,13 @@ mod seller_tests {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
-        assert!(
-            fpo.proposals.get(&1).is_none(),
-            "Proposal should have been removed"
-        );
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![3, 2],
-            "Wrong acceptable_proposals"
-        );
-        assert!(
-            fpo.proposals.get(&2).unwrap().is_acceptable
-                && fpo.proposals.get(&3).unwrap().is_acceptable,
-            "is_acceptable proposal flag has incorrect value"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+        assert!(proposals == vec![3, 2], "Wrong acceptable_proposals");
         assert!(fpo.supply_left == 2, "supply_left incorrect");
     }
 
@@ -929,20 +900,13 @@ mod seller_tests {
 
         marketplace.fpo_revoke_proposal(nft_contract_id.clone(), collection_id, 1);
         let fpo = marketplace.fpos_by_id.get(&offering_id).unwrap();
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![3, 2],
-            "acceptable_proposals incorrect"
-        );
-        assert!(
-            fpo.proposals.get(&1).is_none(),
-            "revoked proposal not removed"
-        );
-        assert!(
-            fpo.proposals_by_proposer
-                .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()))
-                .is_none(),
-            "Empty proposals_by_proposer set should have been removed"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+        assert!(proposals == vec![3, 2], "acceptable_proposals incorrect");
     }
 
     #[test]
@@ -968,22 +932,13 @@ mod seller_tests {
 
         marketplace.fpo_revoke_proposal(nft_contract_id.clone(), collection_id, 2);
         let fpo = marketplace.fpos_by_id.get(&offering_id).unwrap();
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![1, 3],
-            "acceptable_proposals incorrect"
-        );
-        assert!(
-            fpo.proposals.get(&2).is_none(),
-            "revoked proposal not removed"
-        );
-        assert!(
-            fpo.proposals_by_proposer
-                .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()))
-                .unwrap()
-                .len()
-                == 1,
-            "proposals_by_proposer size incorrect"
-        );
+        let proposals: Vec<ProposalId> = fpo
+            .proposals
+            .to_vec()
+            .iter()
+            .map(|proposal| proposal.id)
+            .collect();
+       assert!(proposals == vec![1, 3], "acceptable_proposals incorrect");
     }
 
     /* Helpers */
@@ -1054,18 +1009,8 @@ mod seller_tests {
             status: Unstarted,
             // nft_metadata: nft_metadata(1),
             supply_left: 3,
-            proposals: LookupMap::new(
+            proposals: Vector::new(
                 FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            proposals_by_proposer: LookupMap::new(
-                FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            acceptable_proposals: Vector::new(
-                FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
                     .try_to_vec()
                     .unwrap(),
             ),
@@ -1082,53 +1027,22 @@ mod seller_tests {
                 id: 1,
                 proposer_id: proposer1_id.clone(),
                 price_yocto: 500,
-                is_acceptable: true,
             },
             FixedPriceOfferingProposal {
                 id: 2,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 900,
-                is_acceptable: true,
             },
             FixedPriceOfferingProposal {
                 id: 3,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 700,
-                is_acceptable: true,
             },
         ];
         for proposal in proposals_vec.iter() {
-            fpo.proposals.insert(&proposal.id, &proposal);
+            fpo.proposals.push(&proposal);
         }
-        fpo.acceptable_proposals.extend(vec![1, 3, 2]);
-
-        let proposer1_id_hash = hash_account_id(&proposer1_id);
-        let offering_id_hash = hash_offering_id(&fpo.offering_id);
-        let mut proposals_by_proposer1: UnorderedSet<ProposalId> = UnorderedSet::new(
-            FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                offering_id_hash,
-                proposer_id_hash: proposer1_id_hash,
-            }
-            .try_to_vec()
-            .unwrap(),
-        );
-        proposals_by_proposer1.extend(vec![1]);
-
-        let proposer2_id_hash = hash_account_id(&proposer2_id);
-        let mut proposals_by_proposer2: UnorderedSet<ProposalId> = UnorderedSet::new(
-            FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                offering_id_hash,
-                proposer_id_hash: proposer2_id_hash,
-            }
-            .try_to_vec()
-            .unwrap(),
-        );
-        proposals_by_proposer2.extend(vec![2, 3]);
-
-        fpo.proposals_by_proposer
-            .insert(&proposer1_id, &proposals_by_proposer1);
-        fpo.proposals_by_proposer
-            .insert(&proposer2_id, &proposals_by_proposer2);
+        fpo.sort_proposals();
     }
 
     // fn nft_metadata(index: i32) -> TokenMetadata {

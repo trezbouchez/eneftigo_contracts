@@ -11,7 +11,7 @@ mod seller_tests {
     use crate::{MarketplaceContract, MarketplaceStorageKey};
     use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::borsh::BorshSerialize;
-    use near_sdk::collections::{LookupMap, UnorderedSet, Vector};
+    use near_sdk::collections::{LookupMap, TreeMap, UnorderedSet, Vector};
     use near_sdk::json_types::U128;
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::{testing_env, AccountId, VMContext};
@@ -835,34 +835,8 @@ mod seller_tests {
             .get(&offering_id)
             .expect("Could not get updated FPO");
         assert!(
-            fpo.acceptable_proposals.len() == 2,
+            fpo.proposals.len() == 2,
             "Wrong number of acceptable_proposals"
-        );
-        assert!(
-            fpo.acceptable_proposals.to_vec() == vec![1, 3],
-            "acceptable_proposals content incorrect"
-        );
-        assert!(
-            fpo.proposals.get(&1).is_some()
-                && fpo.proposals.get(&2).is_none()
-                && fpo.proposals.get(&3).is_some(),
-            "proposals content incorrect"
-        );
-        let proposals_by_proposer1 = fpo
-            .proposals_by_proposer
-            .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()))
-            .unwrap();
-        assert!(
-            proposals_by_proposer1.contains(&1),
-            "proposals_by_proposer incorrect for proposer1"
-        );
-        let proposals_by_proposer2 = fpo
-            .proposals_by_proposer
-            .get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string()))
-            .unwrap();
-        assert!(
-            !proposals_by_proposer2.contains(&2) && proposals_by_proposer2.contains(&3),
-            "proposals_by_proposer incorrect for proposer2"
         );
         assert!(fpo.supply_left == 2, "Wrong supply_left");
 
@@ -872,28 +846,8 @@ mod seller_tests {
             .get(&offering_id)
             .expect("Could not get updated FPO");
         assert!(
-            fpo.acceptable_proposals.is_empty(),
+            fpo.proposals.is_empty(),
             "Wrong number of acceptable_proposals"
-        );
-        assert!(
-            fpo.proposals.get(&1).is_none()
-                && fpo.proposals.get(&2).is_none()
-                && fpo.proposals.get(&3).is_none(),
-            "proposals content incorrect"
-        );
-        let proposals_by_proposer1 = fpo
-            .proposals_by_proposer
-            .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()));
-        assert!(
-            proposals_by_proposer1.is_none(),
-            "proposals_by_proposer exist for proposer1"
-        );
-        let proposals_by_proposer2 = fpo
-            .proposals_by_proposer
-            .get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string()));
-        assert!(
-            proposals_by_proposer2.is_none(),
-            "proposals_by_proposer exist for proposer2"
         );
         assert!(fpo.supply_left == 0, "Wrong supply_left");
     }
@@ -929,28 +883,8 @@ mod seller_tests {
             .expect("Could not get updated FPO");
 
         assert!(
-            fpo.acceptable_proposals.is_empty(),
+            fpo.proposals.is_empty(),
             "Some acceptable_proposals are left"
-        );
-        assert!(
-            fpo.proposals.get(&1).is_none()
-                && fpo.proposals.get(&2).is_none()
-                && fpo.proposals.get(&3).is_none(),
-            "proposals content incorrect"
-        );
-        let proposals_by_proposer1 = fpo
-            .proposals_by_proposer
-            .get(&AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string()));
-        assert!(
-            proposals_by_proposer1.is_none(),
-            "proposals_by_proposer left for proposer1"
-        );
-        let proposals_by_proposer2 = fpo
-            .proposals_by_proposer
-            .get(&AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string()));
-        assert!(
-            proposals_by_proposer2.is_none(),
-            "proposals_by_proposer left for proposer2"
         );
         assert!(fpo.supply_left == 0, "Some supply_left");
     }
@@ -1179,18 +1113,8 @@ mod seller_tests {
             status: Unstarted,
             //            nft_metadata: nft_metadata(1),
             supply_left: supply,
-            proposals: LookupMap::new(
+            proposals: Vector::new(
                 FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            proposals_by_proposer: LookupMap::new(
-                FixedPriceOfferingStorageKey::ProposalsByProposer { offering_id_hash }
-                    .try_to_vec()
-                    .unwrap(),
-            ),
-            acceptable_proposals: Vector::new(
-                FixedPriceOfferingStorageKey::AcceptableProposals { offering_id_hash }
                     .try_to_vec()
                     .unwrap(),
             ),
@@ -1207,69 +1131,21 @@ mod seller_tests {
                 id: 1,
                 proposer_id: proposer1_id.clone(),
                 price_yocto: 500,
-                is_acceptable: true,
             },
             FixedPriceOfferingProposal {
                 id: 2,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 900,
-                is_acceptable: true,
             },
             FixedPriceOfferingProposal {
                 id: 3,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 700,
-                is_acceptable: true,
             },
         ];
         for proposal in proposals_vec.iter() {
-            fpo.proposals.insert(&proposal.id, &proposal);
+            fpo.proposals.push(&proposal);
         }
-        fpo.acceptable_proposals.extend(vec![1, 3, 2]);
-
-        let proposer1_id_hash = hash_account_id(&proposer1_id);
-        let offering_id_hash = hash_offering_id(&fpo.offering_id);
-        let mut proposals_by_proposer1: UnorderedSet<ProposalId> = UnorderedSet::new(
-            FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                offering_id_hash,
-                proposer_id_hash: proposer1_id_hash,
-            }
-            .try_to_vec()
-            .unwrap(),
-        );
-        proposals_by_proposer1.extend(vec![1]);
-
-        let proposer2_id_hash = hash_account_id(&proposer2_id);
-        let mut proposals_by_proposer2: UnorderedSet<ProposalId> = UnorderedSet::new(
-            FixedPriceOfferingStorageKey::ProposalsByProposerInner {
-                offering_id_hash,
-                proposer_id_hash: proposer2_id_hash,
-            }
-            .try_to_vec()
-            .unwrap(),
-        );
-        proposals_by_proposer2.extend(vec![2, 3]);
-
-        fpo.proposals_by_proposer
-            .insert(&proposer1_id, &proposals_by_proposer1);
-        fpo.proposals_by_proposer
-            .insert(&proposer2_id, &proposals_by_proposer2);
+        fpo.sort_proposals();
     }
-
-    // fn nft_metadata(index: i32) -> TokenMetadata {
-    //     TokenMetadata {
-    //         title: Some(format!("nft{}", index)),
-    //         description: None,
-    //         media: None,
-    //         media_hash: None,
-    //         copies: Some(1),
-    //         issued_at: None,
-    //         expires_at: None,
-    //         starts_at: None,
-    //         updated_at: None,
-    //         extra: None,
-    //         reference: None,
-    //         reference_hash: None,
-    //     }
-    // }
 }

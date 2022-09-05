@@ -155,54 +155,12 @@ async fn main() -> anyhow::Result<()> {
     println!(" - {}", "PASSED".green());
 
     /*
-    CASE #02: Conclude a time-limited listing
-    */
-
-    println!(
-        "{}: Attempt to conclude a time-limited listing while it's still running:",
-        "#02 fpo_conclude".cyan()
-    );
-
-    let title = "Bored Grapes";
-    let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzb";
-    let outcome = seller_account
-        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
-        .args_json(json!({
-            "title": title,
-            "media_url": media_url,
-            "supply_total": 1,
-            "buy_now_price_yocto": "1000",
-            "end_date": "2222-01-22T11:20:55+08:00",
-        }))?
-        .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
-        .transact()
-        .await?;
-    let collection_id = outcome.json::<u64>()?;
-
-    let outcome = seller_account
-        .call(&worker, &marketplace_contract.id(), "fpo_conclude")
-        .args_json(json!({
-            "nft_contract_id": nft_account.id().clone(),
-            "collection_id": collection_id,
-        }))?
-        .gas(FPO_BUY_NOW_ONLY_CONCLUDE_GAS)
-        .transact()
-        .await;
-    assert!(
-        outcome.is_err(),
-        "Concluded even though the time-limited offering was still running"
-    );
-
-    println!(" - {}", "PASSED".green());
-
-    /*
-    CASE #03: Conclude a time-limited listing after all purchased
+    CASE #02: Conclude a time-limited listing after all purchased
     */
 
     println!(
         "{}: Conclude a time-limited listing after all purchased:",
-        "#03 fpo_conclude".cyan()
+        "#02 fpo_conclude".cyan()
     );
 
     let nft_mint_worst_case_storage_cost =

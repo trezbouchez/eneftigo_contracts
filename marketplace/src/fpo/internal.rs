@@ -44,59 +44,39 @@ impl FixedPriceOffering {
         }
     }
 
-    pub(crate) fn sort_acceptable_proposals(&mut self) {
-        let mut acceptable_proposals_vec_sorted = self.acceptable_proposals.to_vec();
-        acceptable_proposals_vec_sorted.sort_by(|proposal_a_id, proposal_b_id| {
-            let proposal_a = self
-                .proposals
-                .get(proposal_a_id)
-                .expect("Could not find proposal");
-            let proposal_b = self
-                .proposals
-                .get(proposal_b_id)
-                .expect("Could not find proposal");
-            proposal_a.cmp(&proposal_b)
-        });
-        self.acceptable_proposals.clear();
-        self.acceptable_proposals
-            .extend(acceptable_proposals_vec_sorted);
+    pub(crate) fn sort_proposals(&mut self) {
+        let mut proposals_vec_sorted = self.proposals.to_vec();
+        proposals_vec_sorted.sort();
+        self.proposals.clear();
+        self.proposals.extend(proposals_vec_sorted);
     }
 
-    pub(crate) fn is_proposal_acceptable(&self, proposal_id: ProposalId) -> bool {
-        for acceptable_proposal_id in self.acceptable_proposals.iter() {
-            if acceptable_proposal_id == proposal_id {
-                return true;
-            }
-        }
-        false
-    }
+    // pub(crate) fn is_proposal_acceptable(&self, proposal_id: ProposalId) -> bool {
+    //     for acceptable_proposal_id in self.acceptable_proposals.iter() {
+    //         if acceptable_proposal_id == proposal_id {
+    //             return true;
+    //         }
+    //     }
+    //     false
+    // }
 
-    pub(crate) fn prune_supply_exceeding_acceptable_proposals_and_refund_proposers(&mut self) {
-        // assumes acceptable_proposals are already sorted
+    pub(crate) fn remove_supply_exceeding_proposals_and_refund_proposers(&mut self) {
         let storage_byte_cost = env::storage_byte_cost();
-        while self.acceptable_proposals.len() > self.supply_left {
-            let storage_before_proposal_was_pruned = env::storage_usage();
-            let pruned_proposal_id = self.acceptable_proposals.swap_remove(0);
-            self.acceptable_proposals.pop();
-            let mut pruned_proposal = self
+        if self.supply_left >= self.proposals.len() {
+            return;
+        }
+        let num_outbid_proposals = self.proposals.len() - self.supply_left;
+        for _ in 0..num_outbid_proposals {
+            let storage_before = env::storage_usage();
+            let removed_proposal = self
                 .proposals
-                .get(&pruned_proposal_id)
-                .expect("Proposal to be pruned is missing, inconsistent state");
-            pruned_proposal.is_acceptable = false;
-            self.proposals.insert(&pruned_proposal_id, &pruned_proposal);
-            let storage_after_proposal_was_pruned = env::storage_usage();
-            let storage_freed =
-                storage_before_proposal_was_pruned - storage_after_proposal_was_pruned;
-            let storage_freed_cost = storage_freed as Balance * storage_byte_cost;
-            let refund = pruned_proposal.price_yocto + storage_freed_cost;
-            // let str = format!(
-            //     "Loosing proposal refund: {}, price: {}, freed storage: {}",
-            //     refund, pruned_proposal.price_yocto, storage_freed_cost
-            // );
-            // env::log_str(&str);
-            if refund > 0 {
-                Promise::new(pruned_proposal.proposer_id).transfer(refund);
-            }
+                .pop()
+                .expect("Could not remove proposal. acceptable_proposals is empty");
+            let storage_after = env::storage_usage();
+            let freed_storage = storage_before - storage_after;
+            let freed_storage_cost = freed_storage as Balance * env::storage_byte_cost();
+            let refund = removed_proposal.price_yocto + freed_storage_cost;
+            Promise::new(removed_proposal.proposer_id).transfer(refund);
         }
     }
 
@@ -105,15 +85,12 @@ impl FixedPriceOffering {
             self.min_proposal_price_yocto.is_some(),
             "This offer does not accept proposals"
         );
-        let unmatched_supply_exists = self.acceptable_proposals.len() < self.supply_left;
+        let num_proposals = self.proposals.len();
+        let unmatched_supply_exists = num_proposals < self.supply_left;
         return if unmatched_supply_exists {
             self.min_proposal_price_yocto.unwrap()
         } else {
-            let worst_acceptable_proposal_id = self.acceptable_proposals.get(0).unwrap();
-            let worst_acceptable_proposal = self
-                .proposals
-                .get(&worst_acceptable_proposal_id)
-                .expect("Could not find proposal");
+            let worst_acceptable_proposal = self.proposals.get(num_proposals - 1).unwrap();
             worst_acceptable_proposal.price_yocto + PRICE_STEP_YOCTO
         };
     }

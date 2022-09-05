@@ -22,7 +22,6 @@ pub struct JsonFixedPriceOfferingProposal {
     pub id: u64,
     pub proposer_id: AccountId,
     pub price_yocto: U128,
-    pub is_acceptable: bool,
 }
 
 #[near_bindgen]
@@ -120,24 +119,23 @@ impl MarketplaceContract {
             .fpos_by_id
             .get(&offering_id)
             .expect("Could not find Fixed Price Offering");
-        let proposals_by_proposer_set = fpo.proposals_by_proposer.get(&proposer_id);
-        if let Some(proposals_by_proposer_set) = proposals_by_proposer_set {
-            let keys = proposals_by_proposer_set.as_vector();
-            let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
-            let count = limit.unwrap_or(10) as usize;
-            return keys
-                .iter()
-                .skip(start)
-                .take(count)
-                .map(|proposal_id| fpo.proposal(&proposal_id).unwrap())
-                .collect();
-        } else {
-            return vec![];
-        }
+        let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
+        let count = limit.unwrap_or(10) as usize;
+        fpo.proposals
+            .iter()
+            .filter(|proposal| proposal.proposer_id == proposer_id)
+            .skip(start)
+            .take(count)
+            .map(|proposal| JsonFixedPriceOfferingProposal {
+                id: proposal.id,
+                proposer_id: proposal.proposer_id,
+                price_yocto: U128(proposal.price_yocto),
+            })
+            .collect()
     }
 
     // get acceptable proposals by nft_contract_id, results are paginated
-    pub fn fpo_acceptable_proposals(
+    pub fn fpo_proposals(
         &self,
         nft_contract_id: AccountId,
         collection_id: NftCollectionId,
@@ -157,21 +155,14 @@ impl MarketplaceContract {
         let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
         let count = limit.unwrap_or(10) as usize;
 
-        fpo.acceptable_proposals
+        fpo.proposals
             .iter()
             .skip(start) //skip to the index we specified in the start variable
             .take(count) // return "limit" elements or 0 if missing
-            .map(|proposal_id| {
-                let proposal = fpo
-                    .proposals
-                    .get(&proposal_id)
-                    .expect("Could not find proposal");
-                JsonFixedPriceOfferingProposal {
-                    id: proposal.id,
-                    proposer_id: proposal.proposer_id,
-                    price_yocto: U128(proposal.price_yocto),
-                    is_acceptable: proposal.is_acceptable, // should always be true!
-                }
+            .map(|proposal| JsonFixedPriceOfferingProposal {
+                id: proposal.id,
+                proposer_id: proposal.proposer_id,
+                price_yocto: U128(proposal.price_yocto),
             })
             .collect()
     }
@@ -182,12 +173,15 @@ impl FixedPriceOffering {
         &self,
         proposal_id: &ProposalId,
     ) -> Option<JsonFixedPriceOfferingProposal> {
-        if let Some(proposal) = self.proposals.get(&proposal_id) {
+        if let Some(proposal) = self
+            .proposals
+            .iter()
+            .find(|proposal| proposal.id == *proposal_id)
+        {
             Some(JsonFixedPriceOfferingProposal {
                 id: proposal.id,
                 proposer_id: proposal.proposer_id,
                 price_yocto: U128(proposal.price_yocto),
-                is_acceptable: proposal.is_acceptable,
             })
         } else {
             None

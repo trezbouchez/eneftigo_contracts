@@ -13,7 +13,7 @@ pub const MAX_DURATION_NANO: i64 = 3600000000000 * 24 * 14;       // 2 weeks
 // accepted and will be either paid to the seller or returned;
 // also, we allow proposers to revoke their proposal at the cost of
 // the penalty which is set (in percentage) by this constant
-pub const PROPOSAL_REVOKE_PENALTY_RATE: u128 = 10;     // percent
+pub const FPO_ACCEPTING_PROPOSALS_REVOKE_FEE_RATE: u128 = 10;     // percent
 
 // there are situations where we reserve the right to keep some Near as
 // our immediate profit, such as when a proposer revokes their proposal

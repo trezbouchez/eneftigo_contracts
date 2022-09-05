@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod internal_tests {
-    use crate::*;
+    use crate::fpo::config::*;
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
     use crate::FixedPriceOfferingStatus::*;
-    use crate::fpo::config::*;
+    use crate::*;
     use chrono::{DateTime, TimeZone, Utc};
-    use near_sdk::collections::{LookupMap, Vector};
+    use near_sdk::collections::{LookupMap, TreeMap, Vector};
     use near_sdk::{testing_env, AccountId, VMContext};
 
     #[test]
@@ -21,13 +21,12 @@ mod internal_tests {
             0,
         );
         testing_env!(context);
-        
         let mut fpo = test_fpo(
-            "nft.eneftigo.testnet", 
+            "nft.eneftigo.testnet",
             0,
-            "offeror.eneftigo.testnet", 
-            Some("1975-05-26T00:00:00+00:00"), 
-            Some("1975-06-24T00:00:00+00:00")
+            "offeror.eneftigo.testnet",
+            Some("1975-05-26T00:00:00+00:00"),
+            Some("1975-06-24T00:00:00+00:00"),
         );
 
         // move date forward but not reach start date yet
@@ -100,7 +99,7 @@ mod internal_tests {
         );
         testing_env!(context);
         fpo.update_status();
-        assert!(fpo.status == Ended);        
+        assert!(fpo.status == Ended);
     }
 
     #[test]
@@ -115,13 +114,12 @@ mod internal_tests {
             0,
         );
         testing_env!(context);
-        
         let mut fpo = test_fpo(
-            "nft.eneftigo.testnet", 
+            "nft.eneftigo.testnet",
             0,
-            "offeror.eneftigo.testnet", 
-            Some("1975-05-26T00:00:00+00:00"), 
-            Some("1975-06-24T00:00:00+00:00")
+            "offeror.eneftigo.testnet",
+            Some("1975-05-26T00:00:00+00:00"),
+            Some("1975-06-24T00:00:00+00:00"),
         );
 
         // prepare proposals
@@ -129,10 +127,8 @@ mod internal_tests {
             id: 1,
             proposer_id: AccountId::new_unchecked("proposer1".to_string()),
             price_yocto: 900,
-            is_acceptable: true,
         };
-        fpo.proposals.insert(&proposal1.id, &proposal1);
-        fpo.acceptable_proposals.push(&proposal1.id);
+        fpo.proposals.push(&proposal1);
         assert!(
             fpo.acceptable_price_yocto() == 500,
             "Wrong acceptable price"
@@ -142,10 +138,8 @@ mod internal_tests {
             id: 2,
             proposer_id: AccountId::new_unchecked("proposer2".to_string()),
             price_yocto: 600,
-            is_acceptable: true,
         };
-        fpo.proposals.insert(&proposal2.id, &proposal2);
-        fpo.acceptable_proposals.push(&proposal2.id);
+        fpo.proposals.push(&proposal2);
         assert!(
             fpo.acceptable_price_yocto() == 500,
             "Wrong acceptable price"
@@ -155,23 +149,8 @@ mod internal_tests {
             id: 3,
             proposer_id: AccountId::new_unchecked("proposer3".to_string()),
             price_yocto: 800,
-            is_acceptable: true,
         };
-        fpo.proposals.insert(&proposal3.id, &proposal3);
-        fpo.acceptable_proposals.push(&proposal3.id);
-        assert!(
-            fpo.acceptable_price_yocto() == 500,
-            "Wrong acceptable price"
-        );
-
-        let proposal5 = FixedPriceOfferingProposal {
-            id: 5,
-            proposer_id: AccountId::new_unchecked("proposer5".to_string()),
-            price_yocto: 500,
-            is_acceptable: true,
-        };
-        fpo.proposals.insert(&proposal5.id, &proposal5);
-        fpo.acceptable_proposals.push(&proposal5.id);
+        fpo.proposals.push(&proposal3);
         assert!(
             fpo.acceptable_price_yocto() == 500,
             "Wrong acceptable price"
@@ -181,29 +160,38 @@ mod internal_tests {
             id: 4,
             proposer_id: AccountId::new_unchecked("proposer4".to_string()),
             price_yocto: 500,
-            is_acceptable: true,
         };
-        fpo.proposals.insert(&proposal4.id, &proposal4);
-        fpo.acceptable_proposals.push(&proposal4.id);
+        fpo.proposals.push(&proposal4);
+        assert!(
+            fpo.acceptable_price_yocto() == 500,
+            "Wrong acceptable price"
+        );
+
+        let proposal5 = FixedPriceOfferingProposal {
+            id: 5,
+            proposer_id: AccountId::new_unchecked("proposer5".to_string()),
+            price_yocto: 500,
+        };
+        fpo.proposals.push(&proposal5);
 
         assert!(
-            fpo.acceptable_proposals.get(0) == Some(proposal1.id) &&
-            fpo.acceptable_proposals.get(1) == Some(proposal2.id) &&
-            fpo.acceptable_proposals.get(2) == Some(proposal3.id) &&
-            fpo.acceptable_proposals.get(3) == Some(proposal5.id) &&
-            fpo.acceptable_proposals.get(4) == Some(proposal4.id),
+            fpo.proposals.get(0).unwrap().id == proposal1.id
+                && fpo.proposals.get(1).unwrap().id == proposal2.id
+                && fpo.proposals.get(2).unwrap().id == proposal3.id
+                && fpo.proposals.get(3).unwrap().id == proposal4.id
+                && fpo.proposals.get(4).unwrap().id == proposal5.id,
             "Wrong initial ordering"
         );
 
         // test sort_acceptable_proposals
-        fpo.sort_acceptable_proposals();
+        fpo.sort_proposals();
         assert!(
-            fpo.acceptable_proposals.get(0) == Some(proposal5.id) &&
-            fpo.acceptable_proposals.get(1) == Some(proposal4.id) &&
-            fpo.acceptable_proposals.get(2) == Some(proposal2.id) &&
-            fpo.acceptable_proposals.get(3) == Some(proposal3.id) &&
-            fpo.acceptable_proposals.get(4) == Some(proposal1.id),
-            "Wrong sorted ordering"
+            fpo.proposals.get(0).unwrap().id == proposal1.id
+                && fpo.proposals.get(1).unwrap().id == proposal3.id
+                && fpo.proposals.get(2).unwrap().id == proposal2.id
+                && fpo.proposals.get(3).unwrap().id == proposal4.id
+                && fpo.proposals.get(4).unwrap().id == proposal5.id,
+            "Wrong sorted ordering",
         );
 
         assert!(
@@ -213,15 +201,15 @@ mod internal_tests {
 
         // test prune_supply_exceeding_acceptable_proposals
         fpo.supply_left = 3;
-        fpo.prune_supply_exceeding_acceptable_proposals_and_refund_proposers();
+        fpo.remove_supply_exceeding_proposals_and_refund_proposers();
         assert!(
-            fpo.acceptable_proposals.len() == 3,
+            fpo.proposals.len() == 3,
             "Number of acceptable proposals after pruning does not match supply"
         );
         assert!(
-            fpo.acceptable_proposals.get(0) == Some(proposal2.id) &&
-            fpo.acceptable_proposals.get(1) == Some(proposal3.id) &&
-            fpo.acceptable_proposals.get(2) == Some(proposal1.id),
+            fpo.proposals.get(0).unwrap().id == proposal1.id
+                && fpo.proposals.get(1).unwrap().id == proposal3.id
+                && fpo.proposals.get(2).unwrap().id == proposal2.id,
             "Wrong proposals pruned"
         );
         assert!(
@@ -230,14 +218,7 @@ mod internal_tests {
         );
 
         // test is_proposal_acceptable
-        assert!(
-            fpo.is_proposal_acceptable(proposal2.id) &&
-            fpo.is_proposal_acceptable(proposal3.id) &&
-            fpo.is_proposal_acceptable(proposal1.id) &&
-            !fpo.is_proposal_acceptable(proposal4.id) &&
-            !fpo.is_proposal_acceptable(proposal5.id),
-            "Wrong proposals are acceptable/unacceptable"
-        );
+        assert!(fpo.proposals.len() == 3, "Wrong proposals are acceptable/unacceptable");
 
         // test acceptable_price_yocto
     }
@@ -294,8 +275,8 @@ mod internal_tests {
         nft_contract_id_str: &str,
         collection_id: NftCollectionId,
         offeror_id_str: &str,
-        start_date: Option<&str>, 
-        end_date: Option<&str>
+        start_date: Option<&str>,
+        end_date: Option<&str>,
     ) -> FixedPriceOffering {
         let start_timestamp: Option<i64> = if let Some(start_date) = start_date {
             Some(DateTime::parse_from_rfc3339(start_date).expect(
@@ -313,13 +294,15 @@ mod internal_tests {
         };
 
         let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
-        let offering_id = OfferingId { nft_contract_id, collection_id };
+        let offering_id = OfferingId {
+            nft_contract_id,
+            collection_id,
+        };
         let offeror_id = AccountId::new_unchecked(offeror_id_str.to_string());
         let nft_metadata = NftMetadata::new(
             &String::from("Bored Grapes"),
             &String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
         );
-        
         FixedPriceOffering {
             offering_id: offering_id,
             offeror_id: offeror_id,
@@ -332,9 +315,7 @@ mod internal_tests {
             status: Unstarted,
             // nft_metadata: test_nft_metadata(1),
             supply_left: 5,
-            proposals: LookupMap::new(b"m"),
-            proposals_by_proposer: LookupMap::new(b"p"),
-            acceptable_proposals: Vector::new(b"a"),
+            proposals: Vector::new(b"m"),
             next_proposal_id: 0,
         }
     }
