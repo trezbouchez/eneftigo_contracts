@@ -149,10 +149,10 @@ async fn main() -> anyhow::Result<()> {
         FPO_ACCEPTING_PROPOSALS_PLACE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
     let now_timestamp = Utc::now().timestamp();
-    let end_too_soon_timestamp = now_timestamp + MIN_DURATION_SECS / 2;
-    let end_too_soon = Utc.timestamp(end_too_soon_timestamp, 0).to_rfc3339();
-    let end_too_late_timestamp = now_timestamp + MAX_DURATION_SECS * 2;
-    let end_too_late = Utc.timestamp(end_too_late_timestamp, 0).to_rfc3339();
+    // let end_too_soon_timestamp = now_timestamp + MIN_DURATION_SECS / 2;
+    // let end_too_soon = Utc.timestamp(end_too_soon_timestamp, 0).to_rfc3339();
+    // let end_too_late_timestamp = now_timestamp + MAX_DURATION_SECS * 2;
+    // let end_too_late = Utc.timestamp(end_too_late_timestamp, 0).to_rfc3339();
     let end_valid_timestamp = now_timestamp + MAX_DURATION_SECS / 2;
     let end_valid = Utc.timestamp(end_valid_timestamp, 0).to_rfc3339();
 
@@ -202,7 +202,7 @@ async fn main() -> anyhow::Result<()> {
     /*
     #01: Proposed price too low
     */
-    /*    println!(
+    println!(
         "{}: Proposed price too low:",
         "#01 fpo_place_proposal".cyan()
     );
@@ -223,14 +223,14 @@ async fn main() -> anyhow::Result<()> {
         "Succeeded even though proposed price is too low"
     );
     let state_after = get_state(&worker, &parties).await;
-    tokens_burnt_buyer1 += state_before.buyer1.balance - state_after.buyer1.balance;
+    buyer1_tokens_burnt += state_before.buyer1.balance - state_after.buyer1.balance;
 
-    println!(" - {}", "PASSED".green());*/
+    println!(" - {}", "PASSED".green());
 
     /*
     #02 Proposed price of 550yN acceptable, deposit 500yN is too low
     */
-    /*    println!(
+    println!(
         "{}: Proposed price of 550yN acceptable, deposit 500yN is too low:",
         "#02 fpo_place_proposal".cyan()
     );
@@ -251,9 +251,9 @@ async fn main() -> anyhow::Result<()> {
         "Succeeded even though insufficent deposit"
     );
     let state_after = get_state(&worker, &parties).await;
-    tokens_burnt_buyer1 += state_before.buyer1.balance - state_after.buyer1.balance;
+    buyer1_tokens_burnt += state_before.buyer1.balance - state_after.buyer1.balance;
 
-    println!(" - {}", "PASSED".green());*/
+    println!(" - {}", "PASSED".green());
 
     /*
     #03 Buyer 1 proposed price of 550yN acceptable, deposit sufficient
@@ -310,8 +310,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     let to_be_revoked_proposal_id = outcome.json::<u64>()?;
     let state_after = get_state(&worker, &parties).await;
-    let proposal2_storage =
-        state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
+    // let proposal2_storage = state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
     verify_balances(&outcome, &state_before, &state_after, proposal2_price, 0);
     buyer2_tokens_burnt += get_tokens_burnt(&outcome);
 
@@ -435,8 +434,7 @@ async fn main() -> anyhow::Result<()> {
         .transact()
         .await?;
     let state_after = get_state(&worker, &parties).await;
-    let proposal3_storage =
-        state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
+    // let proposal3_storage = state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
     verify_balances(
         &outcome,
         &state_before,
