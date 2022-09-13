@@ -11,7 +11,7 @@ pub struct JsonFixedPriceOffering {
     pub offeror_id: AccountId,
     pub supply_total: U64,
     pub buy_now_price_yocto: U128,
-    // pub nft_metadata: TokenMetadata,
+    pub nft_metadata: NftMetadata,
     pub end_timestamp: Option<i64>, // nanoseconds since 1970-01-01
     pub supply_left: U64,
 }
@@ -49,7 +49,7 @@ impl MarketplaceContract {
                 offeror_id: fpo.offeror_id,
                 supply_total: U64(fpo.supply_total),
                 buy_now_price_yocto: U128(fpo.buy_now_price_yocto),
-                // nft_metadata: fpo.nft_metadata,
+                nft_metadata: fpo.nft_metadata,
                 end_timestamp: fpo.end_timestamp,
                 supply_left: U64(fpo.supply_left),
             })
@@ -77,7 +77,7 @@ impl MarketplaceContract {
             offeror_id: fpo.offeror_id,
             supply_total: U64(fpo.supply_total),
             buy_now_price_yocto: U128(fpo.buy_now_price_yocto),
-            // nft_metadata: fpo.nft_metadata,
+            nft_metadata: fpo.nft_metadata,
             end_timestamp: fpo.end_timestamp,
             supply_left: U64(fpo.supply_left),
         }

@@ -12,7 +12,7 @@ use near_sdk::{
 const NFT_MINT_GAS: Gas = Gas(15_000_000_000_000);                  // TODO: measure
 const NFT_MINT_COMPLETION_GAS: Gas = Gas(5_000_000_000_000);        // TODO: measure
 
-const NFT_MINT_WORST_CASE_STORAGE: u64 = 830;                       // actual, measured
+// const NFT_MINT_WORST_CASE_STORAGE: u64 = 830;                       // actual, measured
 
 
 #[cfg(test)]
@@ -54,14 +54,16 @@ impl MarketplaceContract {
 
         // ensure the attached balance is sufficient
         let attached_deposit = env::attached_deposit();
-        let nft_storage_cost = NFT_MINT_WORST_CASE_STORAGE as Balance * env::storage_byte_cost();
+        let storage_byte_cost = env::storage_byte_cost();
+        let anticipated_nft_storage = nft_mint_storage(&fpo.nft_metadata.title.unwrap(), &fpo.nft_metadata.media.unwrap(), &buyer_id.as_str());
+        let anticipated_nft_storage_cost = anticipated_nft_storage as Balance * storage_byte_cost;
         let price = fpo.buy_now_price_yocto;
-        let total_cost = price + nft_storage_cost;
+        let required_deposit = price + anticipated_nft_storage_cost;
 
         assert!(
-            attached_deposit >= total_cost, 
+            attached_deposit >= required_deposit, 
             "Attached Near must be at least {}, enough to pay the price and the NFT minting storage", 
-            total_cost,
+            required_deposit,
         );
 
         nft_contract::mint(
@@ -69,7 +71,7 @@ impl MarketplaceContract {
             buyer_id,
             None,               // perpetual royalties
             offering_id.nft_contract_id.clone(),
-            nft_storage_cost,
+            anticipated_nft_storage_cost,
             NFT_MINT_GAS,
         )
         .then(ext_self_nft::fpo_buy_now_mint_completion(
@@ -373,10 +375,10 @@ impl MarketplaceContract {
 }
 
 // If extra fields get added to the NFT metadata this will need to be updated
-fn nft_mint_worst_case_storage(receiver_id: AccountId) -> u64 {
-    let mint_worst_case_storage_base: u64 = 830;        // actual, measured
-    mint_worst_case_storage_base + receiver_id.to_string().len() as u64 * 2
-}
+// fn nft_mint_worst_case_storage(receiver_id: AccountId) -> u64 {
+//     let mint_worst_case_storage_base: u64 = 830;        // actual, measured
+//     mint_worst_case_storage_base + receiver_id.to_string().len() as u64 * 2
+// }
 
 #[ext_contract(ext_self_nft)]
 trait FPOBuyerCallback {
@@ -413,7 +415,8 @@ impl FPOBuyerCallback for MarketplaceContract {
         // The price is the amount due to be transferred to the seller's account if minting succeeds
         // Pruning the proposals will return deposit provided by respective proposers
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
-        match env::promise_result(0) {
+        let mint_result = env::promise_result(0);
+        match mint_result {
             PromiseResult::NotReady | PromiseResult::Failed => {
                 let refund = attached_deposit;
                 if refund > 0 {
@@ -453,4 +456,11 @@ impl FPOBuyerCallback for MarketplaceContract {
             }
         }
     }
+}
+
+fn nft_mint_storage(title: &str, media_url: &str, receiver_id: &str) -> u64 {
+    return 1013 + 
+    title.len() as u64 + 
+    media_url.len() as u64 + 
+    2u64 * receiver_id.len() as u64;
 }

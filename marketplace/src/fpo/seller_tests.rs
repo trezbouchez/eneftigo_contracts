@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod seller_tests {
-    use crate::fpo::seller::{MAX_TITLE_LEN,IPFS_URL_LEN};
+    use crate::fpo::seller::{MAX_TITLE_LEN};
     use crate::internal::{hash_account_id, hash_offering_id};
     use crate::FixedPriceOffering;
     use crate::FixedPriceOfferingProposal;
     use crate::FixedPriceOfferingStatus::*;
     use crate::FixedPriceOfferingStorageKey;
-    use crate::ProposalId;
     use crate::*;
     use crate::{MarketplaceContract, MarketplaceStorageKey};
+    use crate::fpo::seller::FPOSellerCallback;
     use chrono::{DateTime, TimeZone, Utc};
     use near_sdk::borsh::BorshSerialize;
     use near_sdk::collections::{LookupMap, TreeMap, UnorderedSet, Vector};
@@ -627,7 +627,6 @@ mod seller_tests {
         let title = String::from("abcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefgh");
         assert_eq!(title.len(), MAX_TITLE_LEN);
         let media_url = String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF");
-        assert_eq!(media_url.len(), IPFS_URL_LEN);
 
         marketplace.fpo_add_buy_now_only(
             title,
@@ -640,21 +639,67 @@ mod seller_tests {
     }*/
     
     #[test]
-    fn test_buy_now_success() {
+    fn test_add_buy_now_only_storage() {
         let context = test_get_context(
             false,
             Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
-            10450000000000000000000,
+            60470000000000000000000,
             0,
         );
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
 
-        let title = String::from("abcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefgh");
-        assert_eq!(title.len(), MAX_TITLE_LEN);
-        let media_url = String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF");
-        assert_eq!(media_url.len(), IPFS_URL_LEN);
+        let offeror_id = AccountId::new_unchecked(String::from("offeror.near"));
+
+        let title = String::from("abcd");
+        let media = String::from("https://ipfs.io/ipfs/Qmca");
+        let nft_metadata = NftMetadata::new(&title, &media);
+        let offering_id = OfferingId {
+            nft_contract_id: AccountId::new_unchecked(String::from("nft.eneftigo.near")),
+            collection_id: 0,
+        };
+        let offering_id_hash = hash_offering_id(&offering_id);
+        let fpo = FixedPriceOffering {
+            offering_id: offering_id,
+            offeror_id,
+            nft_metadata: nft_metadata.clone(),
+            supply_total: 10,
+            buy_now_price_yocto: 1000,
+            min_proposal_price_yocto: None,
+            start_timestamp: None,
+            end_timestamp: None,
+            status: Unstarted,
+            supply_left: 10,
+            proposals: Vector::new(
+                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
+                    .try_to_vec()
+                    .unwrap(),
+            ),
+            next_proposal_id: 0,
+        };
+
+        let marketplace_storage_before = env::storage_usage();
+        marketplace.internal_add_fpo(&fpo);
+        println!("MARKETPLACE STORAGE {}, {}, {}", title.len(), media.len(), env::storage_usage() - marketplace_storage_before);
+
+        assert!(false);
+    }
+
+    #[test]
+    fn test_add_buy_now_only_success() {
+        let context = test_get_context(
+            false,
+            Utc.ymd(1975, 5, 24).and_hms(13, 10, 00),
+            60470000000000000000000,
+            0,
+        );
+        testing_env!(context);
+
+        let mut marketplace = test_marketplace();
+
+        let title = String::from("abcd");
+        let media_url = String::from("https://ipfs.io/ipfs/Qmc");
 
         marketplace.fpo_add_buy_now_only(
             title,
@@ -664,8 +709,6 @@ mod seller_tests {
             Some(String::from("2022-09-01T00:00:00+00:00")),
             Some(String::from("2022-09-20T00:00:00+00:00")),
         );
-
-        assert!(false, "");
     }
 
     /*

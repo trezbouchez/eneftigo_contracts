@@ -16,7 +16,7 @@ pub const FPO_ACCEPTING_PROPOSALS_REVOKE_GAS: Gas = 10_000_000_000_000; // TODO:
     Storage
 */
 pub const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1671; // actual measured was 1349
-pub const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 422; // actual measured was 422
+pub const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 4376; // actual measured for worst case title and url
 pub const FPO_ACCEPTING_PROPOSALS_PLACE_STORAGE: u64 = 796;     // actual measured was 796
 
 pub const FPO_ADD_WORST_CASE_STORAGE: u64 =

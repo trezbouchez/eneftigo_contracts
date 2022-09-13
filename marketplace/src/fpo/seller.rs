@@ -17,10 +17,6 @@ const NFT_MAKE_COLLECTION_GAS: Gas = Gas(5_000_000_000_000); // highest measured
 const NFT_MAKE_COLLECTION_COMPLETION_GAS: Gas = Gas(6_000_000_000_000); // highest measured 5_089_357_803_858
 
 pub const MAX_TITLE_LEN: usize = 128;
-pub const IPFS_URL_LEN: usize = 21 + 46; //https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF
-
-const FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE: u64 = 1671; // actual, measured for longest possible account ids & title and IPFS URL
-const NEW_COLLECTION_WORST_CASE_NFT_STORAGE: u64 = 422; // actual, measured
 
 #[cfg(test)]
 #[path = "seller_tests.rs"]
@@ -39,14 +35,17 @@ impl MarketplaceContract {
         end_date: Option<String>,
     ) -> Promise {
         let attached_deposit = env::attached_deposit();
-        let worst_case_total_storage_cost = (FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE
-            + NEW_COLLECTION_WORST_CASE_NFT_STORAGE)
-            as Balance
-            * env::storage_byte_cost();
+        let anticipated_marketplace_storage =
+            fpo_add_buy_now_only_storage(&title, &media_url, &start_date, &end_date);
+        let anticipated_nft_storage = nft_make_collection_storage(&title, &media_url);
+        let anticipated_storage = anticipated_marketplace_storage + anticipated_nft_storage;
+        let anticipated_storage_cost = anticipated_storage as Balance * env::storage_byte_cost();
         assert!(
-            attached_deposit >= worst_case_total_storage_cost,
-            "Attach at least {} yN",
-            worst_case_total_storage_cost
+            attached_deposit >= anticipated_storage_cost,
+            "Attach at least {} yN for storage (marketplace storage of {} and NFT collection storage of {})",
+            anticipated_storage_cost,
+            anticipated_marketplace_storage,
+            anticipated_nft_storage
         );
         assert!(
             title.len() <= MAX_TITLE_LEN,
@@ -54,7 +53,6 @@ impl MarketplaceContract {
             MAX_TITLE_LEN
         );
         assert!(Url::parse(&media_url).is_ok(), "NFT media URL is invalid");
-        assert!(media_url.len() == IPFS_URL_LEN, "Not an IPFS URL"); // TODO: do stricter regex match
 
         // ensure max supply does not exceed limit
         assert!(
@@ -139,7 +137,7 @@ impl MarketplaceContract {
             nft_metadata,
             supply_total,
             buy_now_price_yocto,
-            None,           // min_proposal_price_yocto
+            None, // min_proposal_price_yocto
             start_timestamp,
             end_timestamp,
             env::current_account_id(),
@@ -159,24 +157,28 @@ impl MarketplaceContract {
         start_date: Option<String>, // if None, will start when block is mined
         end_date: String,
     ) -> Promise {
-        let storage_byte_cost = env::storage_byte_cost();
         let attached_deposit = env::attached_deposit();
-        let worst_case_total_storage_cost = (FPO_ADD_WORST_CASE_MARKETPLACE_STORAGE
-            + NEW_COLLECTION_WORST_CASE_NFT_STORAGE)
-            as Balance
-            * storage_byte_cost;
+        let storage_byte_cost = env::storage_byte_cost();
+
+        let anticipated_marketplace_storage =
+            fpo_add_accepting_proposals_storage(&title, &media_url, &start_date);
+        let anticipated_marketplace_storage_cost =
+            anticipated_marketplace_storage as Balance * storage_byte_cost;
+        let anticipated_nft_storage = nft_make_collection_storage(&title, &media_url);
+        let anticipated_nft_storage_cost = anticipated_nft_storage as Balance * storage_byte_cost;
+        let anticipated_storage_cost = anticipated_marketplace_storage_cost + anticipated_nft_storage_cost;
         assert!(
-            attached_deposit >= worst_case_total_storage_cost,
+            attached_deposit >= anticipated_storage_cost,
             "Attach at least {} yN",
-            worst_case_total_storage_cost
+            anticipated_storage_cost
         );
+
         assert!(
             title.len() <= MAX_TITLE_LEN,
             "Title length cannot exceed {} characters",
             MAX_TITLE_LEN
         );
         assert!(Url::parse(&media_url).is_ok(), "NFT media URL is invalid");
-        assert!(media_url.len() == IPFS_URL_LEN, "Not an IPFS URL"); // TODO: do stricter regex match
 
         // ensure max supply does not exceed limit
         assert!(
@@ -246,7 +248,7 @@ impl MarketplaceContract {
             nft_metadata.clone(),
             supply_total,
             nft_contract_id.clone(),
-            attached_deposit,
+            anticipated_nft_storage_cost,
             NFT_MAKE_COLLECTION_GAS,
         )
         .then(ext_self_nft::fpo_add_make_collection_completion(
@@ -297,11 +299,10 @@ impl MarketplaceContract {
 
         // accept best proposals
         let mut proposals_vec = fpo.proposals.to_vec();
-        let first_accepted_proposal_index =
-            (num_proposals - accepted_proposals_count) as usize;
+        let first_accepted_proposal_index = (num_proposals - accepted_proposals_count) as usize;
 
-        let best_proposals_iter = proposals_vec
-            .drain(first_accepted_proposal_index..(num_proposals as usize));
+        let best_proposals_iter =
+            proposals_vec.drain(first_accepted_proposal_index..(num_proposals as usize));
         for proposal_being_accepted_id in best_proposals_iter {
             // TODO:
             // let proposal_being_accepted = fpo
@@ -503,4 +504,37 @@ impl FPOSellerCallback for MarketplaceContract {
             }
         }
     }
+}
+
+fn fpo_add_buy_now_only_storage(
+    title: &str,
+    media: &str,
+    start_timestamp: &Option<String>,
+    end_timestamp: &Option<String>,
+) -> u64 {
+    return 725
+        + title.len() as u64
+        + media.len() as u64
+        + if start_timestamp.is_some() { 8 } else { 0 }
+        + if end_timestamp.is_some() { 8 } else { 0 };
+}
+
+fn fpo_add_accepting_proposals_storage(
+    title: &str,
+    media: &str,
+    start_timestamp: &Option<String>,
+) -> u64 {
+    return 725
+        + title.len() as u64
+        + media.len() as u64
+        + if start_timestamp.is_some() { 8 } else { 0 }
+        + 8; // end date is always some
+}
+
+fn nft_make_collection_storage(title: &str, media: &str) -> u64 {
+    return 152 + title.len() as u64 + 2u64 * media.len() as u64;
+}
+
+fn nft_mint_storage(title: &str, media_url: &str, receiver_id: &str) -> u64 {
+    return 635 + title.len() as u64 + media_url.len() as u64 + 2u64 * receiver_id.len() as u64;
 }

@@ -3,9 +3,10 @@ use crate::*;
 use url::Url;
 
 const MAX_TITLE_LEN: usize = 128;
-const IPFS_URL_LEN: usize = 21 + 46; //https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF
-// this was computed assuming MAX_TITLE_LEN and IPFS_URL_LEN
-pub const NEW_COLLECTION_WORST_CASE_STORAGE: u64 = 422;            // actual, measured
+// for MAX_TITLE_LEN and maximum URL length of 2048 chars
+// formula is 152 + title.len() + 2*media_url.len()
+// this gives 152 + 128 + 2*2048 = 4376
+pub const NEW_COLLECTION_WORST_CASE_STORAGE: u64 = 4376;
 
 #[near_bindgen]
 impl NftContract {
@@ -23,12 +24,32 @@ impl NftContract {
         //     "Only contract owner (Eneftigo Marketplace) can create collections"
         // );
 
-        let title = nft_metadata.title.clone().expect("NFT metadata must include title");
+        let title = nft_metadata
+            .title
+            .clone()
+            .expect("NFT metadata must include title");
         // this is because the storage usage is (pesimistacally) computed for this max title length
-        assert!(title.len() <= MAX_TITLE_LEN, "Title length cannot exceed {} characters", MAX_TITLE_LEN);
-        let media_url = nft_metadata.media.clone().expect("NFT metadata must include media (URL)");
+        assert!(
+            title.len() <= MAX_TITLE_LEN,
+            "Title length cannot exceed {} characters",
+            MAX_TITLE_LEN
+        );
+
+        let media_url = nft_metadata
+            .media
+            .clone()
+            .expect("NFT metadata must include media (URL)");
         assert!(Url::parse(&media_url).is_ok(), "NFT asset URL is invalid");
-        assert!(media_url.len() == IPFS_URL_LEN, "Not an IPFS URL");        // TODO: do stricter regex match
+
+        let storage_byte_cost = env::storage_byte_cost();
+        let anticipated_storage_usage = make_collection_storage(&title, &media_url);
+        let anticipated_storage_cost = anticipated_storage_usage as Balance * storage_byte_cost;
+        let attached_deposit = env::attached_deposit();
+        assert!(
+            attached_deposit >= anticipated_storage_cost,
+            "Attach at least {} yN to cover storage cost",
+            anticipated_storage_cost
+        );
 
         let initial_storage_usage = env::storage_usage();
 
@@ -65,22 +86,27 @@ impl NftContract {
         );
 
         // refund excess storage deposit
-        let storage_usage = env::storage_usage() - initial_storage_usage;
-        let storage_cost = storage_usage as Balance * env::storage_byte_cost();
-        let attached_deposit = env::attached_deposit();
-        assert!(
-            attached_deposit >= storage_cost,
-            "The attached deposit of {} yN is insufficient to cover the storage costs of {} yN.",
-            attached_deposit,
-            storage_cost
+        let actual_storage_usage = env::storage_usage() - initial_storage_usage;
+        assert_eq!(
+            actual_storage_usage, anticipated_storage_usage,
+            "Anticipated storage usage of {} differs from actual {}",
+            anticipated_storage_usage, actual_storage_usage
         );
+        let actual_storage_cost = anticipated_storage_cost;
 
-        let refund_amount = attached_deposit - storage_cost;
+        // assert!(
+        //     attached_deposit >= storage_cost,
+        //     "The attached deposit of {} yN is insufficient to cover the storage costs of {} yN.",
+        //     attached_deposit,
+        //     storage_cost
+        // );
+
+        let refund_amount = attached_deposit - actual_storage_cost;
         if refund_amount > 0 {
             Promise::new(env::predecessor_account_id()).transfer(refund_amount);
         }
 
-        (collection_id, storage_usage)
+        (collection_id, actual_storage_usage)
     }
 
     pub fn freeze_collection(&mut self, collection_id: u64) {
@@ -132,12 +158,8 @@ impl NftContract {
     }
 }
 
-impl NftContract {
-    #[allow(dead_code)]
-    pub(crate) fn make_collection_storage(asset_url: &str) -> u64 {
-        let asset_url_len: u64 = asset_url.len().try_into().unwrap();
-        136 + 2 * asset_url_len
-    }
+fn make_collection_storage(title: &str, media: &str) -> u64 {
+    return 152 + title.len() as u64 + 2u64 * media.len() as u64;
 }
 
 #[cfg(test)]
@@ -147,13 +169,14 @@ mod tests {
     use near_sdk::testing_env;
 
     #[test]
-    #[should_panic(expected = r#"Collection exists for http://eneftigo/asset.png"#)]
+    #[should_panic(expected = r#"Collection exists for media at http://eneftigo/asset.png"#)]
     fn test_nft_make_collection_duplcated_asset_url() {
+        let storage_cost_byte = env::storage_byte_cost();
         let account_id = AccountId::new_unchecked("marketplace.near".to_string());
         let context = VMContextBuilder::new()
             .predecessor_account_id(account_id.clone())
             .signer_account_id(account_id.clone())
-            .attached_deposit(1880000000000000000000)
+            .attached_deposit(NEW_COLLECTION_WORST_CASE_STORAGE as Balance * storage_cost_byte)
             .build();
         testing_env!(context);
 
@@ -165,18 +188,21 @@ mod tests {
 
     #[test]
     fn test_nft_make_collection() {
+        let storage_cost_byte = env::storage_byte_cost();
         let account_id = AccountId::new_unchecked("marketplace.near".to_string());
         let context = VMContextBuilder::new()
             .predecessor_account_id(account_id.clone())
             .signer_account_id(account_id.clone())
-            .attached_deposit(1880000000000000000000)
+            .attached_deposit(NEW_COLLECTION_WORST_CASE_STORAGE as Balance * storage_cost_byte)
             .build();
         testing_env!(context);
 
         let mut contract = NftContract::new_default_meta("test.near".parse().unwrap());
         let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset1.png");
         contract.make_collection(nft_metadata, 5);
-        let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset2.png");
+        let nft_metadata = TokenMetadata::new("collection2", "http://eneftigo/asset0.png");
+        contract.make_collection(nft_metadata, 5);
+        let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset22.png");
         contract.make_collection(nft_metadata, 10);
     }
 }

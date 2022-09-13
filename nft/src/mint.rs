@@ -1,4 +1,5 @@
 use crate::*;
+use sha2::{Sha256, Digest};
 
 const MINT_WORST_CASE_STORAGE_BASE: u64 = 830; // actual, measured
 
@@ -19,15 +20,6 @@ impl NftContract {
             "Only contract owner (Eneftigo Marketplace) can mint."
         );
 
-        // terminate early to save gas if deposit won't cover worst case storage cost
-        let worst_case_storage_cost =
-            MINT_WORST_CASE_STORAGE_BASE as Balance * env::storage_byte_cost();
-        assert!(
-            env::attached_deposit() >= worst_case_storage_cost,
-            "Attach at least {} yN to cover NFT storage",
-            worst_case_storage_cost,
-        );
-
         let mut collection = self
             .collections_by_id
             .get(&collection_id)
@@ -36,6 +28,23 @@ impl NftContract {
             !collection.is_frozen,
             "Collection is frozen. No more NFT can be minted."
         );
+
+        // terminate early to save gas if deposit won't cover worst case storage cost
+        let anticipated_storage = mint_storage(
+            &collection.nft_metadata.title.clone().unwrap(),
+            &collection.nft_metadata.media.clone().unwrap(),
+            receiver_id.as_str(),
+        );
+        let anticipated_storage_cost = anticipated_storage as Balance * env::storage_byte_cost();
+        assert!(
+            env::attached_deposit() >= anticipated_storage_cost,
+            "Attach at least {} yN to cover NFT storage (title {}, media {}, receiver {}",
+            anticipated_storage_cost,
+            collection.nft_metadata.title.clone().unwrap(),
+            collection.nft_metadata.media.clone().unwrap(),
+            receiver_id.as_str()
+        );
+
         let new_token_index = collection.tokens.len() as u64;
         assert!(
             new_token_index < collection.max_supply,
@@ -61,10 +70,14 @@ impl NftContract {
             }
         }
 
-        let new_token_id = new_token_index.to_string();
+        // we want to keep the NftId size fixed for predictable storage calculation
+        let new_token_id_string = format!("{}:{}", collection_id, new_token_index);
+        let token_id_hash = Sha256::digest(new_token_id_string.as_bytes());
+        let new_token_id = format!("{:01$x}", token_id_hash, 64);
+
         let new_token = Nft {
             //set the owner ID equal to the receiver ID passed into the function
-            owner_id: receiver_id,
+            owner_id: receiver_id.clone(),
             collection_id: collection_id,
             approved_account_ids: Default::default(),
             next_approval_id: 0,
@@ -97,6 +110,8 @@ impl NftContract {
 
         //calculate the required storage which was the used - initial
         let storage_usage = env::storage_usage() - initial_storage_usage;
+
+        println!("{}, {}", receiver_id.to_string().len(), storage_usage);
 
         //refund any excess storage if the user attached too much. Will panic if deposit was insufficient
         refund_excess_deposit(storage_usage);
@@ -137,12 +152,67 @@ impl NftContract {
     }*/
 }
 
+fn mint_storage(title: &str, media_url: &str, receiver_id: &str) -> u64 {
+    return 1013 + title.len() as u64 + media_url.len() as u64 + 2u64 * receiver_id.len() as u64;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::testing_env;
     use std::mem;
+
+    #[test]
+    fn test_nft_mint_storage() {
+        let account_id = AccountId::new_unchecked("marketplace.near".to_string());
+        let context = VMContextBuilder::new()
+            .predecessor_account_id(account_id.clone())
+            .signer_account_id(account_id.clone())
+            .attached_deposit(20000000000000000000000)
+            .build();
+        testing_env!(context);
+
+        let mut contract = NftContract::new_default_meta("marketplace.near".parse().unwrap());
+        let collection_id = 0u64;
+        let title = String::from("collection_title");
+        let asset_url = String::from("https://ipfs.io/ipfs/Qmef");
+        let mut nft_metadata = TokenMetadata::new(&title, &asset_url);
+        nft_metadata.issued_at = Some(env::block_timestamp());
+        let collection = NftCollection {
+            nft_metadata,
+            max_supply: 10,
+            is_frozen: false,
+            tokens: Vector::new(
+                StorageKey::CollectionsInner {
+                    collection_id: collection_id,
+                }
+                .try_to_vec()
+                .unwrap(),
+            ),
+        };
+        contract
+            .collections_by_url
+            .insert(&asset_url, &collection_id);
+        contract
+            .collections_by_id
+            .insert(&collection_id, &collection);
+
+        let storage_before = env::storage_usage();
+        let receiver_name = String::from("receiver13.near");
+        let receiver_id = AccountId::new_unchecked(receiver_name.clone());
+        contract.mint(receiver_id, collection_id, None);
+        let storage_after = env::storage_usage();
+        println!(
+            "{}, {}, {}, {}",
+            title.len(),
+            asset_url.len(),
+            receiver_name.len(),
+            storage_after - storage_before
+        );
+
+        assert!(false);
+    }
 
     #[test]
     fn test_nft_mint() {
