@@ -23,6 +23,7 @@ mod callback;
 // mod error;
 
 pub type NftCollectionId = u64;
+pub type NftId = String;
 
 //main contract struct to store all the information
 #[near_bindgen]

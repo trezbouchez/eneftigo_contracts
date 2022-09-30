@@ -55,7 +55,7 @@ impl fmt::Display for PrimaryListing {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "(nft_contract_id: {}\n, collection_id: {}\n, offeror_id{}\n)",
+            "(nft_contract_id: {}\n, collection_id: {}\n, seller_id{}\n)",
             self.id.nft_contract_id, self.id.collection_id, self.seller_id
         )
     }
