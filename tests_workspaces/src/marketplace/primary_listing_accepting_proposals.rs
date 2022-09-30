@@ -142,11 +142,11 @@ async fn main() -> anyhow::Result<()> {
         buyer3: &buyer3_account,
     };
 
-    let fpo_add_worst_case_base_storage_cost =
-        FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let primary_listing_add_worst_case_base_storage_cost =
+        PRIMARY_LISTING_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
-    let fpo_place_proposal_worst_case_storage_cost =
-        FPO_ACCEPTING_PROPOSALS_PLACE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let primary_listing_place_proposal_worst_case_storage_cost =
+        PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
     let now_timestamp = Utc::now().timestamp();
     // let end_too_soon_timestamp = now_timestamp + MIN_DURATION_SECS / 2;
@@ -162,7 +162,7 @@ async fn main() -> anyhow::Result<()> {
     let title = "Bored Grapes";
     let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF";
     let total_supply = 2u64;
-    let required_deposit = fpo_add_worst_case_base_storage_cost;
+    let required_deposit = primary_listing_add_worst_case_base_storage_cost;
     let state_before = get_state(&worker, &parties).await;
 
     let mut seller_tokens_burnt: Balance = 0;
@@ -174,7 +174,7 @@ async fn main() -> anyhow::Result<()> {
         .call(
             &worker,
             &marketplace_contract.id(),
-            "fpo_add_accepting_proposals",
+            "primary_listing_add_accepting_proposals",
         )
         .args_json(json!({
             "title": title,
@@ -185,12 +185,12 @@ async fn main() -> anyhow::Result<()> {
             "end_date": end_valid,
         }))?
         .deposit(required_deposit)
-        .gas(FPO_ACCEPTING_PROPOSALS_ADD_GAS)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_ADD_GAS)
         .transact()
         .await?;
     let collection_id = outcome.json::<u64>()?;
     let state_after = get_state(&worker, &parties).await;
-    let fpo_storage =
+    let primary_listing_storage =
         state_after.marketplace.storage_usage - state_before.marketplace.storage_usage;
     let nft_collection_storage = state_after.nft.storage_usage - state_before.nft.storage_usage;
     seller_tokens_burnt += get_tokens_burnt(&outcome);
@@ -204,18 +204,18 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Proposed price too low:",
-        "#01 fpo_place_proposal".cyan()
+        "#01 primary_listing_place_proposal".cyan()
     );
     let state_before = state_after;
     let outcome = buyer1_account
-        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_place_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "price_yocto": "400",
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
-        .deposit(400 + fpo_place_proposal_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(400 + primary_listing_place_proposal_worst_case_storage_cost)
         .transact()
         .await;
     assert!(
@@ -232,17 +232,17 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Proposed price of 550yN acceptable, deposit 500yN is too low:",
-        "#02 fpo_place_proposal".cyan()
+        "#02 primary_listing_place_proposal".cyan()
     );
     let state_before = state_after;
     let outcome = buyer1_account
-        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_place_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "price_yocto": "550",
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
         .deposit(500)
         .transact()
         .await;
@@ -260,21 +260,21 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buyer 1 proposed price of 550yN acceptable, deposit sufficient:",
-        "#03 fpo_place_proposal".cyan()
+        "#03 primary_listing_place_proposal".cyan()
     );
 
     let proposal1_price: Balance = 550;
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = buyer1_account
-        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_place_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "price_yocto": "550",
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
-        .deposit(proposal1_price + fpo_place_proposal_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(proposal1_price + primary_listing_place_proposal_worst_case_storage_cost)
         .transact()
         .await?;
 
@@ -291,21 +291,21 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buyer 2 proposed price of 600yN acceptable, deposit sufficient:",
-        "#04 fpo_place_proposal".cyan()
+        "#04 primary_listing_place_proposal".cyan()
     );
 
     let proposal2_price: Balance = 600;
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = buyer2_account
-        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_place_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "price_yocto": "600",
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
-        .deposit(proposal2_price + fpo_place_proposal_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(proposal2_price + primary_listing_place_proposal_worst_case_storage_cost)
         .transact()
         .await?;
     let to_be_revoked_proposal_id = outcome.json::<u64>()?;
@@ -321,25 +321,25 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buyer 2 revokes their proposal",
-        "#05 fpo_revoke_proposal".cyan()
+        "#05 primary_listing_revoke_proposal".cyan()
     );
 
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = buyer2_account
-        .call(&worker, marketplace_contract.id(), "fpo_revoke_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_revoke_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "proposal_id": to_be_revoked_proposal_id,
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
         .deposit(0)
         .transact()
         .await?;
 
     let state_after = get_state(&worker, &parties).await;
-    let revoke_fee = proposal2_price * FPO_ACCEPTING_PROPOSALS_REVOKE_FEE_RATE / 100;
+    let revoke_fee = proposal2_price * PRIMARY_LISTING_ACCEPTING_PROPOSALS_REVOKE_FEE_RATE / 100;
     let revoke_refund = proposal2_price - revoke_fee;
     verify_balances(&outcome, &state_before, &state_after, 0, revoke_refund);
     let expected_fees_balance = state_before.fees.balance + revoke_fee;
@@ -356,21 +356,21 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buyer 2 re-submits their proposal at 600yN:",
-        "#06 fpo_place_proposal".cyan()
+        "#06 primary_listing_place_proposal".cyan()
     );
 
     let proposal2_price: Balance = 600;
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = buyer2_account
-        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_place_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "price_yocto": "600",
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
-        .deposit(proposal2_price + fpo_place_proposal_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(proposal2_price + primary_listing_place_proposal_worst_case_storage_cost)
         .transact()
         .await?;
     let state_after = get_state(&worker, &parties).await;
@@ -386,20 +386,20 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buyer 3 proposed price of 510yN expected to be rejected",
-        "#07 fpo_place_proposal case".cyan()
+        "#07 primary_listing_place_proposal case".cyan()
     );
 
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = buyer3_account
-        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_place_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "price_yocto": "510",
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
-        .deposit(510 + fpo_place_proposal_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(510 + primary_listing_place_proposal_worst_case_storage_cost)
         .transact()
         .await;
     assert!(
@@ -416,21 +416,21 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buyer 3 proposed price of 700yN, outbids buyer 1 at 550yN",
-        "#08 fpo_place_proposal".cyan()
+        "#08 primary_listing_place_proposal".cyan()
     );
 
     let proposal3_price: Balance = 700;
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = buyer3_account
-        .call(&worker, marketplace_contract.id(), "fpo_place_proposal")
+        .call(&worker, marketplace_contract.id(), "primary_listing_place_proposal")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
             "price_yocto": "700",
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_PLACE_GAS)
-        .deposit(proposal3_price + fpo_place_proposal_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_PLACE_GAS)
+        .deposit(proposal3_price + primary_listing_place_proposal_worst_case_storage_cost)
         .transact()
         .await?;
     let state_after = get_state(&worker, &parties).await;
@@ -466,7 +466,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buyer 3 buys one item at buy_now price outbidding buyer 2 bid at 600yN",
-        "#09 fpo_buy".cyan()
+        "#09 primary_listing_buy".cyan()
     );
 
     let state_before = get_state(&worker, &parties).await;
@@ -474,12 +474,12 @@ async fn main() -> anyhow::Result<()> {
     let nft_mint_worst_case_storage_cost =
         NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
     let outcome = buyer3_account
-        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .call(&worker, marketplace_contract.id(), "primary_listing_buy")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_BUY_GAS)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_BUY_GAS)
         .deposit(1000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await?;
@@ -508,18 +508,18 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Seller concludes the offering, all pending deposits get returned",
-        "#10 fpo_conclude".cyan()
+        "#10 primary_listing_conclude".cyan()
     );
 
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = seller_account
-        .call(&worker, marketplace_contract.id(), "fpo_conclude")
+        .call(&worker, marketplace_contract.id(), "primary_listing_conclude")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_ACCEPTING_PROPOSALS_CONCLUDE_GAS)
+        .gas(PRIMARY_LISTING_ACCEPTING_PROPOSALS_CONCLUDE_GAS)
         .deposit(0)
         .transact()
         .await?;
@@ -529,7 +529,7 @@ async fn main() -> anyhow::Result<()> {
     // check seller balance
     let tokens_burnt = get_tokens_burnt(&outcome);
     seller_tokens_burnt += get_tokens_burnt(&outcome);
-    let expected_seller_refund = fpo_storage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let expected_seller_refund = primary_listing_storage as Balance * STORAGE_COST_YOCTO_PER_BYTE;
     assert_eq!(
         state_after.seller.balance,
         state_before.seller.balance + expected_seller_refund - tokens_burnt,

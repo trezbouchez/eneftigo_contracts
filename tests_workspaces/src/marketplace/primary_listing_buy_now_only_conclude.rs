@@ -111,8 +111,8 @@ async fn main() -> anyhow::Result<()> {
         buyer: &buyer_account,
     };
 
-    let fpo_add_worst_case_storage_cost =
-    FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let primary_listing_add_worst_case_storage_cost =
+    PRIMARY_LISTING_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
     /*
     CASE #01: Conclude an open-ended listing
@@ -120,33 +120,33 @@ async fn main() -> anyhow::Result<()> {
 
     println!(
         "{}: Conclude an open-ended listing:",
-        "#01 fpo_conclude".cyan()
+        "#01 primary_listing_conclude".cyan()
     );
 
     let title = "Bored Grapes";
     let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbza";
     let outcome = seller_account
-        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .call(&worker, &marketplace_contract.id(), "primary_listing_add_buy_now_only")
         .args_json(json!({
             "title": title,
             "media_url": media_url,
             "supply_total": 1,
             "buy_now_price_yocto": "1000",
         }))?
-        .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .deposit(primary_listing_add_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await?;
     let collection_id = outcome.json::<u64>()?;
 
     let state_before = get_state(&worker, &parties).await;
     let outcome = seller_account
-        .call(&worker, &marketplace_contract.id(), "fpo_conclude")
+        .call(&worker, &marketplace_contract.id(), "primary_listing_conclude")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_CONCLUDE_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_CONCLUDE_GAS)
         .transact()
         .await?;
     let state_after = get_state(&worker, &parties).await;
@@ -160,18 +160,18 @@ async fn main() -> anyhow::Result<()> {
 
     println!(
         "{}: Conclude a time-limited listing after all purchased:",
-        "#02 fpo_conclude".cyan()
+        "#02 primary_listing_conclude".cyan()
     );
 
     let nft_mint_worst_case_storage_cost =
         NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
     let _outcome = buyer_account
-        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .call(&worker, marketplace_contract.id(), "primary_listing_buy")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_BUY_GAS)
         .deposit(1000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await?;
@@ -179,12 +179,12 @@ async fn main() -> anyhow::Result<()> {
     let state_before = get_state(&worker, &parties).await;
 
     let outcome = seller_account
-        .call(&worker, &marketplace_contract.id(), "fpo_conclude")
+        .call(&worker, &marketplace_contract.id(), "primary_listing_conclude")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_CONCLUDE_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_CONCLUDE_GAS)
         .transact()
         .await?;
 

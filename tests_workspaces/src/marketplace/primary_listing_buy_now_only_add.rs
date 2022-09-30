@@ -25,7 +25,7 @@ signer:         0                           SIGNER_INIT_BALANCE
 markertplace:   0                           0
 nft:            0                           0
 
-> A: Marketplace::fpo_add_xxx call:
+> A: Marketplace::primary_listing_add_xxx call:
 
 PARTY           STORAGE_COST                BALANCE
 ---------------------------------------------------------------
@@ -33,44 +33,44 @@ signer:         0                           SIGNER_INIT_BALANCE-SIGNER_DEPOSIT
 markertplace:   0                           SIGNER_DEPOSIT
 nft:            0                           0
 
->A1: Inserts new fpo:
+>A1: Inserts new primary_listing:
 
 PARTY           STORAGE_COST                BALANCE
 ---------------------------------------------------------------
 signer:         0                           SIGNER_INIT_BALANCE-SIGNER_DEPOSIT
-markertplace:   FPO_STORAGE_COST            SIGNER_DEPOSIT-FPO_STORAGE_COST
+markertplace:   PRIMARY_LISTING_STORAGE_COST            SIGNER_DEPOSIT-PRIMARY_LISTING_STORAGE_COST
 nft:            0                           0
 
-> B. Nft::make_collection call, attaching remaining deposit balance of SIGNER_DEPOSIT - FPO_STORAGE_COST
+> B. Nft::make_collection call, attaching remaining deposit balance of SIGNER_DEPOSIT - PRIMARY_LISTING_STORAGE_COST
 
 PARTY           STORAGE_COST                BALANCE
 ---------------------------------------------------------------
 signer:         0                           SIGNER_INIT_BALANCE-SIGNER_DEPOSIT
-markertplace:   FPO_STORAGE_COST            0
-nft:            0                           SIGNER_DEPOSIT-FPO_STORAGE_COST
+markertplace:   PRIMARY_LISTING_STORAGE_COST            0
+nft:            0                           SIGNER_DEPOSIT-PRIMARY_LISTING_STORAGE_COST
 
 > B1: Nft inserts new collection:
 
 PARTY           STORAGE_COST                BALANCE
 ---------------------------------------------------------------
 signer:         0                           SIGNER_INIT_BALANCE-SIGNER_DEPOSIT
-markertplace:   FPO_STORAGE_COST            0
-nft:            NFT_STORAGE_COST            SIGNER_DEPOSIT-FPO_STORAGE_COST-NFT_STORAGE_COST
+markertplace:   PRIMARY_LISTING_STORAGE_COST            0
+nft:            NFT_STORAGE_COST            SIGNER_DEPOSIT-PRIMARY_LISTING_STORAGE_COST-NFT_STORAGE_COST
 
 >B2:: Nft refunds remaining deposit to Marketplace
 
 PARTY           STORAGE_COST                BALANCE
 ---------------------------------------------------------------
 signer:         0                           SIGNER_INIT_BALANCE-SIGNER_DEPOSIT
-markertplace:   FPO_STORAGE_COST            SIGNER_DEPOSIT-FPO_STORAGE_COST-NFT_STORAGE_COST
+markertplace:   PRIMARY_LISTING_STORAGE_COST            SIGNER_DEPOSIT-PRIMARY_LISTING_STORAGE_COST-NFT_STORAGE_COST
 nft:            NFT_STORAGE_COST            0
 
 >C: Marketplace refunds remaining deposit to the signer in its callback receipt
 
 PARTY           STORAGE_COST                BALANCE
 ---------------------------------------------------------------
-signer:         0                           SIGNER_INIT_BALANCE-FPO_STORAGE_COST-NFT_STORAGE_COST
-markertplace:   FPO_STORAGE_COST            0
+signer:         0                           SIGNER_INIT_BALANCE-PRIMARY_LISTING_STORAGE_COST-NFT_STORAGE_COST
+markertplace:   PRIMARY_LISTING_STORAGE_COST            0
 nft:            NFT_STORAGE_COST            0
 */
 
@@ -150,21 +150,21 @@ async fn main() -> anyhow::Result<()> {
     let seller: workspaces::Account = worker.dev_create_account().await?;
     println!("SELLER accountId: {}", seller.id());
 
-    let fpo_add_worst_case_storage_cost = FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let primary_listing_add_worst_case_storage_cost = PRIMARY_LISTING_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
     
     /*
     CASE #01: Deposit won't cover marketplace storage.
     */
     println!(
         "{}: Deposit won't cover marketplace storage:",
-        "#01 fpo_add_buy_now_only".cyan()
+        "#01 primary_listing_add_buy_now_only".cyan()
     );
 
     let title = "Bored Grapes";
     let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF";
 
     let outcome = seller
-        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .call(&worker, &marketplace_contract.id(), "primary_listing_add_buy_now_only")
         .args_json(json!({
             "title": title,
             "media_url": media_url,
@@ -172,7 +172,7 @@ async fn main() -> anyhow::Result<()> {
             "buy_now_price_yocto": "1000",
         }))?
         .deposit(100)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await;
 
@@ -188,7 +188,7 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: All offering parameters correct, storage deposit sufficient:",
-        "#02 fpo_add_buy_now_only".cyan()
+        "#02 primary_listing_add_buy_now_only".cyan()
     );
 
     let seller_info = seller.view_account(&worker).await?;
@@ -204,15 +204,15 @@ async fn main() -> anyhow::Result<()> {
     let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbza";
 
     let outcome = seller
-        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .call(&worker, &marketplace_contract.id(), "primary_listing_add_buy_now_only")
         .args_json(json!({
             "title": title,
             "media_url": media_url,
             "supply_total": 10,
             "buy_now_price_yocto": "1000",
         }))?
-        .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .deposit(primary_listing_add_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await?;
 
@@ -234,22 +234,22 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Attempt to add offering for an already-existing asset causing NFT make_collection panic:",
-        "#03 fpo_add_buy_now_only".cyan()
+        "#03 primary_listing_add_buy_now_only".cyan()
     );
 
     let title = "Bored Grapes";
     let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbza";
 
     let outcome = seller
-        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .call(&worker, &marketplace_contract.id(), "primary_listing_add_buy_now_only")
         .args_json(json!({
             "title": title,
             "media_url": media_url,
             "supply_total": 10,
             "buy_now_price_yocto": "1000",
         }))?
-        .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .deposit(primary_listing_add_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await;
 

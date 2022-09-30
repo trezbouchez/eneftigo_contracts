@@ -107,23 +107,23 @@ async fn main() -> anyhow::Result<()> {
     // Place offerring
     let title = "Bored Aardvark";
     let media_url = "https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF";
-    let fpo_add_worst_case_storage_cost =
-        FPO_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
+    let primary_listing_add_worst_case_storage_cost =
+        PRIMARY_LISTING_ADD_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
 
     println!(
         "{}: Adding listing for 2 items priced 1000yN",
-        "fpo_add_buy_now_only".purple()
+        "primary_listing_add_buy_now_only".purple()
     );
     let outcome = seller_account
-        .call(&worker, &marketplace_contract.id(), "fpo_add_buy_now_only")
+        .call(&worker, &marketplace_contract.id(), "primary_listing_add_buy_now_only")
         .args_json(json!({
             "title": title,
             "media_url": media_url,
             "supply_total": 2,
             "buy_now_price_yocto": "1000",
         }))?
-        .deposit(fpo_add_worst_case_storage_cost)
-        .gas(FPO_BUY_NOW_ONLY_ADD_GAS)
+        .deposit(primary_listing_add_worst_case_storage_cost)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_ADD_GAS)
         .transact()
         .await?;
     let collection_id = outcome.json::<u64>()?;
@@ -150,15 +150,15 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit won't cover the price:",
-        "#01 fpo_buy".cyan()
+        "#01 primary_listing_buy".cyan()
     );
     let outcome = buyer1_account
-        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .call(&worker, marketplace_contract.id(), "primary_listing_buy")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_BUY_GAS)
         .deposit(900)
         .transact()
         .await;
@@ -174,16 +174,16 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit sufficient to pay the price but won't cover NFT storage:",
-        "#02 fpo_buy".cyan()
+        "#02 primary_listing_buy".cyan()
     );
     let state_before = get_state(&worker, &parties).await;
     let outcome = buyer1_account
-        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .call(&worker, marketplace_contract.id(), "primary_listing_buy")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_BUY_GAS)
         .deposit(1000)
         .transact()
         .await;
@@ -209,19 +209,19 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Deposit sufficient to succeed:",
-        "#03 fpo_buy".cyan()
+        "#03 primary_listing_buy".cyan()
     );
     let state_before = get_state(&worker, &parties).await;
 
     let nft_mint_worst_case_storage_cost =
         NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
     let outcome = buyer1_account
-        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .call(&worker, marketplace_contract.id(), "primary_listing_buy")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_BUY_GAS)
         .deposit(1000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await?;
@@ -236,19 +236,19 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Buying the last available item:",
-        "#04 fpo_buy".cyan()
+        "#04 primary_listing_buy".cyan()
     );
     let state_before = state_after;
 
     let nft_mint_worst_case_storage_cost =
         NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
     let outcome = buyer2_account
-        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .call(&worker, marketplace_contract.id(), "primary_listing_buy")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_BUY_GAS)
         .deposit(2000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await?;
@@ -263,18 +263,18 @@ async fn main() -> anyhow::Result<()> {
     */
     println!(
         "{}: Attempt to buy when no supply left:",
-        "#05 fpo_buy".cyan()
+        "#05 primary_listing_buy".cyan()
     );
 
     let nft_mint_worst_case_storage_cost =
         NFT_MINT_WORST_CASE_STORAGE as Balance * STORAGE_COST_YOCTO_PER_BYTE;
     let outcome = buyer3_account
-        .call(&worker, marketplace_contract.id(), "fpo_buy")
+        .call(&worker, marketplace_contract.id(), "primary_listing_buy")
         .args_json(json!({
             "nft_contract_id": nft_account.id().clone(),
             "collection_id": collection_id,
         }))?
-        .gas(FPO_BUY_NOW_ONLY_BUY_GAS)
+        .gas(PRIMARY_LISTING_BUY_NOW_ONLY_BUY_GAS)
         .deposit(1000 + nft_mint_worst_case_storage_cost)
         .transact()
         .await;

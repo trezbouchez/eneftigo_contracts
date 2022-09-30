@@ -26,17 +26,17 @@ path = "src/nft/nft_make_collection.rs"
 # Marketplace Contract 
 
 [[example]]
-name = "fpo_buy_now_only_add"
-path = "src/marketplace/fpo_buy_now_only_add.rs"
+name = "primary_listing_buy_now_only_add"
+path = "src/marketplace/primary_listing_buy_now_only_add.rs"
 
 [[example]]
-name = "fpo_buy_now_only_buy"
-path = "src/marketplace/fpo_buy_now_only_buy.rs"
+name = "primary_listing_buy_now_only_buy"
+path = "src/marketplace/primary_listing_buy_now_only_buy.rs"
 
 [[example]]
-name = "fpo_buy_now_only_conclude"
-path = "src/marketplace/fpo_buy_now_only_conclude.rs"
+name = "primary_listing_buy_now_only_conclude"
+path = "src/marketplace/primary_listing_buy_now_only_conclude.rs"
 
 [[example]]
-name = "fpo_accepting_proposals"
-path = "src/marketplace/fpo_accepting_proposals.rs"
+name = "primary_listing_accepting_proposals"
+path = "src/marketplace/primary_listing_accepting_proposals.rs"
