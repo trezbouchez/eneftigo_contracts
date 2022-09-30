@@ -1,20 +1,26 @@
 #[cfg(test)]
 mod seller_tests {
-    use crate::fpo::seller::{MAX_TITLE_LEN};
-    use crate::internal::{hash_account_id, hash_offering_id};
-    use crate::FixedPriceOffering;
-    use crate::FixedPriceOfferingProposal;
-    use crate::FixedPriceOfferingStatus::*;
-    use crate::FixedPriceOfferingStorageKey;
-    use crate::*;
-    use crate::{MarketplaceContract, MarketplaceStorageKey};
-    use crate::fpo::seller::FPOSellerCallback;
+    use crate::{
+        *,
+        internal::{hash_account_id},
+        external::{NftMetadata},
+        listing::{
+            proposal::{Proposal},
+            status::{ListingStatus},
+            primary::{
+                lib::{PrimaryListing,PrimaryListingStorageKey},
+                internal::{hash_primary_listing_id},
+            },
+        },
+    };
     use chrono::{DateTime, TimeZone, Utc};
-    use near_sdk::borsh::BorshSerialize;
-    use near_sdk::collections::{LookupMap, TreeMap, UnorderedSet, Vector};
-    use near_sdk::json_types::U128;
-    use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::{testing_env, AccountId, VMContext};
+    use near_sdk::{
+        {testing_env, AccountId, VMContext},
+        borsh::{BorshSerialize},
+        collections::{UnorderedSet, Vector},
+        json_types::{U128},
+        test_utils::{VMContextBuilder},
+    };
 
     const MARKETPLACE_ACCOUNT_ID: &str = "place.eneftigo.testnet";
     const NFT_CONTRACT_ID: &str = "0.nft.eneftigo.testnet";
@@ -25,7 +31,7 @@ mod seller_tests {
     const PROPOSER2_ACCOUNT_ID: &str = "proposer2.eneftigo.testnet";
 
     /*
-     * fpo_add_accepting_proposals assertions
+     * primary_listing_add_accepting_proposals assertions
      */
 
     #[test]
@@ -40,7 +46,7 @@ mod seller_tests {
         testing_env!(context);
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,         // total_supply
@@ -65,7 +71,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -90,7 +96,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -114,7 +120,7 @@ mod seller_tests {
         testing_env!(context);
 
         let mut marketplace = test_marketplace();
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -139,7 +145,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -164,7 +170,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -189,7 +195,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -214,7 +220,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -239,7 +245,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             0,          // total_supply
@@ -264,7 +270,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             101,        // total_supply
@@ -290,7 +296,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
@@ -317,7 +323,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_accepting_proposals(
+        marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
@@ -342,7 +348,7 @@ mod seller_tests {
 
     //     let mut marketplace = test_marketplace();
 
-    //     marketplace.fpo_add_accepting_proposals(
+    //     marketplace.primary_listing_add_accepting_proposals(
     //         50,         // total_supply
     //         U128(1100), // buy_now_price_yocto
     //         U128(500),  // min_proposal_price_yocto
@@ -351,7 +357,7 @@ mod seller_tests {
     //         "1975-05-24T13:50:00+00:00".to_string(), // end_date
     //     );
 
-    //     marketplace.fpo_add_accepting_proposals(
+    //     marketplace.primary_listing_add_accepting_proposals(
     //         10,         // total_supply
     //         U128(2000), // buy_now_price_yocto
     //         U128(50),   // min_proposal_price_yocto
@@ -362,7 +368,7 @@ mod seller_tests {
     // }
 
     /*
-     * fpo_add_buy_now_only assertions
+     * primary_listing_add_buy_now_only assertions
      */
 
     #[test]
@@ -378,7 +384,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,         // total_supply
@@ -402,7 +408,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -425,7 +431,7 @@ mod seller_tests {
         testing_env!(context);
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -449,7 +455,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -473,7 +479,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             2,          // total_supply
@@ -497,7 +503,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             0,          // total_supply
@@ -521,7 +527,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             101,        // total_supply
@@ -546,7 +552,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
@@ -572,7 +578,7 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
             50,         // total_supply
@@ -595,7 +601,7 @@ mod seller_tests {
 
     //     let mut marketplace = test_marketplace();
 
-    //     marketplace.fpo_add_buy_now_only(
+    //     marketplace.primary_listing_add_buy_now_only(
     //         50,         // total_supply
     //         U128(1100), // buy_now_price_yocto
     //         //nft_metadata(1), // nft_metadata
@@ -603,7 +609,7 @@ mod seller_tests {
     //         None,
     //     );
 
-    //     marketplace.fpo_add_buy_now_only(
+    //     marketplace.primary_listing_add_buy_now_only(
     //         10,         // total_supply
     //         U128(2000), // buy_now_price_yocto
     //         //nft_metadata(1), // nft_metadata
@@ -628,7 +634,7 @@ mod seller_tests {
         assert_eq!(title.len(), MAX_TITLE_LEN);
         let media_url = String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF");
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             title,
             media_url,
             10,         // total_supply
@@ -650,29 +656,30 @@ mod seller_tests {
 
         let mut marketplace = test_marketplace();
 
-        let offeror_id = AccountId::new_unchecked(String::from("offeror.near"));
+        let offeror_id_str = "offeror.near";
+        let offeror_id = AccountId::new_unchecked(String::from(offeror_id_str));
 
         let title = String::from("abcd");
-        let media = String::from("https://ipfs.io/ipfs/Qmca");
+        let media = String::from("https://ipfs.io/ipfs/Qmcaa");
         let nft_metadata = NftMetadata::new(&title, &media);
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: AccountId::new_unchecked(String::from("nft.eneftigo.near")),
             collection_id: 0,
         };
-        let offering_id_hash = hash_offering_id(&offering_id);
-        let fpo = FixedPriceOffering {
-            offering_id: offering_id,
-            offeror_id,
+        let listing_id_hash = hash_primary_listing_id(&offering_id);
+        let fpo = PrimaryListing {
+            id: offering_id,
+            seller_id: offeror_id,
             nft_metadata: nft_metadata.clone(),
             supply_total: 10,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: None,
             start_timestamp: None,
             end_timestamp: None,
-            status: Unstarted,
+            status: ListingStatus::Unstarted,
             supply_left: 10,
             proposals: Vector::new(
-                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
+                PrimaryListingStorageKey::Proposals { listing_id_hash }
                     .try_to_vec()
                     .unwrap(),
             ),
@@ -680,8 +687,8 @@ mod seller_tests {
         };
 
         let marketplace_storage_before = env::storage_usage();
-        marketplace.internal_add_fpo(&fpo);
-        println!("MARKETPLACE STORAGE {}, {}, {}", title.len(), media.len(), env::storage_usage() - marketplace_storage_before);
+        marketplace.internal_add_primary_listing(&fpo);
+        println!("MARKETPLACE STORAGE {}, {}, {}, {}", offeror_id_str.len(), title.len(), media.len(), env::storage_usage() - marketplace_storage_before);
 
         assert!(false);
     }
@@ -701,7 +708,7 @@ mod seller_tests {
         let title = String::from("abcd");
         let media_url = String::from("https://ipfs.io/ipfs/Qmc");
 
-        marketplace.fpo_add_buy_now_only(
+        marketplace.primary_listing_add_buy_now_only(
             title,
             media_url,
             10,         // total_supply
@@ -728,7 +735,7 @@ mod seller_tests {
 
     //     let mut marketplace = test_marketplace();
 
-    //     marketplace.fpo_add_accepting_proposals(
+    //     marketplace.primary_listing_add_accepting_proposals(
     //         50,         // total_supply
     //         U128(1100), // buy_now_price_yocto
     //         U128(500),  // min_proposal_price_yocto
@@ -737,7 +744,7 @@ mod seller_tests {
     //         "1975-05-24T13:50:00+00:00".to_string(), // end_date
     //     );
 
-    //     marketplace.fpo_add_buy_now_only(
+    //     marketplace.primary_listing_add_buy_now_only(
     //         10,         // total_supply
     //         U128(2000), // buy_now_price_yocto
     //         //nft_metadata(1), // nft_metadata
@@ -759,7 +766,7 @@ mod seller_tests {
 
     //     let mut marketplace = test_marketplace();
 
-    //     marketplace.fpo_add_buy_now_only(
+    //     marketplace.primary_listing_add_buy_now_only(
     //         10,         // total_supply
     //         U128(2000), // buy_now_price_yocto
     //         //nft_metadata(1), // nft_metadata
@@ -767,7 +774,7 @@ mod seller_tests {
     //         None,
     //     );
 
-    //     marketplace.fpo_add_accepting_proposals(
+    //     marketplace.primary_listing_add_accepting_proposals(
     //         50,         // total_supply
     //         U128(1100), // buy_now_price_yocto
     //         U128(500),  // min_proposal_price_yocto
@@ -778,7 +785,7 @@ mod seller_tests {
     // }
 
     /*
-     * fpo_accept_proposals
+     * primary_listing_accept_proposals
      */
 
     #[test]
@@ -800,7 +807,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_accept_proposals(nft_contract_id.clone(), collection_id, 1);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 1);
     }
 
     #[test]
@@ -821,7 +828,7 @@ mod seller_tests {
 
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_accept_proposals(
+        marketplace.primary_listing_accept_proposals(
             AccountId::new_unchecked(NONEXISTENT_NFT_CONTRACT_ID.to_string()),
             collection_id,
             1,
@@ -846,7 +853,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_accept_proposals(nft_contract_id.clone(), collection_id, 4);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 4);
     }
 
     #[test]
@@ -867,14 +874,14 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_accept_proposals(nft_contract_id.clone(), collection_id, 1);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 1);
 
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         assert!(
@@ -883,9 +890,9 @@ mod seller_tests {
         );
         assert!(fpo.supply_left == 2, "Wrong supply_left");
 
-        marketplace.fpo_accept_proposals(nft_contract_id.clone(), collection_id, 2);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 2);
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         assert!(
@@ -913,15 +920,15 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_accept_proposals(nft_contract_id.clone(), collection_id, 3);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 3);
 
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
 
@@ -933,7 +940,7 @@ mod seller_tests {
     }
 
     /*
-     * fpo_conclude
+     * primary_listing_conclude
      */
 
     #[test]
@@ -954,7 +961,7 @@ mod seller_tests {
         let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
-        marketplace.fpo_conclude(nft_account_id.clone(), collection_id);
+        marketplace.primary_listing_conclude(nft_account_id.clone(), collection_id);
     }
 
     #[test]
@@ -973,7 +980,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_conclude(
+        marketplace.primary_listing_conclude(
             AccountId::new_unchecked(NONEXISTENT_NFT_CONTRACT_ID.to_string()),
             0,
         );
@@ -996,15 +1003,15 @@ mod seller_tests {
         let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
-        marketplace.fpo_conclude(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_conclude(nft_contract_id.clone(), collection_id);
 
         assert!(
-            marketplace.fpos_by_id.is_empty(),
+            marketplace.primary_listings_by_id.is_empty(),
             "fpos_by_contract_id not empty"
         );
         assert!(
             marketplace
-                .fpos_by_offeror_id
+                .primary_listings_by_seller_id
                 .get(&AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()))
                 .is_none(),
             "fpos_by_contract_id not empty"
@@ -1028,15 +1035,15 @@ mod seller_tests {
         let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
-        marketplace.fpo_conclude(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_conclude(nft_contract_id.clone(), collection_id);
 
         assert!(
-            marketplace.fpos_by_id.is_empty(),
+            marketplace.primary_listings_by_id.is_empty(),
             "fpos_by_contract_id not empty"
         );
         assert!(
             marketplace
-                .fpos_by_offeror_id
+                .primary_listings_by_seller_id
                 .get(&AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string()))
                 .is_none(),
             "fpos_by_contract_id not empty"
@@ -1061,7 +1068,7 @@ mod seller_tests {
         let mut fpo = test_fpo(3);
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
-        marketplace.fpo_conclude(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_conclude(nft_contract_id.clone(), collection_id);
     }
 
     #[test]
@@ -1080,7 +1087,7 @@ mod seller_tests {
         let mut marketplace = test_marketplace();
         let fpo = test_fpo(0);
         test_add_fpo(&mut marketplace, &fpo);
-        marketplace.fpo_conclude(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_conclude(nft_contract_id.clone(), collection_id);
     }
     /* Helpers */
 
@@ -1109,29 +1116,29 @@ mod seller_tests {
         MarketplaceContract::new(AccountId::new_unchecked(MARKETPLACE_ACCOUNT_ID.to_string()))
     }
 
-    fn test_add_fpo(marketplace: &mut MarketplaceContract, fpo: &FixedPriceOffering) {
-        marketplace.fpos_by_id.insert(&fpo.offering_id, fpo);
+    fn test_add_fpo(marketplace: &mut MarketplaceContract, fpo: &PrimaryListing) {
+        marketplace.primary_listings_by_id.insert(&fpo.id, fpo);
         let mut fpos_by_this_offeror = UnorderedSet::new(
-            MarketplaceStorageKey::FposByOfferorIdInner {
-                account_id_hash: hash_account_id(&fpo.offeror_id),
+            MarketplaceStorageKey::PrimaryListingsBySellerIdInner {
+                account_id_hash: hash_account_id(&fpo.seller_id),
             }
             .try_to_vec()
             .unwrap(),
         );
-        fpos_by_this_offeror.insert(&fpo.offering_id.clone());
+        fpos_by_this_offeror.insert(&fpo.id.clone());
         marketplace
-            .fpos_by_offeror_id
-            .insert(&fpo.offeror_id, &fpos_by_this_offeror);
+            .primary_listings_by_seller_id
+            .insert(&fpo.seller_id, &fpos_by_this_offeror);
     }
 
-    fn test_fpo(supply: u64) -> FixedPriceOffering {
+    fn test_fpo(supply: u64) -> PrimaryListing {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
-        let offering_id_hash = hash_offering_id(&offering_id);
+        let listing_id_hash = hash_primary_listing_id(&offering_id);
         // let nft_account_id_hash = hash_account_id(&nft_account_id);
         let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
         let start_timestamp = DateTime::parse_from_rfc3339("1975-05-26T00:00:00+00:00")
@@ -1144,20 +1151,20 @@ mod seller_tests {
             &String::from("Bored Grapes"),
             &String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
         );
-        let fpo = FixedPriceOffering {
-            offering_id,
-            offeror_id: offeror_account_id.clone(),
+        let fpo = PrimaryListing {
+            id: offering_id,
+            seller_id: offeror_account_id.clone(),
             nft_metadata,
             supply_total: supply,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: Some(500),
             start_timestamp: Some(start_timestamp),
             end_timestamp: Some(end_timestamp),
-            status: Unstarted,
+            status: ListingStatus::Unstarted,
             //            nft_metadata: nft_metadata(1),
             supply_left: supply,
             proposals: Vector::new(
-                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
+                PrimaryListingStorageKey::Proposals { listing_id_hash }
                     .try_to_vec()
                     .unwrap(),
             ),
@@ -1166,21 +1173,21 @@ mod seller_tests {
         fpo
     }
 
-    fn test_place_proposals(fpo: &mut FixedPriceOffering) {
+    fn test_place_proposals(fpo: &mut PrimaryListing) {
         let proposer1_id = AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string());
         let proposer2_id = AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string());
-        let proposals_vec: Vec<FixedPriceOfferingProposal> = vec![
-            FixedPriceOfferingProposal {
+        let proposals_vec: Vec<Proposal> = vec![
+            Proposal {
                 id: 1,
                 proposer_id: proposer1_id.clone(),
                 price_yocto: 500,
             },
-            FixedPriceOfferingProposal {
+            Proposal {
                 id: 2,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 900,
             },
-            FixedPriceOfferingProposal {
+            Proposal {
                 id: 3,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 700,

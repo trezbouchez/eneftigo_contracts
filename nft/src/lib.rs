@@ -127,6 +127,12 @@ impl NftContract {
         this
     }
 
+    pub fn clean(keys: Vec<Base64VecU8>) {
+        for key in keys.iter() {
+            env::storage_remove(&key.0);
+        }
+    }
+
     // pub fn reset(&mut self) {
     //     let initial_storage_usage = env::storage_usage();
 

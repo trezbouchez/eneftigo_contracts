@@ -1,16 +1,30 @@
 #[cfg(test)]
 mod seller_tests {
-    use crate::external::NftMetadata;
-    use crate::internal::{hash_account_id, hash_offering_id};
-    use crate::FixedPriceOffering;
-    use crate::FixedPriceOfferingProposal;
-    use crate::FixedPriceOfferingStatus::*;
-    use crate::FixedPriceOfferingStorageKey;
-    use crate::{MarketplaceContract, MarketplaceStorageKey};
-    use crate::{NftCollectionId, OfferingId, ProposalId};
+    use crate::{
+        *,
+        {NftCollectionId},
+        internal::{hash_account_id},
+        external::{NftMetadata},
+        listing::{
+            proposal::{ProposalId,Proposal},
+            status::{ListingStatus},
+            primary::{
+                lib::{PrimaryListingId,PrimaryListingStorageKey},
+                internal::{hash_primary_listing_id},
+            },
+        },
+    };
+    
+    // use crate::external::NftMetadata;
+    // use crate::internal::{hash_account_id, hash_offering_id};
+    // use crate::PrimaryListing;
+    // use crate::proposal::{ProposalId, Proposal};
+    // use crate::PrimaryListingStatus::*;
+    // use crate::PrimaryListingStorageKey;
+    // use crate::{MarketplaceContract, MarketplaceStorageKey};
+    // use crate::{NftCollectionId, PrimaryListingId};
     use chrono::{DateTime, TimeZone, Utc};
-    use near_sdk::borsh::BorshSerialize;
-    use near_sdk::collections::{LookupMap, TreeMap, UnorderedSet, Vector};
+    use near_sdk::collections::{UnorderedSet, Vector};
     use near_sdk::json_types::U128;
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::{testing_env, AccountId, VMContext};
@@ -45,7 +59,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_buy(nft_contract_id, collection_id);
+        marketplace.primary_listing_buy(nft_contract_id, collection_id);
     }
 
     #[test]
@@ -67,7 +81,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_buy(nft_contract_id, collection_id);
+        marketplace.primary_listing_buy(nft_contract_id, collection_id);
     }
 
     #[test]
@@ -90,7 +104,7 @@ mod seller_tests {
             AccountId::new_unchecked(NONEXISTENT_NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_buy(nonexistent_nft_contract_id, collection_id);
+        marketplace.primary_listing_buy(nonexistent_nft_contract_id, collection_id);
     }
 
     #[test]
@@ -114,7 +128,7 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_buy(nft_contract_id, collection_id);
+        marketplace.primary_listing_buy(nft_contract_id, collection_id);
     }
 
     #[test]
@@ -134,14 +148,14 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
 
@@ -154,9 +168,9 @@ mod seller_tests {
             .collect();
         assert!(proposals == vec![3, 2], "Proposals state incorrect");
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
 
@@ -169,9 +183,9 @@ mod seller_tests {
             .collect();
         assert!(proposals == vec![2], "Proposals state incorrect");
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
 
@@ -200,27 +214,27 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
-        let fpo = marketplace.fpos_by_id.get(&offering_id).unwrap();
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
+        let fpo = marketplace.primary_listings_by_id.get(&offering_id).unwrap();
         assert!(fpo.supply_left == 2, "supply_left incorrect");
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
-        let fpo = marketplace.fpos_by_id.get(&offering_id).unwrap();
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
+        let fpo = marketplace.primary_listings_by_id.get(&offering_id).unwrap();
         assert!(fpo.supply_left == 1, "supply_left incorrect");
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
-        let fpo = marketplace.fpos_by_id.get(&offering_id).unwrap();
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
+        let fpo = marketplace.primary_listings_by_id.get(&offering_id).unwrap();
         assert!(fpo.supply_left == 0, "supply_left incorrect");
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
     }
 
-    /* fpo_place_proposal */
+    /* primary_listing_place_proposal */
 
     #[test]
     #[should_panic(expected = r#"This offering is Unstarted"#)]
@@ -241,7 +255,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_place_proposal(nft_contract_id, collection_id, U128(800));
+        marketplace.primary_listing_place_proposal(nft_contract_id, collection_id, U128(800));
     }
 
     #[test]
@@ -263,7 +277,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_place_proposal(nft_contract_id, collection_id, U128(800));
+        marketplace.primary_listing_place_proposal(nft_contract_id, collection_id, U128(800));
     }
 
     #[test]
@@ -286,7 +300,7 @@ mod seller_tests {
             AccountId::new_unchecked(NONEXISTENT_NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nonexistent_nft_contract_id, collection_id, U128(800));
+        marketplace.primary_listing_place_proposal(nonexistent_nft_contract_id, collection_id, U128(800));
     }
 
     #[test]
@@ -310,7 +324,7 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id, collection_id, U128(800));
+        marketplace.primary_listing_place_proposal(nft_contract_id, collection_id, U128(800));
     }
 
     #[test]
@@ -332,7 +346,7 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id, collection_id, U128(500));
+        marketplace.primary_listing_place_proposal(nft_contract_id, collection_id, U128(500));
     }
 
     #[test]
@@ -354,7 +368,7 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id, collection_id, U128(1100));
+        marketplace.primary_listing_place_proposal(nft_contract_id, collection_id, U128(1100));
     }
 
     #[test]
@@ -376,7 +390,7 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id, collection_id, U128(1000));
+        marketplace.primary_listing_place_proposal(nft_contract_id, collection_id, U128(1000));
     }
 
     #[test]
@@ -396,13 +410,13 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(550));
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(550));
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         let proposals: Vec<ProposalId> = fpo
@@ -415,9 +429,9 @@ mod seller_tests {
         assert!(proposals == vec![4, 3, 2], "Wrong acceptable_proposals");
         assert!(fpo.next_proposal_id == 5, "Wrong next_proposal_id");
 
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(950));
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(950));
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         let proposals: Vec<ProposalId> = fpo
@@ -431,7 +445,7 @@ mod seller_tests {
         assert!(fpo.next_proposal_id == 6, "Wrong next_proposal_id");
     }
 
-    /* fpo_place_proposal vs fpo_buy_now */
+    /* primary_listing_place_proposal vs primary_listing_buy_now */
 
     #[test]
     #[should_panic(expected = r#"Proposed price is too low. The lowest acceptable price is 710"#)]
@@ -451,13 +465,13 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         let proposals: Vec<ProposalId> = fpo
@@ -472,7 +486,7 @@ mod seller_tests {
         );
         assert!(fpo.supply_left == 2, "Supply left not updated");
 
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(700));
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(700));
     }
 
     #[test]
@@ -492,14 +506,14 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
-        marketplace.fpo_buy(nft_contract_id.clone(), collection_id);
+        marketplace.primary_listing_buy(nft_contract_id.clone(), collection_id);
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         let proposals: Vec<ProposalId> = fpo
@@ -514,9 +528,9 @@ mod seller_tests {
         );
         assert!(fpo.supply_left == 2, "Supply left not updated");
 
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         let proposals: Vec<ProposalId> = fpo
@@ -549,12 +563,12 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
     }
 
-    /* fpo_modify_proposal */
+    /* primary_listing_modify_proposal */
 
-    #[test]
+/*    #[test]
     #[should_panic(expected = r#"This offering is Unstarted"#)]
     fn test_modify_proposal_too_early() {
         let context = test_get_context(
@@ -573,10 +587,10 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_modify_proposal(nft_contract_id, collection_id, 1, U128(850));
-    }
+        marketplace.primary_listing_modify_proposal(nft_contract_id, collection_id, 1, U128(850));
+    }*/
 
-    #[test]
+/*    #[test]
     #[should_panic(expected = r#"This offering is Ended"#)]
     fn test_modify_proposal_too_late() {
         let context = test_get_context(
@@ -595,10 +609,10 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_modify_proposal(nft_contract_id, collection_id, 1, U128(900));
-    }
+        marketplace.primary_listing_modify_proposal(nft_contract_id, collection_id, 1, U128(900));
+    }*/
 
-    #[test]
+/*    #[test]
     #[should_panic(expected = r#"No prior proposal from this account"#)]
     fn test_modify_proposal_unauthorized_user_1() {
         let context = test_get_context(
@@ -616,10 +630,10 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        marketplace.fpo_modify_proposal(nft_contract_id.clone(), collection_id, 2, U128(950));
-    }
+        marketplace.primary_listing_modify_proposal(nft_contract_id.clone(), collection_id, 2, U128(950));
+    }*/
 
-    #[test]
+/*    #[test]
     #[should_panic(
         expected = r#"Proposal with ID 2 from account bidder.eneftigo.testnet not found"#
     )]
@@ -640,9 +654,10 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
-        marketplace.fpo_modify_proposal(nft_contract_id.clone(), collection_id, 2, U128(950));
-    }
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
+        marketplace.primary_listing_modify_proposal(nft_contract_id.clone(), collection_id, 2, U128(950));
+    }*/
+
     #[test]
     #[should_panic(expected = r#"Price must be an integer multple of 10 yocto Near"#)]
     fn test_modify_proposal_price_not_multiple_of_step() {
@@ -661,10 +676,10 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(805));
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(805));
     }
 
-    #[test]
+/*    #[test]
     #[should_panic(
         expected = r#"Attached balance must be sufficient to pay the required deposit supplement of 350 yocto Near"#
     )]
@@ -685,8 +700,9 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_modify_proposal(nft_contract_id.clone(), collection_id, 1, U128(850));
-    }
+        marketplace.primary_listing_modify_proposal(nft_contract_id.clone(), collection_id, 1, U128(850));
+    }*/
+
     #[test]
     fn test_modify_proposal_price_increase() {
         let context = test_get_context(
@@ -704,14 +720,14 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
-        marketplace.fpo_modify_proposal(nft_contract_id.clone(), collection_id, 1, U128(850));
+//        marketplace.primary_listing_modify_proposal(nft_contract_id.clone(), collection_id, 1, U128(850));
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         assert!(
@@ -728,7 +744,7 @@ mod seller_tests {
         assert!(fpo.supply_left == 3, "supply_left incorrect");
     }
 
-    #[test]
+/*    #[test]
     fn test_modify_proposal_buy_now() {
         let context = test_get_context(
             PROPOSER1_ACCOUNT_ID,
@@ -745,14 +761,14 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
-        marketplace.fpo_modify_proposal(nft_contract_id.clone(), collection_id, 1, U128(1000));
+        marketplace.primary_listing_modify_proposal(nft_contract_id.clone(), collection_id, 1, U128(1000));
         let fpo = marketplace
-            .fpos_by_id
+            .primary_listings_by_id
             .get(&offering_id)
             .expect("Could not get updated FPO");
         let proposals: Vec<ProposalId> = fpo
@@ -763,9 +779,9 @@ mod seller_tests {
             .collect();
         assert!(proposals == vec![3, 2], "Wrong acceptable_proposals");
         assert!(fpo.supply_left == 2, "supply_left incorrect");
-    }
+    }*/
 
-    /* fpo_revoke_proposal */
+    /* primary_listing_revoke_proposal */
 
     #[test]
     #[should_panic(expected = r#"This offering is Unstarted"#)]
@@ -786,7 +802,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_revoke_proposal(nft_contract_id, collection_id, 1);
+        marketplace.primary_listing_revoke_proposal(nft_contract_id, collection_id, 1);
     }
 
     #[test]
@@ -808,7 +824,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.fpo_revoke_proposal(nft_contract_id, collection_id, 1);
+        marketplace.primary_listing_revoke_proposal(nft_contract_id, collection_id, 1);
     }
 
     #[test]
@@ -829,7 +845,7 @@ mod seller_tests {
 
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        marketplace.fpo_revoke_proposal(nft_contract_id.clone(), collection_id, 2);
+        marketplace.primary_listing_revoke_proposal(nft_contract_id.clone(), collection_id, 2);
     }
 
     #[test]
@@ -853,8 +869,8 @@ mod seller_tests {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
 
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
-        marketplace.fpo_revoke_proposal(nft_contract_id.clone(), collection_id, 2);
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
+        marketplace.primary_listing_revoke_proposal(nft_contract_id.clone(), collection_id, 2);
     }
     #[test]
     #[should_panic(expected = r#"This proposal has been outbid. The deposit has been returned"#)]
@@ -873,8 +889,8 @@ mod seller_tests {
         test_add_fpo(&mut marketplace, &fpo);
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        marketplace.fpo_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
-        marketplace.fpo_revoke_proposal(nft_contract_id.clone(), collection_id, 1);
+        marketplace.primary_listing_place_proposal(nft_contract_id.clone(), collection_id, U128(800));
+        marketplace.primary_listing_revoke_proposal(nft_contract_id.clone(), collection_id, 1);
     }
 
     #[test]
@@ -893,13 +909,13 @@ mod seller_tests {
         test_add_fpo(&mut marketplace, &fpo);
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
-        marketplace.fpo_revoke_proposal(nft_contract_id.clone(), collection_id, 1);
-        let fpo = marketplace.fpos_by_id.get(&offering_id).unwrap();
+        marketplace.primary_listing_revoke_proposal(nft_contract_id.clone(), collection_id, 1);
+        let fpo = marketplace.primary_listings_by_id.get(&offering_id).unwrap();
         let proposals: Vec<ProposalId> = fpo
             .proposals
             .to_vec()
@@ -925,13 +941,13 @@ mod seller_tests {
         test_add_fpo(&mut marketplace, &fpo);
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
 
-        marketplace.fpo_revoke_proposal(nft_contract_id.clone(), collection_id, 2);
-        let fpo = marketplace.fpos_by_id.get(&offering_id).unwrap();
+        marketplace.primary_listing_revoke_proposal(nft_contract_id.clone(), collection_id, 2);
+        let fpo = marketplace.primary_listings_by_id.get(&offering_id).unwrap();
         let proposals: Vec<ProposalId> = fpo
             .proposals
             .to_vec()
@@ -963,29 +979,29 @@ mod seller_tests {
         MarketplaceContract::new(AccountId::new_unchecked(MARKETPLACE_ACCOUNT_ID.to_string()))
     }
 
-    fn test_add_fpo(marketplace: &mut MarketplaceContract, fpo: &FixedPriceOffering) {
-        marketplace.fpos_by_id.insert(&fpo.offering_id, fpo);
+    fn test_add_fpo(marketplace: &mut MarketplaceContract, fpo: &PrimaryListing) {
+        marketplace.primary_listings_by_id.insert(&fpo.id, fpo);
         let mut fpos_by_this_offeror = UnorderedSet::new(
-            MarketplaceStorageKey::FposByOfferorIdInner {
-                account_id_hash: hash_account_id(&fpo.offeror_id),
+            MarketplaceStorageKey::PrimaryListingsBySellerIdInner {
+                account_id_hash: hash_account_id(&fpo.seller_id),
             }
             .try_to_vec()
             .unwrap(),
         );
-        fpos_by_this_offeror.insert(&fpo.offering_id);
+        fpos_by_this_offeror.insert(&fpo.id);
         marketplace
-            .fpos_by_offeror_id
-            .insert(&fpo.offeror_id, &fpos_by_this_offeror);
+            .primary_listings_by_seller_id
+            .insert(&fpo.seller_id, &fpos_by_this_offeror);
     }
 
-    fn test_fpo(allow_proposals: bool) -> FixedPriceOffering {
+    fn test_fpo(allow_proposals: bool) -> PrimaryListing {
         let nft_contract_id = AccountId::new_unchecked(NFT_CONTRACT_ID.to_string());
         let collection_id: NftCollectionId = 0;
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             collection_id,
         };
-        let offering_id_hash = hash_offering_id(&offering_id);
+        let listing_id_hash = hash_primary_listing_id(&offering_id);
         let offeror_account_id = AccountId::new_unchecked(OFFEROR_ACCOUNT_ID.to_string());
         let start_timestamp = DateTime::parse_from_rfc3339("1975-05-26T00:00:00+00:00")
             .unwrap()
@@ -997,20 +1013,20 @@ mod seller_tests {
             &String::from("Bored Grapes"),
             &String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
         );
-        let fpo = FixedPriceOffering {
-            offering_id,
-            offeror_id: offeror_account_id.clone(),
+        let fpo = PrimaryListing {
+            id: offering_id,
+            seller_id: offeror_account_id.clone(),
             nft_metadata,
             supply_total: 3,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: if allow_proposals { Some(500) } else { None },
             start_timestamp: Some(start_timestamp),
             end_timestamp: Some(end_timestamp),
-            status: Unstarted,
+            status: ListingStatus::Unstarted,
             // nft_metadata: nft_metadata(1),
             supply_left: 3,
             proposals: Vector::new(
-                FixedPriceOfferingStorageKey::Proposals { offering_id_hash }
+                PrimaryListingStorageKey::Proposals { listing_id_hash }
                     .try_to_vec()
                     .unwrap(),
             ),
@@ -1019,21 +1035,21 @@ mod seller_tests {
         fpo
     }
 
-    fn test_place_proposals(fpo: &mut FixedPriceOffering) {
+    fn test_place_proposals(fpo: &mut PrimaryListing) {
         let proposer1_id = AccountId::new_unchecked(PROPOSER1_ACCOUNT_ID.to_string());
         let proposer2_id = AccountId::new_unchecked(PROPOSER2_ACCOUNT_ID.to_string());
-        let proposals_vec: Vec<FixedPriceOfferingProposal> = vec![
-            FixedPriceOfferingProposal {
+        let proposals_vec: Vec<Proposal> = vec![
+            Proposal {
                 id: 1,
                 proposer_id: proposer1_id.clone(),
                 price_yocto: 500,
             },
-            FixedPriceOfferingProposal {
+            Proposal {
                 id: 2,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 900,
             },
-            FixedPriceOfferingProposal {
+            Proposal {
                 id: 3,
                 proposer_id: proposer2_id.clone(),
                 price_yocto: 700,

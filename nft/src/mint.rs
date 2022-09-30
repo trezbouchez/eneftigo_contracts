@@ -1,7 +1,5 @@
 use crate::*;
-use sha2::{Sha256, Digest};
-
-const MINT_WORST_CASE_STORAGE_BASE: u64 = 830; // actual, measured
+use sha2::*;
 
 #[near_bindgen]
 impl NftContract {
@@ -161,7 +159,8 @@ mod tests {
     use super::*;
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::testing_env;
-    use std::mem;
+
+    const MINT_WORST_CASE_STORAGE_BASE: u64 = 830; // actual, measured
 
     #[test]
     fn test_nft_mint_storage() {

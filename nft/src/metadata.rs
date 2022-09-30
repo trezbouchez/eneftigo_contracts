@@ -40,6 +40,8 @@ pub struct TokenMetadata {
 }
 
 impl TokenMetadata {
+
+    #[allow(dead_code)]
     pub(crate) fn new(title: &str, media: &str) -> TokenMetadata {
         TokenMetadata { 
             title: Some(String::from(title)), 

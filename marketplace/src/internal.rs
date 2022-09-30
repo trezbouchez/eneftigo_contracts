@@ -11,60 +11,55 @@ pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
     hash
 }
 
-pub(crate) fn hash_offering_id(offering_id: &OfferingId) -> CryptoHash {
-    //get the default hash
-    //we hash the account ID and return it
-    let hashed_string = format!("{}.{}", offering_id.nft_contract_id, offering_id.collection_id);
-    let mut hash = CryptoHash::default();
-    hash.copy_from_slice(&env::sha256(hashed_string.as_bytes()));
-    hash
-}
-
 impl MarketplaceContract {
     // doesn't check if already there!
-    pub(crate) fn internal_add_fpo(&mut self, fpo: &FixedPriceOffering) {
-        self.fpos_by_id.insert(&fpo.offering_id, &fpo);
-        self.internal_add_fpo_to_offeror(&fpo.offeror_id, &fpo.offering_id);
+    pub(crate) fn internal_add_primary_listing(&mut self, listing: &PrimaryListing) {
+        self.primary_listings_by_id.insert(&listing.id, &listing);
+        self.internal_add_primary_listing_to_seller(&listing.seller_id, &listing.id);
     }
 
     // removes all FPO-related records from Marketplace without initiating any NEAR transfers
-    pub(crate) fn internal_remove_fpo(&mut self, offering_id: &OfferingId) -> FixedPriceOffering {
-        let removed_fpo = self
-            .fpos_by_id
-            .remove(offering_id)
-            .expect("Could not remove FPO: Could not find FPO listing");
-        let offeror_id = &removed_fpo.offeror_id;
-        let fpos_by_this_offeror = &mut self
-            .fpos_by_offeror_id
-            .get(offeror_id)
-            .expect("Could not remove FPO: Could not find listings for offeror");
-        let did_remove = fpos_by_this_offeror.remove(offering_id);
+    pub(crate) fn internal_remove_primary_listing(&mut self, listing_id: &PrimaryListingId) -> PrimaryListing {
+        let removed_listing = self
+            .primary_listings_by_id
+            .remove(listing_id)
+            .expect("Could not remove listing: Could not find listing");
+        let seller_id = &removed_listing.seller_id;
+        
+        let mut listings_by_this_seller = self
+            .primary_listings_by_seller_id
+            .get(seller_id)
+            .expect("Could not remove listing: Could not find listings for this seller");
+        let did_remove = listings_by_this_seller.remove(listing_id);
         assert!(
             did_remove,
-            "Could not remove FPO: Offering not on offeror's list"
+            "Could not remove listing: Offering not on offeror's list"
         );
-        if fpos_by_this_offeror.is_empty() {
-            self.fpos_by_offeror_id
-                .remove(offeror_id)
-                .expect("Could not remove FPO: Could not remove the now-empty offeror list");
+
+        if listings_by_this_seller.is_empty() {
+            self.primary_listings_by_seller_id
+                .remove(seller_id)
+                .expect("Could not remove listing: Could not remove the now-empty seller list");
+        } else {
+            self.primary_listings_by_seller_id.insert(seller_id, &listings_by_this_seller);
         }
 
-        removed_fpo
+        removed_listing
     }
 
-    // add FPO to the set of fpos an offeror offered
+    // add primary listing to the set of fpos an seller offered
     // doesn't check if already there
-    pub(crate) fn internal_add_fpo_to_offeror(
+    pub(crate) fn internal_add_primary_listing_to_seller(
         &mut self,
-        offeror_id: &AccountId,
-        offering_id: &OfferingId,
+        seller_id: &AccountId,
+        listing_id: &PrimaryListingId,
     ) {
-        //get the set of FPOs for the given owner account
-        let mut fpo_set = self.fpos_by_offeror_id.get(offeror_id).unwrap_or_else(|| {
+        //get the set of listings for the given owner account
+        let mut listing_set = self.primary_listings_by_seller_id.get(seller_id).unwrap_or_else(|| {
             //if the offeror doesn't have any fpos yet we'll create the new unordered set
             UnorderedSet::new(
-                MarketplaceStorageKey::FposByOfferorIdInner {
-                    account_id_hash: hash_account_id(&offeror_id), // generate a new unique prefix for the collection
+                MarketplaceStorageKey::PrimaryListingsBySellerIdInner {
+                    account_id_hash: hash_account_id(&seller_id), // generate a new unique prefix for the collection
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -72,10 +67,10 @@ impl MarketplaceContract {
         });
 
         // insert the nft_account_id into the set
-        fpo_set.insert(offering_id);
+        listing_set.insert(listing_id);
 
         // insert back
-        self.fpos_by_offeror_id.insert(offeror_id, &fpo_set);
+        self.primary_listings_by_seller_id.insert(seller_id, &listing_set);
     }
 
     pub(crate) fn internal_nft_shared_contract_id(&mut self) -> AccountId {

@@ -1,5 +1,4 @@
 use crate::*;
-use near_sdk::json_types::*;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[derive(Clone)]

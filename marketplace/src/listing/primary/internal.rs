@@ -1,46 +1,56 @@
-use crate::callback::*;
-use crate::config::*;
-use crate::fpo::config::*;
-use crate::fpo::resolve::*;
-use crate::FixedPriceOfferingStatus::*;
-use crate::*;
+use crate::{
+    *,
+    listing::{
+        constants::*,
+        status::{ListingStatus},
+    },
+};
+
+pub(crate) fn hash_primary_listing_id(listing_id: &PrimaryListingId) -> CryptoHash {
+    //get the default hash
+    //we hash the account ID and return it
+    let hashed_string = format!("{}.{}", listing_id.nft_contract_id, listing_id.collection_id);
+    let mut hash = CryptoHash::default();
+    hash.copy_from_slice(&env::sha256(hashed_string.as_bytes()));
+    hash
+}
 
 // This is required so that the unit tests (placed in separate file) see this
 #[cfg(test)]
 #[path = "internal_tests.rs"]
 mod internal_tests;
 
-impl FixedPriceOffering {
+impl PrimaryListing {
     pub(crate) fn update_status(&mut self) {
         let block_timestamp = env::block_timestamp() as i64;
 
-        if self.status == Ended {
+        if self.status == ListingStatus::Ended {
             return;
         }
 
         if self.supply_left == 0 {
-            self.status = Ended;
+            self.status = ListingStatus::Ended;
             return;
         }
 
         if let Some(end_timestamp) = self.end_timestamp {
             if block_timestamp >= end_timestamp {
-                self.status = Ended;
+                self.status = ListingStatus::Ended;
                 return;
             }
         }
 
-        if self.status == Running {
+        if self.status == ListingStatus::Running {
             return;
         }
 
         if let Some(start_timestamp) = self.start_timestamp {
             if block_timestamp >= start_timestamp {
-                self.status = Running;
+                self.status = ListingStatus::Running;
                 return;
             }
         } else {
-            self.status = Running;
+            self.status = ListingStatus::Running;
         }
     }
 
@@ -61,7 +71,6 @@ impl FixedPriceOffering {
     // }
 
     pub(crate) fn remove_supply_exceeding_proposals_and_refund_proposers(&mut self) {
-        let storage_byte_cost = env::storage_byte_cost();
         if self.supply_left >= self.proposals.len() {
             return;
         }
@@ -94,44 +103,4 @@ impl FixedPriceOffering {
             worst_acceptable_proposal.price_yocto + PRICE_STEP_YOCTO
         };
     }
-}
-
-impl FixedPriceOfferingProposal {
-    // pub fn mark_unacceptable_and_refund_deposit(&mut self) {
-    //     self.is_acceptable = false;
-    //     self.refund_deposit();
-    // }
-
-    // pub fn refund_deposit(&self) {
-    //     Promise::new(self.proposer_id.clone()).transfer(self.price_yocto);
-    // }
-}
-
-impl MarketplaceContract {
-    // will initiate a cross contract call to the nft contract
-    // to mint the token and deposit it to the buyer's account
-    // if succeeds, Near gets transfered to the seller
-    // it will NEITHER (!) decrement the supply NOR close the offering
-    /*    pub fn fpo_process_purchase(
-        &mut self,
-        offering_id: OfferingId,
-        buyer_id: AccountId,
-        price_yocto: Balance,
-        deposit: Balance,
-    ) {
-        nft_contract::mint(
-            offering_id.collection_id,
-            buyer_id,
-            None, // perpetual royalties
-            offering_id.nft_contract_id.clone(),
-            deposit, // should be >= 7_060_000_000_000_000_000_000 yN
-            NFT_MINT_GAS,
-        )
-        .then(ext_self_nft::mint_completion(
-            offering_id,
-            env::current_account_id(), // we are invoking this function on the current contract
-            NO_DEPOSIT,                // don't attach any deposit
-            NFT_MINT_COMPLETION_GAS,   // GAS attached to the completion call
-        ));
-    }*/
 }

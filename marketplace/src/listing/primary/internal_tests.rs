@@ -1,12 +1,17 @@
 #[cfg(test)]
 mod internal_tests {
-    use crate::fpo::config::*;
-    use crate::FixedPriceOffering;
-    use crate::FixedPriceOfferingProposal;
-    use crate::FixedPriceOfferingStatus::*;
-    use crate::*;
+    use crate::{
+        *,
+        external::{NftMetadata},
+        listing::{
+            constants::*,
+            status::{ListingStatus},
+            proposal::{Proposal},
+            primary::lib::{PrimaryListing},
+        },
+    };
     use chrono::{DateTime, TimeZone, Utc};
-    use near_sdk::collections::{LookupMap, TreeMap, Vector};
+    use near_sdk::collections::{Vector};
     use near_sdk::{testing_env, AccountId, VMContext};
 
     #[test]
@@ -39,7 +44,7 @@ mod internal_tests {
         );
         testing_env!(context);
         fpo.update_status();
-        assert!(fpo.status == Unstarted);
+        assert!(fpo.status == ListingStatus::Unstarted);
 
         // move date beyond start date
         let context = get_context(
@@ -51,7 +56,7 @@ mod internal_tests {
         );
         testing_env!(context);
         fpo.update_status();
-        assert!(fpo.status == Running);
+        assert!(fpo.status == ListingStatus::Running);
 
         // move date back before start date, it should remain in a Running state
         let context = get_context(
@@ -63,7 +68,7 @@ mod internal_tests {
         );
         testing_env!(context);
         fpo.update_status();
-        assert!(fpo.status == Running);
+        assert!(fpo.status == ListingStatus::Running);
 
         // move date back beyond end date
         let context = get_context(
@@ -75,7 +80,7 @@ mod internal_tests {
         );
         testing_env!(context);
         fpo.update_status();
-        assert!(fpo.status == Ended);
+        assert!(fpo.status == ListingStatus::Ended);
 
         // move date back before end date, it should remain Ended
         let context = get_context(
@@ -87,7 +92,7 @@ mod internal_tests {
         );
         testing_env!(context);
         fpo.update_status();
-        assert!(fpo.status == Ended);
+        assert!(fpo.status == ListingStatus::Ended);
 
         // move date back before start date, it should remain Ended
         let context = get_context(
@@ -99,7 +104,7 @@ mod internal_tests {
         );
         testing_env!(context);
         fpo.update_status();
-        assert!(fpo.status == Ended);
+        assert!(fpo.status == ListingStatus::Ended);
     }
 
     #[test]
@@ -123,7 +128,7 @@ mod internal_tests {
         );
 
         // prepare proposals
-        let proposal1 = FixedPriceOfferingProposal {
+        let proposal1 = Proposal {
             id: 1,
             proposer_id: AccountId::new_unchecked("proposer1".to_string()),
             price_yocto: 900,
@@ -134,7 +139,7 @@ mod internal_tests {
             "Wrong acceptable price"
         );
 
-        let proposal2 = FixedPriceOfferingProposal {
+        let proposal2 = Proposal {
             id: 2,
             proposer_id: AccountId::new_unchecked("proposer2".to_string()),
             price_yocto: 600,
@@ -145,7 +150,7 @@ mod internal_tests {
             "Wrong acceptable price"
         );
 
-        let proposal3 = FixedPriceOfferingProposal {
+        let proposal3 = Proposal {
             id: 3,
             proposer_id: AccountId::new_unchecked("proposer3".to_string()),
             price_yocto: 800,
@@ -156,7 +161,7 @@ mod internal_tests {
             "Wrong acceptable price"
         );
 
-        let proposal4 = FixedPriceOfferingProposal {
+        let proposal4 = Proposal {
             id: 4,
             proposer_id: AccountId::new_unchecked("proposer4".to_string()),
             price_yocto: 500,
@@ -167,7 +172,7 @@ mod internal_tests {
             "Wrong acceptable price"
         );
 
-        let proposal5 = FixedPriceOfferingProposal {
+        let proposal5 = Proposal {
             id: 5,
             proposer_id: AccountId::new_unchecked("proposer5".to_string()),
             price_yocto: 500,
@@ -277,7 +282,7 @@ mod internal_tests {
         offeror_id_str: &str,
         start_date: Option<&str>,
         end_date: Option<&str>,
-    ) -> FixedPriceOffering {
+    ) -> PrimaryListing {
         let start_timestamp: Option<i64> = if let Some(start_date) = start_date {
             Some(DateTime::parse_from_rfc3339(start_date).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
@@ -294,7 +299,7 @@ mod internal_tests {
         };
 
         let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
-        let offering_id = OfferingId {
+        let offering_id = PrimaryListingId {
             nft_contract_id,
             collection_id,
         };
@@ -303,16 +308,16 @@ mod internal_tests {
             &String::from("Bored Grapes"),
             &String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
         );
-        FixedPriceOffering {
-            offering_id: offering_id,
-            offeror_id: offeror_id,
+        PrimaryListing {
+            id: offering_id,
+            seller_id: offeror_id,
             nft_metadata,
             supply_total: 5,
             buy_now_price_yocto: 1000,
             min_proposal_price_yocto: Some(500),
             start_timestamp: start_timestamp,
             end_timestamp: end_timestamp,
-            status: Unstarted,
+            status: ListingStatus::Unstarted,
             // nft_metadata: test_nft_metadata(1),
             supply_left: 5,
             proposals: Vector::new(b"m"),

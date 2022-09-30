@@ -1,25 +1,25 @@
-use crate::*;
+/*use crate::*;
 use near_sdk::PromiseResult;
 
 #[ext_contract(ext_self_nft)]
 trait NFTContractCompletionHandler<S: FnOnce(), F: FnOnce(u64)> {
     fn make_collection_completion(
         &mut self,
-        offering_id: OfferingId,
+        listing_id: PrimaryListingId,
         nft_attached_deposit: Balance,
     ) -> NftCollectionId;
-    fn freeze_collection_completion(&mut self, offering_id: OfferingId);
-    fn delete_collection_completion(&mut self, offering_id: OfferingId);
+    fn freeze_collection_completion(&mut self, listing_id: PrimaryListingId);
+    fn delete_collection_completion(&mut self, listing_id: PrimaryListingId);
 }
 
 trait NFTContractCompletionHandler {
     fn make_collection_completion(
         &mut self,
-        offering_id: OfferingId,
+        listing_id: PrimaryListingId,
         nft_attached_deposit: Balance,
     ) -> NftCollectionId;
-    fn freeze_collection_completion(&mut self, offering_id: OfferingId);
-    fn delete_collection_completion(&mut self, offering_id: OfferingId);
+    fn freeze_collection_completion(&mut self, listing_id: PrimaryListingId);
+    fn delete_collection_completion(&mut self, listing_id: PrimaryListingId);
 }
 
 #[near_bindgen]
@@ -27,14 +27,14 @@ impl NFTContractCompletionHandler for MarketplaceContract {
     #[private]
     fn make_collection_completion(
         &mut self,
-        offering_id: OfferingId,
+        listing_id: PrimaryListingId,
         nft_attached_deposit: Balance,
     ) -> NftCollectionId {
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
         match env::promise_result(0) {
             PromiseResult::NotReady | PromiseResult::Failed => {
                 let storage_before = env::storage_usage();
-                self.internal_remove_fpo(&offering_id);
+                self.internal_remove_primary_listing(&listing_id);
                 let freed_storage = storage_before - env::storage_usage();
                 // TODO: we may be tempted to decrement next_collection_id here but is this safe?
                 // Could another transaction further increment it in the same block (and succeed)?
@@ -59,18 +59,19 @@ impl NFTContractCompletionHandler for MarketplaceContract {
     }
 
     #[private]
-    fn freeze_collection_completion(&mut self, offering_id: OfferingId) {
+    fn freeze_collection_completion(&mut self, listing_id: PrimaryListingId) {
         format!(
-            "NOT IMPLEMENTED: freeze_collection_completion, offering_id {}",
-            offering_id
+            "NOT IMPLEMENTED: freeze_collection_completion, listing_id {}",
+            listing_id
         );
     }
 
     #[private]
-    fn delete_collection_completion(&mut self, offering_id: OfferingId) {
+    fn delete_collection_completion(&mut self, listing_id: PrimaryListingId) {
         format!(
-            "NOT IMPLEMENTED: delete_collection_completion, offering_id {}",
-            offering_id
+            "NOT IMPLEMENTED: delete_collection_completion, listing_id {}",
+            listing_id
         );
     }
 }
+*/

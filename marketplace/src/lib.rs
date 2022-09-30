@@ -1,61 +1,45 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, ext_contract, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
     Promise, CryptoHash, BorshStorageKey,
+    json_types::{Base64VecU8},
+    collections::{LookupMap, UnorderedMap, UnorderedSet},
+    serde::{Deserialize, Serialize},
+    borsh::{self, BorshDeserialize, BorshSerialize},
 };
-use std::collections::HashMap;
-use std::fmt;
+use listing::{
+    primary::lib::{PrimaryListingId, PrimaryListing},
+};
+use std::{
+    collections::{HashMap},
+};
 
-use crate::external::*;
-pub use crate::fpo::lib::*;
-
-mod fpo;
+mod listing;
 mod internal;
 mod enumeration;
 mod external;
 mod config;
 mod callback;
+
 // mod error;
 
 pub type NftCollectionId = u64;
-
-#[derive(BorshDeserialize, BorshSerialize)]
-#[derive(Serialize,Deserialize)]
-#[serde(crate = "near_sdk::serde")]
-#[derive(Clone)]
-pub struct OfferingId {
-    pub nft_contract_id: AccountId,
-    pub collection_id: NftCollectionId,
-}
-
-impl fmt::Display for OfferingId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{{ nft_contract_id: {}, collection_id: {}}}",
-            self.nft_contract_id, self.collection_id,
-        )
-    }
-}
 
 //main contract struct to store all the information
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct MarketplaceContract {
     pub owner_id: AccountId,
-    pub fpos_by_id: UnorderedMap<OfferingId, FixedPriceOffering>,
-    pub fpos_by_offeror_id: LookupMap<AccountId, UnorderedSet<OfferingId>>,
+    pub primary_listings_by_id: UnorderedMap<PrimaryListingId, PrimaryListing>,
+    pub primary_listings_by_seller_id: LookupMap<AccountId, UnorderedSet<PrimaryListingId>>,
     // pub storage_deposits: LookupMap<AccountId, Balance>,
 }
 
 /// Helper structure to for keys of the persistent collections.
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum MarketplaceStorageKey {
-    FposById,
-    FposByOfferorId,
-    FposByOfferorIdInner { account_id_hash: CryptoHash },
+    PrimaryListingsById,
+    PrimaryListingsBySellerId,
+    PrimaryListingsBySellerIdInner { account_id_hash: CryptoHash },
     // StorageDeposits,
 }
 
@@ -70,11 +54,17 @@ impl MarketplaceContract {
     pub fn new(owner_id: AccountId) -> Self {
         let this = Self {
             owner_id,
-            fpos_by_id: UnorderedMap::new(MarketplaceStorageKey::FposById),
-            fpos_by_offeror_id: LookupMap::new(MarketplaceStorageKey::FposByOfferorId),
+            primary_listings_by_id: UnorderedMap::new(MarketplaceStorageKey::PrimaryListingsById),
+            primary_listings_by_seller_id: LookupMap::new(MarketplaceStorageKey::PrimaryListingsBySellerId),
         };
 
         this
+    }
+
+    pub fn clean(keys: Vec<Base64VecU8>) {
+        for key in keys.iter() {
+            env::storage_remove(&key.0);
+        }
     }
 
     //Allows users to deposit storage. This is to cover the cost of storing sale objects on the contract

@@ -1,9 +1,9 @@
 use crate::*;
-use near_sdk::StorageUsage;
 
 //constant used to attach 0 NEAR to a call
 pub const NO_DEPOSIT: Balance = 0;
 
+#[allow(dead_code)]
 pub const ACCOUNT_NAME_LEN_MAX: usize = 64;     //https://nomicon.io/DataStructures/Account
 
 /* NFT contract cross call constants */
