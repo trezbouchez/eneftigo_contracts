@@ -1,7 +1,8 @@
 use crate::*;
 
-//constant used to attach 0 NEAR to a call
+// Deposits
 pub const NO_DEPOSIT: Balance = 0;
+pub const MIN_DEPOSIT: Balance = 100_000_000_000_000_000_000_000;     // 0.1 Near
 
 #[allow(dead_code)]
 pub const ACCOUNT_NAME_LEN_MAX: usize = 64;     //https://nomicon.io/DataStructures/Account

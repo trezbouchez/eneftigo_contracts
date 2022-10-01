@@ -1,15 +1,13 @@
 use crate::{
+    listing::{constants::*, status::ListingStatus},
     *,
-    listing::{
-        constants::*,
-        status::{ListingStatus},
-    },
 };
 
 pub(crate) fn hash_primary_listing_id(listing_id: &PrimaryListingId) -> CryptoHash {
-    //get the default hash
-    //we hash the account ID and return it
-    let hashed_string = format!("{}.{}", listing_id.nft_contract_id, listing_id.collection_id);
+    let hashed_string = format!(
+        "{}.{}",
+        listing_id.nft_contract_id, listing_id.collection_id
+    );
     let mut hash = CryptoHash::default();
     hash.copy_from_slice(&env::sha256(hashed_string.as_bytes()));
     hash
@@ -70,25 +68,6 @@ impl PrimaryListing {
     //     false
     // }
 
-    pub(crate) fn remove_supply_exceeding_proposals_and_refund_proposers(&mut self) {
-        if self.supply_left >= self.proposals.len() {
-            return;
-        }
-        let num_outbid_proposals = self.proposals.len() - self.supply_left;
-        for _ in 0..num_outbid_proposals {
-            let storage_before = env::storage_usage();
-            let removed_proposal = self
-                .proposals
-                .pop()
-                .expect("Could not remove proposal. acceptable_proposals is empty");
-            let storage_after = env::storage_usage();
-            let freed_storage = storage_before - storage_after;
-            let freed_storage_cost = freed_storage as Balance * env::storage_byte_cost();
-            let refund = removed_proposal.price_yocto + freed_storage_cost;
-            Promise::new(removed_proposal.proposer_id).transfer(refund);
-        }
-    }
-
     pub(crate) fn acceptable_price_yocto(&self) -> u128 {
         assert!(
             self.min_proposal_price_yocto.is_some(),
@@ -102,5 +81,36 @@ impl PrimaryListing {
             let worst_acceptable_proposal = self.proposals.get(num_proposals - 1).unwrap();
             worst_acceptable_proposal.price_yocto + PRICE_STEP_YOCTO
         };
+    }
+}
+
+impl MarketplaceContract {
+    // this won't insert updated listing back into contract, caller must do it (if needed)
+    pub(crate) fn primary_listing_remove_supply_exceeding_proposals_and_refund_proposers(
+        &mut self,
+        listing: &mut PrimaryListing,
+    ) {
+        if listing.supply_left >= listing.proposals.len() {
+            return;
+        }
+        let num_outbid_proposals = listing.proposals.len() - listing.supply_left;
+        for _ in 0..num_outbid_proposals {
+            let storage_before = env::storage_usage();
+            let removed_proposal = listing
+                .proposals
+                .pop()
+                .expect("Could not remove proposal. acceptable_proposals is empty");
+            let proposer_id = removed_proposal.proposer_id;
+            Promise::new(proposer_id.clone()).transfer(removed_proposal.price_yocto);
+            let storage_after = env::storage_usage();
+            let freed_storage = storage_before - storage_after; // this was covered by proposer
+            let freed_storage_cost = freed_storage as Balance * env::storage_byte_cost();
+            if let Some(current_deposit) = self.storage_deposits.get(&proposer_id) {
+                let updated_deposit = current_deposit + freed_storage_cost;
+                self.storage_deposits.insert(&proposer_id, &updated_deposit);
+            } else {
+                // this should never happen! TODO: we may want to log some message if it does
+            }
+        }
     }
 }

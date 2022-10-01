@@ -206,7 +206,8 @@ mod internal_tests {
 
         // test prune_supply_exceeding_acceptable_proposals
         fpo.supply_left = 3;
-        fpo.remove_supply_exceeding_proposals_and_refund_proposers();
+
+        // fpo.remove_supply_exceeding_proposals_and_refund_proposers();
         assert!(
             fpo.proposals.len() == 3,
             "Number of acceptable proposals after pruning does not match supply"

@@ -8,6 +8,7 @@ use near_sdk::{
 };
 use listing::{
     primary::lib::{PrimaryListingId, PrimaryListing},
+    secondary::lib::{SecondaryListingId, SecondaryListing},
 };
 use std::{
     collections::{HashMap},
@@ -17,8 +18,9 @@ mod listing;
 mod internal;
 mod enumeration;
 mod external;
-mod config;
+mod constants;
 mod callback;
+mod deposit;
 
 // mod error;
 
@@ -32,7 +34,9 @@ pub struct MarketplaceContract {
     pub owner_id: AccountId,
     pub primary_listings_by_id: UnorderedMap<PrimaryListingId, PrimaryListing>,
     pub primary_listings_by_seller_id: LookupMap<AccountId, UnorderedSet<PrimaryListingId>>,
-    // pub storage_deposits: LookupMap<AccountId, Balance>,
+    pub secondary_listings_by_id: UnorderedMap<SecondaryListingId, SecondaryListing>,
+    pub secondary_listings_by_seller_id: LookupMap<AccountId, UnorderedSet<SecondaryListingId>>,
+    pub storage_deposits: LookupMap<AccountId,Balance>,
 }
 
 /// Helper structure to for keys of the persistent collections.
@@ -41,7 +45,10 @@ pub enum MarketplaceStorageKey {
     PrimaryListingsById,
     PrimaryListingsBySellerId,
     PrimaryListingsBySellerIdInner { account_id_hash: CryptoHash },
-    // StorageDeposits,
+    SecondaryListingsById,
+    SecondaryListingsBySellerId,
+    SecondaryListingsBySellerIdInner { account_id_hash: CryptoHash },
+    StorageDeposits,
 }
 
 #[near_bindgen]
@@ -53,13 +60,14 @@ impl MarketplaceContract {
     */
     #[init]
     pub fn new(owner_id: AccountId) -> Self {
-        let this = Self {
+        Self {
             owner_id,
             primary_listings_by_id: UnorderedMap::new(MarketplaceStorageKey::PrimaryListingsById),
             primary_listings_by_seller_id: LookupMap::new(MarketplaceStorageKey::PrimaryListingsBySellerId),
-        };
-
-        this
+            secondary_listings_by_id: UnorderedMap::new(MarketplaceStorageKey::SecondaryListingsById),
+            secondary_listings_by_seller_id: LookupMap::new(MarketplaceStorageKey::SecondaryListingsBySellerId),
+            storage_deposits: LookupMap::new(MarketplaceStorageKey::StorageDeposits),
+        }
     }
 
     pub fn clean(keys: Vec<Base64VecU8>) {
@@ -67,81 +75,5 @@ impl MarketplaceContract {
             env::storage_remove(&key.0);
         }
     }
-
-    //Allows users to deposit storage. This is to cover the cost of storing sale objects on the contract
-    //Optional account ID is to users can pay for storage for other people.
-/*    #[payable]
-    pub fn storage_deposit(&mut self, account_id: Option<AccountId>) {
-        //get the account ID to pay for storage for
-        let storage_account_id = account_id 
-            //convert the valid account ID into an account ID
-            .map(|a| a.into())
-            //if we didn't specify an account ID, we simply use the caller of the function
-            .unwrap_or_else(env::predecessor_account_id);
-
-        //get the deposit value which is how much the user wants to add to their storage
-        let deposit = env::attached_deposit();
-
-        //make sure the deposit is greater than or equal to the minimum storage for a sale
-        assert!(
-            deposit >= STORAGE_PER_SALE,
-            "Requires minimum deposit of {}",
-            STORAGE_PER_SALE
-        );
-
-        //get the balance of the account (if the account isn't in the map we default to a balance of 0)
-        let mut balance: u128 = self.storage_deposits.get(&storage_account_id).unwrap_or(0);
-        //add the deposit to their balance
-        balance += deposit;
-        //insert the balance back into the map for that account ID
-        self.storage_deposits.insert(&storage_account_id, &balance);
-    }
-
-    //Allows users to withdraw any excess storage that they're not using. Say Bob pays 0.01N for 1 sale
-    //Alice then buys Bob's token. This means bob has paid 0.01N for a sale that's no longer on the marketplace
-    //Bob could then withdraw this 0.01N back into his account. 
-    #[payable]
-    pub fn storage_withdraw(&mut self) {
-/*        //make sure the user attaches exactly 1 yoctoNEAR for security purposes.
-        //this will redirect them to the NEAR wallet (or requires a full access key). 
-        assert_one_yocto();
-
-        //the account to withdraw storage to is always the function caller
-        let owner_id = env::predecessor_account_id();
-        //get the amount that the user has by removing them from the map. If they're not in the map, default to 0
-        let mut amount = self.storage_deposits.remove(&owner_id).unwrap_or(0);
-        
-        //how many sales is that user taking up currently. This returns a set
-        let sales = self.by_owner_id.get(&owner_id);
-        //get the length of that set. 
-        let len = sales.map(|s| s.len()).unwrap_or_default();
-        //how much NEAR is being used up for all the current sales on the account 
-        let diff = u128::from(len) * STORAGE_PER_SALE;
-
-        //the excess to withdraw is the total storage paid - storage being used up.
-        amount -= diff;
-
-        //if that excess to withdraw is > 0, we transfer the amount to the user.
-        if amount > 0 {
-            Promise::new(owner_id.clone()).transfer(amount);
-        }
-        //we need to add back the storage being used up into the map if it's greater than 0.
-        //this is so that if the user had 500 sales on the market, we insert that value here so
-        //if those sales get taken down, the user can then go and withdraw 500 sales worth of storage.
-        if diff > 0 {
-            self.storage_deposits.insert(&owner_id, &diff);
-        }*/
-    }
-
-    /// views
-    //return the minimum storage for 1 sale
-    pub fn storage_minimum_balance(&self) -> U128 {
-        U128(STORAGE_PER_SALE)
-    }
-
-    //return how much storage an account has paid for
-    pub fn storage_balance_of(&self, account_id: AccountId) -> U128 {
-        U128(self.storage_deposits.get(&account_id).unwrap_or(0))
-    }*/
 }
 

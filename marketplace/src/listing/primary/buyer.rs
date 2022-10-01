@@ -1,23 +1,20 @@
 use crate::{
-    *,
-    config::*,
-    external::{nft_contract},
+    constants::*,
+    external::nft_contract,
     listing::{
         constants::*,
-        status::{ListingStatus},
-        proposal::{ProposalId, Proposal},
+        primary::config::*,
+        proposal::{Proposal, ProposalId},
+        status::ListingStatus,
     },
+    *,
 };
-use near_sdk::{
-    PromiseResult,
-    json_types::{U128},
-};
+use near_sdk::{json_types::U128, PromiseResult};
 
-const NFT_MINT_GAS: Gas = Gas(15_000_000_000_000);                  // TODO: measure
-const NFT_MINT_COMPLETION_GAS: Gas = Gas(5_000_000_000_000);        // TODO: measure
+const NFT_MINT_GAS: Gas = Gas(15_000_000_000_000); // TODO: measure
+const NFT_MINT_COMPLETION_GAS: Gas = Gas(5_000_000_000_000); // TODO: measure
 
 // const NFT_MINT_WORST_CASE_STORAGE: u64 = 830;                       // actual, measured
-
 
 #[cfg(test)]
 #[path = "buyer_tests.rs"]
@@ -27,7 +24,6 @@ pub type NftId = String;
 
 #[near_bindgen]
 impl MarketplaceContract {
-
     // purchase at buy now price, provided there's supply
     #[payable]
     pub fn primary_listing_buy(
@@ -35,9 +31,16 @@ impl MarketplaceContract {
         nft_contract_id: AccountId,
         collection_id: NftCollectionId,
     ) -> Promise {
-        let listing_id = PrimaryListingId{ nft_contract_id, collection_id };
+        let listing_id = PrimaryListingId {
+            nft_contract_id,
+            collection_id,
+        };
+
         // update listing status, won't change storage usage
-        let mut listing = self.primary_listings_by_id.get(&listing_id).expect("Could not find NFT listing");
+        let mut listing = self
+            .primary_listings_by_id
+            .get(&listing_id)
+            .expect("Could not find NFT listing");
         listing.update_status();
         self.primary_listings_by_id.insert(&listing_id, &listing);
 
@@ -56,36 +59,41 @@ impl MarketplaceContract {
             "You are late. All NFTs have been sold."
         );
 
-        // ensure the attached balance is sufficient
+        // ensure the attached balance is sufficient to pay the price
+        let price_yocto = listing.buy_now_price_yocto;
         let attached_deposit = env::attached_deposit();
-        let storage_byte_cost = env::storage_byte_cost();
-        let anticipated_nft_storage = nft_mint_storage(&listing.nft_metadata.title.unwrap(), &listing.nft_metadata.media.unwrap(), &buyer_id.as_str());
-        let anticipated_nft_storage_cost = anticipated_nft_storage as Balance * storage_byte_cost;
-        let price = listing.buy_now_price_yocto;
-        let required_deposit = price + anticipated_nft_storage_cost;
-
         assert!(
-            attached_deposit >= required_deposit, 
-            "Attached Near must be at least {}, enough to pay the price and the NFT minting storage", 
-            required_deposit,
+            attached_deposit >= price_yocto,
+            "Attached deposit of {} is insufficient to pay the price of {}",
+            attached_deposit,
+            price_yocto
+        );
+
+        let storage_byte_cost = env::storage_byte_cost();
+        let current_deposit: Balance = self.storage_deposits.get(&buyer_id).unwrap_or(0);
+        let nft_worst_case_storage_cost = NFT_MINT_STORAGE_MAX as Balance * storage_byte_cost;
+        assert!(
+            current_deposit >= nft_worst_case_storage_cost,
+            "Your storage deposit is too low. Must be {} yN to process transaction. Please increase your deposit.",
+            nft_worst_case_storage_cost
         );
 
         nft_contract::mint(
             listing_id.collection_id,
             buyer_id,
-            None,               // perpetual royalties
+            None, // perpetual royalties
             listing_id.nft_contract_id.clone(),
-            anticipated_nft_storage_cost,
+            nft_worst_case_storage_cost,
             NFT_MINT_GAS,
         )
         .then(ext_self_nft::primary_listing_buy_now_mint_completion(
             listing.seller_id.clone(),
             attached_deposit,
-            price,
+            price_yocto,
             listing_id.clone(),
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
-            NFT_MINT_COMPLETION_GAS, // GAS attached to the completion call
+            NFT_MINT_COMPLETION_GAS,   // GAS attached to the completion call
         ))
     }
 
@@ -99,10 +107,16 @@ impl MarketplaceContract {
     ) -> ProposalId {
         // TODO: check prepaid gas, terminate early if insufficient
 
-        let listing_id = PrimaryListingId{ nft_contract_id, collection_id };
+        let listing_id = PrimaryListingId {
+            nft_contract_id,
+            collection_id,
+        };
 
         // get listing
-        let mut listing = self.primary_listings_by_id.get(&listing_id).expect("Could not find NFT listing");
+        let mut listing = self
+            .primary_listings_by_id
+            .get(&listing_id)
+            .expect("Could not find NFT listing");
 
         listing.update_status();
 
@@ -113,7 +127,10 @@ impl MarketplaceContract {
         );
 
         let proposer_id = env::predecessor_account_id();
-        assert!(proposer_id != listing.seller_id, "Cannot submit a proposal to your own listing");
+        assert!(
+            proposer_id != listing.seller_id,
+            "Cannot submit a proposal to your own listing"
+        );
 
         // ensure proposals are accepted
         assert!(
@@ -139,24 +156,22 @@ impl MarketplaceContract {
         // price must be multiple of PRICE_STEP_YOCTO
         assert!(
             price_yocto % PRICE_STEP_YOCTO == 0,
-            "Price must be an integer multple of {} yocto Near", 
+            "Price must be an integer multple of {} yocto Near",
             PRICE_STEP_YOCTO
         );
-        
         // get proposals vector (was sorted on write) and check if proposed price is acceptable
         let acceptable_price = listing.acceptable_price_yocto();
         assert!(
             price_yocto >= acceptable_price,
             "Proposed price is too low. The lowest acceptable price is {:?}",
             acceptable_price
-        );    
-        
+        );
         // ensure the attached balance is sufficient to pay deposit
         let attached_deposit = env::attached_deposit();
         assert!(
-            attached_deposit >= price_yocto, 
-            "Attached balance must be sufficient to pay the required deposit of {} yocto Near", 
-            price_yocto 
+            attached_deposit >= price_yocto,
+            "Attached balance must be sufficient to pay the required deposit of {} yocto Near",
+            price_yocto
         );
 
         // create and add the new proposal
@@ -175,180 +190,187 @@ impl MarketplaceContract {
 
         // sort acceptable proposals
         listing.sort_proposals();
-        
         // check if attached deposit is sufficient and compute proposer refund (if any)
         let storage_usage_after = env::storage_usage();
         let storage_usage_added = storage_usage_after - storage_usage_before;
         let storage_cost_added = storage_usage_added as Balance * storage_byte_cost;
         let required_deposit = price_yocto + storage_cost_added;
-        assert!(attached_deposit >= required_deposit, "Insufficient storage deposit. Please attach at least {}", required_deposit);
+        assert!(
+            attached_deposit >= required_deposit,
+            "Insufficient storage deposit. Please attach at least {}",
+            required_deposit
+        );
         let refund = attached_deposit - required_deposit;
         if refund > 0 {
             Promise::new(proposer_id).transfer(refund);
         }
 
-        listing.remove_supply_exceeding_proposals_and_refund_proposers();
+        self.primary_listing_remove_supply_exceeding_proposals_and_refund_proposers(&mut listing);
 
         self.primary_listings_by_id.insert(&listing_id, &listing);
 
         new_proposal.id
-    }    
+    }
 
     #[payable]
-/*    pub fn primary_listing_modify_proposal(
-        &mut self,
-        nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
-        proposal_id: ProposalId,
-        price_yocto: U128,
-    ) {
-/       let listing_id = PrimaryListingId { nft_contract_id, collection_id };
-        
-        // get listing
-        let mut listing = self.primary_listing_by_id.get(&listing_id).expect("Could not find NFT listing");
+    /*    pub fn primary_listing_modify_proposal(
+            &mut self,
+            nft_contract_id: AccountId,
+            collection_id: NftCollectionId,
+            proposal_id: ProposalId,
+            price_yocto: U128,
+        ) {
+    /       let listing_id = PrimaryListingId { nft_contract_id, collection_id };
 
-        listing.update_status();
-        
-        assert!(
-            listing.status == Running,
-            "This listing is {}",
-            listing.status.as_str()
-        );
-        
-        // ensure proposals are accepted
-        assert!(
-            listing.min_proposal_price_yocto.is_some(),
-            "Proposals are not accepted for this listing"
-        );
-               
-        let price_yocto = price_yocto.0;
+            // get listing
+            let mut listing = self.primary_listing_by_id.get(&listing_id).expect("Could not find NFT listing");
 
-        // price must be multiple of PRICE_STEP_YOCTO
-        assert!(
-            price_yocto % PRICE_STEP_YOCTO == 0,
-            "Price must be an integer multple of {} yocto Near", 
-            PRICE_STEP_YOCTO
-        );
-    
-        // check if there is a prior proposal from this account
-        let predecessor_account_id = env::predecessor_account_id();
-        let predecessors_proposals = listing.proposals_by_proposer.get(&predecessor_account_id).expect("No prior proposal from this account");
-        assert!(
-            predecessors_proposals.contains(&proposal_id),
-            "Proposal with ID {} from account {} not found",
-            proposal_id, predecessor_account_id
-        );
+            listing.update_status();
 
-        // ensure the attached balance is sufficient to cover higher required deposit
-        let mut proposal = listing.proposals.get(&proposal_id).expect("Could not find proposal");
-        let deposit_supplement_yocto = price_yocto - proposal.price_yocto;
-        let attached_balance_yocto = env::attached_deposit();
-        assert!(
-            attached_balance_yocto >= deposit_supplement_yocto, 
-            "Attached balance must be sufficient to pay the required deposit supplement of {} yocto Near", 
-            deposit_supplement_yocto
-        );
+            assert!(
+                listing.status == Running,
+                "This listing is {}",
+                listing.status.as_str()
+            );
 
-        // if price is >= buy_now_price_yocto then accept right away, terminate early to save gas
-        if price_yocto >= listing.buy_now_price_yocto {
-            // TODO: this does not work correctly
-            // remove from acceptable_proposals (if there), proposals and proposals_by_proposer
-            let index_of_this_in_acceptable_proposals = listing.acceptable_proposals
-            .iter()
-            .position(|acceptable_proposal_id| acceptable_proposal_id == proposal_id);
-            if let Some(index_of_this_in_acceptable_proposals) = index_of_this_in_acceptable_proposals {
-                let mut acceptable_proposals_vec = listing.acceptable_proposals.to_vec();
-                acceptable_proposals_vec.remove(index_of_this_in_acceptable_proposals);
-                listing.acceptable_proposals.clear();
-                listing.acceptable_proposals.extend(acceptable_proposals_vec);
-            }
-            // TODO: modify to correctly handle deposit removal
-            // listing.proposals.remove(&proposal_id);     
-            listing.proposals.remove(&proposal_id).expect("Could not remove proposal");
-            let mut proposals_by_this_proposer = listing.proposals_by_proposer.get(&predecessor_account_id).expect("Could not find proposal from this account.");
-            proposals_by_this_proposer.remove(&proposal_id);
-            if proposals_by_this_proposer.is_empty() {
-                listing.proposals_by_proposer.remove(&predecessor_account_id);
-            } else {
-                listing.proposals_by_proposer.insert(&predecessor_account_id, &proposals_by_this_proposer);
-            }
+            // ensure proposals are accepted
+            assert!(
+                listing.min_proposal_price_yocto.is_some(),
+                "Proposals are not accepted for this listing"
+            );
 
+            let price_yocto = price_yocto.0;
 
-            // return surplus deposit
-            let surplus_deposit = attached_balance_yocto + proposal.price_yocto - listing.buy_now_price_yocto;
-            if surplus_deposit > 0 {
-                if surplus_deposit > 0 {
-                    Promise::new(predecessor_account_id).transfer(surplus_deposit);
+            // price must be multiple of PRICE_STEP_YOCTO
+            assert!(
+                price_yocto % PRICE_STEP_YOCTO == 0,
+                "Price must be an integer multple of {} yocto Near",
+                PRICE_STEP_YOCTO
+            );
+
+            // check if there is a prior proposal from this account
+            let predecessor_account_id = env::predecessor_account_id();
+            let predecessors_proposals = listing.proposals_by_proposer.get(&predecessor_account_id).expect("No prior proposal from this account");
+            assert!(
+                predecessors_proposals.contains(&proposal_id),
+                "Proposal with ID {} from account {} not found",
+                proposal_id, predecessor_account_id
+            );
+
+            // ensure the attached balance is sufficient to cover higher required deposit
+            let mut proposal = listing.proposals.get(&proposal_id).expect("Could not find proposal");
+            let deposit_supplement_yocto = price_yocto - proposal.price_yocto;
+            let attached_balance_yocto = env::attached_deposit();
+            assert!(
+                attached_balance_yocto >= deposit_supplement_yocto,
+                "Attached balance must be sufficient to pay the required deposit supplement of {} yocto Near",
+                deposit_supplement_yocto
+            );
+
+            // if price is >= buy_now_price_yocto then accept right away, terminate early to save gas
+            if price_yocto >= listing.buy_now_price_yocto {
+                // TODO: this does not work correctly
+                // remove from acceptable_proposals (if there), proposals and proposals_by_proposer
+                let index_of_this_in_acceptable_proposals = listing.acceptable_proposals
+                .iter()
+                .position(|acceptable_proposal_id| acceptable_proposal_id == proposal_id);
+                if let Some(index_of_this_in_acceptable_proposals) = index_of_this_in_acceptable_proposals {
+                    let mut acceptable_proposals_vec = listing.acceptable_proposals.to_vec();
+                    acceptable_proposals_vec.remove(index_of_this_in_acceptable_proposals);
+                    listing.acceptable_proposals.clear();
+                    listing.acceptable_proposals.extend(acceptable_proposals_vec);
                 }
+                // TODO: modify to correctly handle deposit removal
+                // listing.proposals.remove(&proposal_id);
+                listing.proposals.remove(&proposal_id).expect("Could not remove proposal");
+                let mut proposals_by_this_proposer = listing.proposals_by_proposer.get(&predecessor_account_id).expect("Could not find proposal from this account.");
+                proposals_by_this_proposer.remove(&proposal_id);
+                if proposals_by_this_proposer.is_empty() {
+                    listing.proposals_by_proposer.remove(&predecessor_account_id);
+                } else {
+                    listing.proposals_by_proposer.insert(&predecessor_account_id, &proposals_by_this_proposer);
+                }
+
+
+                // return surplus deposit
+                let surplus_deposit = attached_balance_yocto + proposal.price_yocto - listing.buy_now_price_yocto;
+                if surplus_deposit > 0 {
+                    if surplus_deposit > 0 {
+                        Promise::new(predecessor_account_id).transfer(surplus_deposit);
+                    }
+                }
+                // update supply_left
+                listing.supply_left -= 1;
+
+                self.primary_listings_by_id.insert(&listing_id, &listing);
+
+                return;
             }
-            // update supply_left
-            listing.supply_left -= 1;
+
+            // check if proposed price is acceptable
+            let acceptable_price_yocto = listing.acceptable_price_yocto();
+            assert!(
+                price_yocto >= acceptable_price_yocto,
+                "The minimum acceptable price is {} yoctoNear",
+                acceptable_price_yocto
+           );
+
+            // update proposal - set price and mark acceptable, store
+            proposal.price_yocto = price_yocto;
+            // proposal.is_acceptable = true;
+
+            listing.proposals.insert(&proposal_id, &proposal);
+
+            // if the proposal is among the acceptable ones we'll just re-sort
+            // otherwise we need to outbid the lowers-priced proposal
+            if !listing.is_proposal_acceptable(proposal_id) {
+                // here we assume that it used to be a acceptable one when was first submitted
+                // (otherwise it'd have been rejected in the first place) and got outbid at some
+                // point - this, in turn, means that the proposal count equals or exceeds the supply
+                // so we can just replace the first acceptable proposal (worst price) with this one
+                let outbid_proposal_id = listing.acceptable_proposals.replace(0, &proposal_id);
+                let mut outbid_proposal = listing.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
+
+                // TODO:
+                // Implement it in another way
+                // outbid_proposal.mark_unacceptable_and_refund_deposit();
+                listing.proposals.insert(&outbid_proposal_id, &outbid_proposal);
+            }
+
+            listing.sort_acceptable_proposals();
 
             self.primary_listings_by_id.insert(&listing_id, &listing);
 
-            return;
-        }
-
-        // check if proposed price is acceptable
-        let acceptable_price_yocto = listing.acceptable_price_yocto();
-        assert!(
-            price_yocto >= acceptable_price_yocto,
-            "The minimum acceptable price is {} yoctoNear",
-            acceptable_price_yocto
-       );
-                
-        // update proposal - set price and mark acceptable, store
-        proposal.price_yocto = price_yocto;
-        // proposal.is_acceptable = true;
-
-        listing.proposals.insert(&proposal_id, &proposal);
-
-        // if the proposal is among the acceptable ones we'll just re-sort
-        // otherwise we need to outbid the lowers-priced proposal
-        if !listing.is_proposal_acceptable(proposal_id) {
-            // here we assume that it used to be a acceptable one when was first submitted
-            // (otherwise it'd have been rejected in the first place) and got outbid at some
-            // point - this, in turn, means that the proposal count equals or exceeds the supply
-            // so we can just replace the first acceptable proposal (worst price) with this one
-            let outbid_proposal_id = listing.acceptable_proposals.replace(0, &proposal_id);
-            let mut outbid_proposal = listing.proposals.get(&outbid_proposal_id).expect("Outbid proposal is missing, inconsistent state");
-
-            // TODO:
-            // Implement it in another way
-            // outbid_proposal.mark_unacceptable_and_refund_deposit();
-            listing.proposals.insert(&outbid_proposal_id, &outbid_proposal);
-        }
-        
-        listing.sort_acceptable_proposals();
-
-        self.primary_listings_by_id.insert(&listing_id, &listing);
-
-        // return surplus deposit
-        let surplus_deposit = attached_balance_yocto - deposit_supplement_yocto;
-        if surplus_deposit > 0 {
-            Promise::new(env::predecessor_account_id()).transfer(surplus_deposit);
-        }
-    }*/
+            // return surplus deposit
+            let surplus_deposit = attached_balance_yocto - deposit_supplement_yocto;
+            if surplus_deposit > 0 {
+                Promise::new(env::predecessor_account_id()).transfer(surplus_deposit);
+            }
+        }*/
 
     pub fn primary_listing_revoke_proposal(
         &mut self,
         nft_contract_id: AccountId,
         collection_id: NftCollectionId,
-        proposal_id: ProposalId
+        proposal_id: ProposalId,
     ) {
-        let listing_id = PrimaryListingId { nft_contract_id, collection_id };
+        let listing_id = PrimaryListingId {
+            nft_contract_id,
+            collection_id,
+        };
 
         // get listing
-        let mut listing = self.primary_listings_by_id.get(&listing_id).expect("Could not find NFT listing");
+        let mut listing = self
+            .primary_listings_by_id
+            .get(&listing_id)
+            .expect("Could not find NFT listing");
 
         listing.update_status();
-        
         assert!(
             listing.status == ListingStatus::Running,
             "This listing is {}",
             listing.status.as_str()
         );
-        
         // ensure proposals are accepted
         assert!(
             listing.min_proposal_price_yocto.is_some(),
@@ -357,9 +379,16 @@ impl MarketplaceContract {
 
         let storage_before = env::storage_usage();
 
-        let index = listing.proposals.iter().position(|proposal| proposal.id == proposal_id).expect("Could not find proposal");
+        let index = listing
+            .proposals
+            .iter()
+            .position(|proposal| proposal.id == proposal_id)
+            .expect("Could not find proposal");
         let removed_proposal = listing.proposals.swap_remove(index as u64);
-        assert!(removed_proposal.proposer_id == env::predecessor_account_id(), "Not authorized to revoke this proposal");
+        assert!(
+            removed_proposal.proposer_id == env::predecessor_account_id(),
+            "Not authorized to revoke this proposal"
+        );
         listing.sort_proposals();
 
         let storage_after = env::storage_usage();
@@ -371,7 +400,8 @@ impl MarketplaceContract {
 
         // return deposit minus penalty
         let fee = removed_proposal.price_yocto * PROPOSAL_REVOKE_FEE_RATE / 100;
-        Promise::new(env::predecessor_account_id()).transfer(removed_proposal.price_yocto + storage_refund - fee);
+        Promise::new(env::predecessor_account_id())
+            .transfer(removed_proposal.price_yocto + storage_refund - fee);
 
         // transfer penalty to Eneftigo profit account
         Promise::new(self.fees_account_id()).transfer(fee);
@@ -392,7 +422,7 @@ trait PrimaryListingBuyerCallback {
         attached_deposit: Balance,
         price: Balance,
         listing_id: PrimaryListingId,
-    ) -> NftId;
+    ) -> (NftId, Balance);
 }
 
 trait PrimaryListingBuyerCallback {
@@ -402,7 +432,7 @@ trait PrimaryListingBuyerCallback {
         attached_deposit: Balance,
         price: Balance,
         listing_id: PrimaryListingId,
-    ) -> NftId;
+    ) -> (NftId, Balance);
 }
 
 #[near_bindgen]
@@ -414,7 +444,7 @@ impl PrimaryListingBuyerCallback for MarketplaceContract {
         attached_deposit: Balance,
         price: Balance,
         listing_id: PrimaryListingId,
-    ) -> NftId {
+    ) -> (NftId, Balance) {
         // Here the attached_deposit is the deposit attach buy buyer to the marketplace call (like buy_now)
         // The price is the amount due to be transferred to the seller's account if minting succeeds
         // Pruning the proposals will return deposit provided by respective proposers
@@ -422,41 +452,42 @@ impl PrimaryListingBuyerCallback for MarketplaceContract {
         let mint_result = env::promise_result(0);
         match mint_result {
             PromiseResult::NotReady | PromiseResult::Failed => {
-                let refund = attached_deposit;
-                if refund > 0 {
-                    Promise::new(env::signer_account_id()).transfer(refund);
+                if attached_deposit > 0 {
+                    Promise::new(env::signer_account_id()).transfer(attached_deposit);
                 }
-                let mut listing = self.primary_listings_by_id.get(&listing_id)
-                    .expect("Could not find the listing");
-                    listing.supply_left += 1; // supply was decremented before attempting to mint
-                self.primary_listings_by_id.insert(&listing_id, &listing);
                 panic!("NFT mint failed");
             }
             PromiseResult::Successful(val) => {
+                let buyer_id = env::signer_account_id();
                 // here the NFT was minted and transferred so we pay the seller before we can panic
                 // so that at least this part of the transaction is ok
                 Promise::new(seller_id).transfer(price);
-                // update listing supply
-                let mut listing = self.primary_listings_by_id.get(&listing_id).expect("Could not find NFT listing");
+                // update listing supply, changing supply_left won't affect the storage so we don't 
+                // need to update seller's storage deposit
+                let mut listing = self
+                    .primary_listings_by_id
+                    .get(&listing_id)
+                    .expect("Could not find NFT listing");
                 listing.supply_left -= 1;
-                listing.remove_supply_exceeding_proposals_and_refund_proposers();
+                self.primary_listing_remove_supply_exceeding_proposals_and_refund_proposers(&mut listing);
                 self.primary_listings_by_id.insert(&listing_id, &listing);
-                // get the token ID and NFT storage and compute refund
+                // get the token ID and NFT storage and update buyer storage deposit
                 let (token_id, mint_storage_bytes) =
                     near_sdk::serde_json::from_slice::<(NftId, u64)>(&val)
                         .expect("NFT mint returned unexpected value.");
                 let mint_storage_cost = mint_storage_bytes as Balance * env::storage_byte_cost();
-                let total_storage_cost  = price + mint_storage_cost;
+                let current_deposit = self.storage_deposits.get(&buyer_id).expect("Could not find buyer's storage deposit record");
                 // this should never happen. when it does to be totally correct we should revert the minting
-                // and seller payment but it's water under the bridge now. to avoid it we pessimistically 
-                // compute the storage cost at the beginning of the primary_listing_buy contract call 
-                assert!(attached_deposit >= total_storage_cost, "Attached deposit won't cover the price and NFT storage");
-                let refund = attached_deposit - total_storage_cost;
-                if refund > 0 {
-                    Promise::new(env::signer_account_id()).transfer(refund);
-                }
+                // and seller payment but it's water under the bridge now. to avoid it we pessimistically
+                // compute the storage cost at the beginning of the primary_listing_buy contract call
+                let updated_deposit = if current_deposit >= mint_storage_cost {
+                    current_deposit - mint_storage_cost
+                } else {
+                    0       // should never happen, TODO: log a warning to review deposit logic?
+                };
+                self.storage_deposits.insert(&buyer_id, &updated_deposit);
 
-                token_id
+                (token_id, updated_deposit)
             }
         }
     }
@@ -464,8 +495,6 @@ impl PrimaryListingBuyerCallback for MarketplaceContract {
 
 #[allow(dead_code)]
 fn nft_mint_storage(title: &str, media_url: &str, receiver_id: &str) -> u64 {
-    return 1013 + 
-    title.len() as u64 + 
-    media_url.len() as u64 + 
-    2u64 * receiver_id.len() as u64;
+    // 1013 + 128 + 2048 + 2*64 =
+    return 1013 + title.len() as u64 + media_url.len() as u64 + 2u64 * receiver_id.len() as u64;
 }
