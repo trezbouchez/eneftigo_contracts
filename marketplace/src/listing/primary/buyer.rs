@@ -3,13 +3,16 @@ use crate::{
     external::nft_contract,
     listing::{
         constants::*,
-        primary::config::*,
+        primary::{
+            config::*,
+            lib::PrimaryListingIdJson,
+        },
         proposal::{Proposal, ProposalId},
         status::ListingStatus,
     },
     *,
 };
-use near_sdk::{json_types::U128, PromiseResult};
+use near_sdk::{json_types::{U64,U128}, PromiseResult};
 
 const NFT_MINT_GAS: Gas = Gas(15_000_000_000_000); // TODO: measure
 const NFT_MINT_COMPLETION_GAS: Gas = Gas(5_000_000_000_000); // TODO: measure
@@ -29,11 +32,11 @@ impl MarketplaceContract {
     pub fn primary_listing_buy(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
+        collection_id: U64,
     ) -> Promise {
         let listing_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id.0,
         };
 
         // update listing status, won't change storage usage
@@ -78,8 +81,13 @@ impl MarketplaceContract {
             nft_worst_case_storage_cost
         );
 
+        let listing_id_json = PrimaryListingIdJson {
+            nft_contract_id: listing_id.nft_contract_id.clone(),
+            collection_id: U64(listing_id.collection_id),
+        };
+
         nft_contract::mint(
-            listing_id.collection_id,
+            U64(listing_id.collection_id),
             buyer_id,
             None, // perpetual royalties
             listing_id.nft_contract_id.clone(),
@@ -90,7 +98,7 @@ impl MarketplaceContract {
             listing.seller_id.clone(),
             attached_deposit,
             price_yocto,
-            listing_id.clone(),
+            listing_id_json,
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
             NFT_MINT_COMPLETION_GAS,   // GAS attached to the completion call
@@ -102,14 +110,14 @@ impl MarketplaceContract {
     pub fn primary_listing_place_proposal(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
+        collection_id: U64,
         price_yocto: U128,
-    ) -> ProposalId {
+    ) -> U64 {
         // TODO: check prepaid gas, terminate early if insufficient
 
         let listing_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id.0,
         };
 
         // get listing
@@ -209,15 +217,15 @@ impl MarketplaceContract {
 
         self.primary_listings_by_id.insert(&listing_id, &listing);
 
-        new_proposal.id
+        U64(new_proposal.id)
     }
 
     #[payable]
     /*    pub fn primary_listing_modify_proposal(
             &mut self,
             nft_contract_id: AccountId,
-            collection_id: NftCollectionId,
-            proposal_id: ProposalId,
+            collection_id: U64,
+            proposal_id: U64,
             price_yocto: U128,
         ) {
     /       let listing_id = PrimaryListingId { nft_contract_id, collection_id };
@@ -351,12 +359,12 @@ impl MarketplaceContract {
     pub fn primary_listing_revoke_proposal(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
-        proposal_id: ProposalId,
+        collection_id: U64,
+        proposal_id: U64,
     ) {
         let listing_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id.0,
         };
 
         // get listing
@@ -382,7 +390,7 @@ impl MarketplaceContract {
         let index = listing
             .proposals
             .iter()
-            .position(|proposal| proposal.id == proposal_id)
+            .position(|proposal| proposal.id == proposal_id.0)
             .expect("Could not find proposal");
         let removed_proposal = listing.proposals.swap_remove(index as u64);
         assert!(
@@ -421,7 +429,7 @@ trait PrimaryListingBuyerCallback {
         seller_id: AccountId,
         attached_deposit: Balance,
         price: Balance,
-        listing_id: PrimaryListingId,
+        listing_id: PrimaryListingIdJson,
     ) -> (NftId, Balance);
 }
 
@@ -431,7 +439,7 @@ trait PrimaryListingBuyerCallback {
         seller_id: AccountId,
         attached_deposit: Balance,
         price: Balance,
-        listing_id: PrimaryListingId,
+        listing_id: PrimaryListingIdJson,
     ) -> (NftId, Balance);
 }
 
@@ -443,8 +451,13 @@ impl PrimaryListingBuyerCallback for MarketplaceContract {
         seller_id: AccountId,
         attached_deposit: Balance,
         price: Balance,
-        listing_id: PrimaryListingId,
+        listing_id: PrimaryListingIdJson,
     ) -> (NftId, Balance) {
+        let listing_id = PrimaryListingId {
+            nft_contract_id: listing_id.nft_contract_id,
+            collection_id: listing_id.collection_id.0,
+        };
+
         // Here the attached_deposit is the deposit attach buy buyer to the marketplace call (like buy_now)
         // The price is the amount due to be transferred to the seller's account if minting succeeds
         // Pruning the proposals will return deposit provided by respective proposers

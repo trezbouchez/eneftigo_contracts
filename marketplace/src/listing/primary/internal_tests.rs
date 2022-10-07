@@ -302,7 +302,7 @@ mod internal_tests {
         let nft_contract_id = AccountId::new_unchecked(nft_contract_id_str.to_string());
         let offering_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id,
         };
         let offeror_id = AccountId::new_unchecked(offeror_id_str.to_string());
         let nft_metadata = NftMetadata::new(

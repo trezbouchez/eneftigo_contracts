@@ -19,7 +19,6 @@ mod internal;
 mod enumeration;
 mod external;
 mod constants;
-mod callback;
 mod deposit;
 
 // mod error;

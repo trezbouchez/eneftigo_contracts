@@ -18,7 +18,7 @@ mod seller_tests {
         {testing_env, AccountId, VMContext},
         borsh::{BorshSerialize},
         collections::{UnorderedSet, Vector},
-        json_types::{U128},
+        json_types::{U64,U128},
         test_utils::{VMContextBuilder},
     };
 
@@ -49,7 +49,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,         // total_supply
+            U64(2),         // total_supply
             U128(800), // buy_now_price_yocto
             U128(50),  // min_proposal_price_yocto
             // //nft_metadata(1),                         // nft_metadata
@@ -74,7 +74,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1115), // buy_now_price_yocto
             U128(50),   // min_proposal_price_yocto
             //nft_metadata(1),                         // nft_metadata
@@ -99,7 +99,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1200), // buy_now_price_yocto
             U128(55),   // min_proposal_price_yocto
             //nft_metadata(1),                         // nft_metadata
@@ -123,7 +123,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(1100), // min_proposal_price_yocto
             //nft_metadata(1),                         // nft_metadata
@@ -148,7 +148,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                         // nft_metadata
@@ -173,7 +173,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -198,7 +198,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -223,7 +223,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                               // nft_metadata
@@ -248,7 +248,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            0,          // total_supply
+            U64(0),          // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                         // nft_metadata
@@ -273,7 +273,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            101,        // total_supply
+            U64(101),        // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                         // nft_metadata
@@ -299,7 +299,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            50,         // total_supply
+            U64(50),         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                        // nft_metadata
@@ -326,7 +326,7 @@ mod seller_tests {
         marketplace.primary_listing_add_accepting_proposals(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            50,         // total_supply
+            U64(50),         // total_supply
             U128(1100), // buy_now_price_yocto
             U128(500),  // min_proposal_price_yocto
             //nft_metadata(1),                        // nft_metadata
@@ -387,7 +387,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,         // total_supply
+            U64(2),         // total_supply
             U128(800), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
             None,
@@ -411,7 +411,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1115), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
             None,
@@ -434,7 +434,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
             None,                                          // start_date
@@ -458,7 +458,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
             Some("1975-04-24T00:00:00+00:00".to_string()), // start_date
@@ -482,7 +482,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            2,          // total_supply
+            U64(2),          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                               // nft_metadata
             Some("1975-05-24T13:10:00+00:00".to_string()), // start_date
@@ -506,7 +506,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            0,          // total_supply
+            U64(0),          // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
             None,
@@ -530,7 +530,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            101,        // total_supply
+            U64(101),        // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1), // nft_metadata
             None,
@@ -555,7 +555,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            50,         // total_supply
+            U64(50),         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                              // nft_metadata
             None,                                         // start_date
@@ -581,7 +581,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             String::from("Bored Grapes"),
             String::from("https://ipfs.io/ipfs/QmcRD4wkPPi6dig81r5sLj9Zm1gDCL4zgpEj9CfuRrGbzF"),
-            50,         // total_supply
+            U64(50),         // total_supply
             U128(1100), // buy_now_price_yocto
             //nft_metadata(1),                // nft_metadata
             Some("1975-05-24".to_string()), // start_date
@@ -711,7 +711,7 @@ mod seller_tests {
         marketplace.primary_listing_add_buy_now_only(
             title,
             media_url,
-            10,         // total_supply
+            U64(10),         // total_supply
             U128(1000), // buy_now_price_yocto
             Some(String::from("2022-09-01T00:00:00+00:00")),
             Some(String::from("2022-09-20T00:00:00+00:00")),
@@ -807,7 +807,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 1);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), U64(collection_id), U64(1));
     }
 
     #[test]
@@ -830,8 +830,8 @@ mod seller_tests {
 
         marketplace.primary_listing_accept_proposals(
             AccountId::new_unchecked(NONEXISTENT_NFT_CONTRACT_ID.to_string()),
-            collection_id,
-            1,
+            U64(collection_id),
+            U64(1),
         );
     }
     #[test]
@@ -853,7 +853,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 4);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), U64(collection_id), U64(4));
     }
 
     #[test]
@@ -874,7 +874,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 1);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), U64(collection_id), U64(1));
 
         let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
@@ -890,7 +890,7 @@ mod seller_tests {
         );
         assert!(fpo.supply_left == 2, "Wrong supply_left");
 
-        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 2);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), U64(collection_id), U64(2));
         let fpo = marketplace
             .primary_listings_by_id
             .get(&offering_id)
@@ -920,7 +920,7 @@ mod seller_tests {
         test_place_proposals(&mut fpo);
         test_add_fpo(&mut marketplace, &fpo);
 
-        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), collection_id, 3);
+        marketplace.primary_listing_accept_proposals(nft_contract_id.clone(), U64(collection_id), U64(3));
 
         let offering_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),

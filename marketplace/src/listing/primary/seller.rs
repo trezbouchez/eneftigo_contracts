@@ -9,7 +9,7 @@ use crate::{
     *,
 };
 use chrono::DateTime;
-use near_sdk::{collections::Vector, json_types::U128, AccountId, PromiseResult};
+use near_sdk::{collections::Vector, json_types::{U64,U128}, AccountId, PromiseResult};
 use url::Url;
 
 const NFT_MAKE_COLLECTION_GAS: Gas = Gas(5_000_000_000_000); // highest measured 3_920_035_683_889
@@ -26,7 +26,7 @@ impl MarketplaceContract {
         &mut self,
         title: String,
         media_url: String,
-        supply_total: u64,
+        supply_total: U64,
         buy_now_price_yocto: U128,
         start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
         end_date: Option<String>,
@@ -57,7 +57,7 @@ impl MarketplaceContract {
 
         // Is max_supply within limit?
         assert!(
-            supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
+            supply_total.0 > 0 && supply_total.0 <= TOTAL_SUPPLY_MAX,
             "Max NFT supply must be between 1 and {}.",
             TOTAL_SUPPLY_MAX
         );
@@ -151,7 +151,7 @@ impl MarketplaceContract {
         &mut self,
         title: String,
         media_url: String,
-        supply_total: u64,
+        supply_total: U64,
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: U128,
         start_date: Option<String>, // if None, will start when block is mined
@@ -180,7 +180,7 @@ impl MarketplaceContract {
 
         // ensure max supply does not exceed limit
         assert!(
-            supply_total > 0 && supply_total <= TOTAL_SUPPLY_MAX,
+            supply_total.0 > 0 && supply_total.0 <= TOTAL_SUPPLY_MAX,
             "Max NFT supply must be between 1 and {}.",
             TOTAL_SUPPLY_MAX
         );
@@ -267,12 +267,12 @@ impl MarketplaceContract {
     pub fn primary_listing_accept_proposals(
         &mut self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
-        accepted_proposals_count: u64,
+        collection_id: U64,
+        accepted_proposals_count: U64,
     ) {
         let listing_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id.0,
         };
 
         // get the listing
@@ -290,7 +290,7 @@ impl MarketplaceContract {
         // make sure there's enough proposals
         let num_proposals = listing.proposals.len();
         assert!(
-            num_proposals >= accepted_proposals_count,
+            num_proposals >= accepted_proposals_count.0,
             "There's not enough proposals ({})",
             num_proposals
         );
@@ -341,7 +341,7 @@ impl MarketplaceContract {
         listing.proposals.clear();
         listing.proposals.extend(proposals_vec);
 
-        listing.supply_left -= accepted_proposals_count; // TODO: move to resolve, one by one
+        listing.supply_left -= accepted_proposals_count.0; // TODO: move to resolve, one by one
         self.primary_listings_by_id.insert(&listing_id, &listing);
     }
 
@@ -406,12 +406,12 @@ trait PrimaryListingSellerCallback {
         &mut self,
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
-        supply_total: u64,
+        supply_total: U64,
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: Option<U128>,
         start_timestamp: Option<i64>,
         end_timestamp: Option<i64>,
-    ) -> (NftCollectionId, Balance);
+    ) -> (U64, Balance);
 }
 
 trait PrimaryListingSellerCallback {
@@ -419,12 +419,12 @@ trait PrimaryListingSellerCallback {
         &mut self,
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
-        supply_total: u64,
+        supply_total: U64,
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: Option<U128>,
         start_timestamp: Option<i64>,
         end_timestamp: Option<i64>,
-    ) -> (NftCollectionId, Balance);
+    ) -> (U64, Balance);
 }
 
 #[near_bindgen]
@@ -434,31 +434,31 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
         &mut self,
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
-        supply_total: u64,
+        supply_total: U64,
         buy_now_price_yocto: U128,
         min_proposal_price_yocto: Option<U128>,
         start_timestamp: Option<i64>,
         end_timestamp: Option<i64>,
-    ) -> (NftCollectionId, Balance) {
+    ) -> (U64, Balance) {
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
         match env::promise_result(0) {
             PromiseResult::NotReady => { unreachable!("NFT contract unreachable") }
             PromiseResult::Failed => { panic!("NFT make_collection failed") }
             PromiseResult::Successful(val) => {
                 let (collection_id, nft_storage) =
-                    near_sdk::serde_json::from_slice::<(NftCollectionId, u64)>(&val)
+                    near_sdk::serde_json::from_slice::<(U64, U64)>(&val)
                         .expect("NFT make_collection returned unexpected value");
                 let seller_id = env::signer_account_id();
                 let listing_id = PrimaryListingId {
                     nft_contract_id: nft_account_id.clone(),
-                    collection_id,
+                    collection_id: collection_id.0,
                 };
                 let listing_id_hash = hash_primary_listing_id(&listing_id);
                 let listing = PrimaryListing {
                     id: listing_id,
                     seller_id: seller_id.clone(),
                     nft_metadata,
-                    supply_total,
+                    supply_total: supply_total.0,
                     buy_now_price_yocto: buy_now_price_yocto.0,
                     min_proposal_price_yocto: if let Some(min_proposal_price_yocto) =
                         min_proposal_price_yocto
@@ -470,7 +470,7 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
                     start_timestamp,
                     end_timestamp,
                     status: ListingStatus::Unstarted,
-                    supply_left: supply_total,
+                    supply_left: supply_total.0,
                     proposals: Vector::new(
                         PrimaryListingStorageKey::Proposals { listing_id_hash }
                             .try_to_vec()
@@ -486,7 +486,7 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
                 let storage_byte_cost = env::storage_byte_cost();
                 let marketplace_storage = env::storage_usage() - marketplace_storage_before;
                 let marketplace_storage_cost = marketplace_storage as Balance * storage_byte_cost;
-                let nft_storage_cost = nft_storage as Balance * storage_byte_cost;
+                let nft_storage_cost = nft_storage.0 as Balance * storage_byte_cost;
                 let total_storage_cost = marketplace_storage_cost + nft_storage_cost;
                 let current_deposit = self.storage_deposits.get(&seller_id).expect("Could not find seller storage deposit record");
                 let updated_deposit = if current_deposit >= total_storage_cost {

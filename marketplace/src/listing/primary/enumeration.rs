@@ -1,4 +1,8 @@
-use crate::*;
+use crate::{
+    *,
+    listing::primary::lib::{PrimaryListingIdJson},
+};
+
 use super::super::{
     status::{ListingStatus},
 };
@@ -18,8 +22,13 @@ impl MarketplaceContract {
 
     pub fn fpo_min_proposal_price_yocto(
         &self,
-        listing_id: PrimaryListingId
+        listing_id: PrimaryListingIdJson
     ) -> Option<U128> {
+        let listing_id = PrimaryListingId {
+            nft_contract_id: listing_id.nft_contract_id,
+            collection_id: listing_id.collection_id.0,
+        };
+        
         let fpo = self.primary_listings_by_id.get(&listing_id);
         if let Some(fpo) = fpo {
             if fpo.status == ListingStatus::Running {

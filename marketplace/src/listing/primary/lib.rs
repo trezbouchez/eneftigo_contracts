@@ -6,7 +6,7 @@ use super::super::{
 };
 use std::fmt;
 use near_sdk::collections::Vector;
-
+use near_sdk::json_types::{U64};
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum PrimaryListingStorageKey {
@@ -16,12 +16,12 @@ pub enum PrimaryListingStorageKey {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-#[derive(Serialize,Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+// #[derive(Serialize,Deserialize)]
+// #[serde(crate = "near_sdk::serde")]
 #[derive(Clone)]
 pub struct PrimaryListingId {
     pub nft_contract_id: AccountId,
-    pub collection_id: NftCollectionId,
+    pub collection_id: u64,
 }
 
 impl fmt::Display for PrimaryListingId {
@@ -32,6 +32,13 @@ impl fmt::Display for PrimaryListingId {
             self.nft_contract_id, self.collection_id,
         )
     }
+}
+
+#[derive(Serialize,Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PrimaryListingIdJson {
+    pub nft_contract_id: AccountId,
+    pub collection_id: U64,
 }
 
 #[near_bindgen]

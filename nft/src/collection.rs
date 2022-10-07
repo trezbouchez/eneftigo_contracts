@@ -1,5 +1,5 @@
 use crate::*;
-
+use near_sdk::json_types::{U64};
 use url::Url;
 
 const MAX_TITLE_LEN: usize = 128;
@@ -16,8 +16,8 @@ impl NftContract {
     pub fn make_collection(
         &mut self,
         nft_metadata: TokenMetadata,
-        max_supply: u64,
-    ) -> (NftCollectionId, u64) {
+        max_supply: U64,
+    ) -> (U64, U64) {
         // assert_eq!(
         //     &env::predecessor_account_id(),
         //     &self.owner_id,
@@ -65,7 +65,7 @@ impl NftContract {
 
         let new_collection = NftCollection {
             nft_metadata,
-            max_supply,
+            max_supply: max_supply.0,
             is_frozen: false,
             tokens: Vector::new(
                 StorageKey::CollectionsInner {
@@ -106,10 +106,10 @@ impl NftContract {
             Promise::new(env::predecessor_account_id()).transfer(refund_amount);
         }
 
-        (collection_id, actual_storage_usage)
+        (U64(collection_id), U64(actual_storage_usage))
     }
 
-    pub fn freeze_collection(&mut self, collection_id: u64) {
+    pub fn freeze_collection(&mut self, collection_id: U64) {
         assert_eq!(
             &env::predecessor_account_id(),
             &self.owner_id,
@@ -118,17 +118,17 @@ impl NftContract {
 
         let mut collection = self
             .collections_by_id
-            .get(&collection_id)
+            .get(&collection_id.0)
             .expect("Collection does not exist");
         assert!(
             !collection.tokens.is_empty(),
             "Cannot freeze an empty collection"
         );
         collection.is_frozen = true;
-        self.collections_by_id.insert(&collection_id, &collection);
+        self.collections_by_id.insert(&collection_id.0, &collection);
     }
 
-    pub fn delete_collection(&mut self, collection_id: u64) {
+    pub fn delete_collection(&mut self, collection_id: U64) {
         assert_eq!(
             &env::predecessor_account_id(),
             &self.owner_id,
@@ -140,14 +140,14 @@ impl NftContract {
 
         let collection = self
             .collections_by_id
-            .get(&collection_id)
+            .get(&collection_id.0)
             .expect("Collection does not exist");
         assert!(
             collection.tokens.is_empty(),
             "Can only delete a collection if not tokens have been minted"
         );
         self.collections_by_id
-            .remove(&collection_id)
+            .remove(&collection_id.0)
             .expect("Could not remove collection from collections_by_id");
 
         self.collections_by_url
@@ -182,8 +182,8 @@ mod tests {
 
         let mut contract = NftContract::new_default_meta("test.near".parse().unwrap());
         let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset.png");
-        contract.make_collection(nft_metadata.clone(), 5);
-        contract.make_collection(nft_metadata.clone(), 10);
+        contract.make_collection(nft_metadata.clone(), U64(5));
+        contract.make_collection(nft_metadata.clone(), U64(10));
     }
 
     #[test]
@@ -199,10 +199,10 @@ mod tests {
 
         let mut contract = NftContract::new_default_meta("test.near".parse().unwrap());
         let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset1.png");
-        contract.make_collection(nft_metadata, 5);
+        contract.make_collection(nft_metadata, U64(5));
         let nft_metadata = TokenMetadata::new("collection2", "http://eneftigo/asset0.png");
-        contract.make_collection(nft_metadata, 5);
+        contract.make_collection(nft_metadata, U64(5));
         let nft_metadata = TokenMetadata::new("collection", "http://eneftigo/asset22.png");
-        contract.make_collection(nft_metadata, 10);
+        contract.make_collection(nft_metadata, U64(10));
     }
 }

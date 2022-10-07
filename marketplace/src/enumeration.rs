@@ -12,7 +12,7 @@ use near_sdk::json_types::{U128, U64};
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonPrimaryListing {
     pub nft_contract_id: AccountId,
-    pub collection_id: NftCollectionId,
+    pub collection_id: U64,
     pub seller_id: AccountId,
     pub supply_total: U64,
     pub buy_now_price_yocto: U128,
@@ -24,7 +24,7 @@ pub struct JsonPrimaryListing {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonPrimaryListingProposal {
-    pub id: u64,
+    pub id: U64,
     pub proposer_id: AccountId,
     pub price_yocto: U128,
 }
@@ -50,7 +50,7 @@ impl MarketplaceContract {
             .take(count) // return "limit" elements or 0 if missing
             .map(|listing| JsonPrimaryListing {
                 nft_contract_id: listing.id.nft_contract_id,
-                collection_id: listing.id.collection_id,
+                collection_id: U64(listing.id.collection_id),
                 seller_id: listing.seller_id,
                 supply_total: U64(listing.supply_total),
                 buy_now_price_yocto: U128(listing.buy_now_price_yocto),
@@ -65,11 +65,11 @@ impl MarketplaceContract {
     pub fn primary_listing(
         &self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
+        collection_id: U64,
     ) -> JsonPrimaryListing {
         let listing_id = PrimaryListingId {
             nft_contract_id: nft_contract_id.clone(),
-            collection_id,
+            collection_id: collection_id.0,
         };
         let listing = self
             .primary_listings_by_id
@@ -93,12 +93,12 @@ impl MarketplaceContract {
     pub fn primary_listing_proposal(
         &self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
+        collection_id: U64,
         proposal_id: ProposalId,
     ) -> Option<JsonPrimaryListingProposal> {
         let listing_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id.0,
         };
         let listing = self
             .primary_listings_by_id
@@ -111,14 +111,14 @@ impl MarketplaceContract {
     pub fn primary_listing_proposals_by_proposer(
         &self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
+        collection_id: U64,
         proposer_id: AccountId,
         from_index: Option<U128>,
         limit: Option<u64>,
     ) -> Vec<JsonPrimaryListingProposal> {
         let listing_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id.0,
         };
         let listing = self
             .primary_listings_by_id
@@ -132,7 +132,7 @@ impl MarketplaceContract {
             .skip(start)
             .take(count)
             .map(|proposal| JsonPrimaryListingProposal {
-                id: proposal.id,
+                id: U64(proposal.id),
                 proposer_id: proposal.proposer_id,
                 price_yocto: U128(proposal.price_yocto),
             })
@@ -143,13 +143,13 @@ impl MarketplaceContract {
     pub fn primary_listing_proposals(
         &self,
         nft_contract_id: AccountId,
-        collection_id: NftCollectionId,
+        collection_id: U64,
         from_index: Option<U128>,
         limit: Option<u64>,
     ) -> Vec<JsonPrimaryListingProposal> {
         let listing_id = PrimaryListingId {
             nft_contract_id,
-            collection_id,
+            collection_id: collection_id.0,
         };
         let listing = self
             .primary_listings_by_id
@@ -165,7 +165,7 @@ impl MarketplaceContract {
             .skip(start) //skip to the index we specified in the start variable
             .take(count) // return "limit" elements or 0 if missing
             .map(|proposal| JsonPrimaryListingProposal {
-                id: proposal.id,
+                id: U64(proposal.id),
                 proposer_id: proposal.proposer_id,
                 price_yocto: U128(proposal.price_yocto),
             })
@@ -176,7 +176,7 @@ impl MarketplaceContract {
 impl PrimaryListing {
     pub(crate) fn proposal(
         &self,
-        proposal_id: &ProposalId,
+        proposal_id: &u64,
     ) -> Option<JsonPrimaryListingProposal> {
         if let Some(proposal) = self
             .proposals
@@ -184,7 +184,7 @@ impl PrimaryListing {
             .find(|proposal| proposal.id == *proposal_id)
         {
             Some(JsonPrimaryListingProposal {
-                id: proposal.id,
+                id: U64(proposal.id),
                 proposer_id: proposal.proposer_id,
                 price_yocto: U128(proposal.price_yocto),
             })
