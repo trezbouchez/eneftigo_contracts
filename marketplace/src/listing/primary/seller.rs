@@ -113,11 +113,11 @@ impl MarketplaceContract {
         if let Some(end_timestamp) = end_timestamp {
             if let Some(start_timestamp) = start_timestamp {
                 let duration = end_timestamp - start_timestamp;
-                assert!(duration >= MIN_DURATION_NANO, "Listing duration too short");
+                assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
             } else {
                 let current_block_timestamp = env::block_timestamp() as i64;
                 let duration = end_timestamp - current_block_timestamp;
-                assert!(duration >= MIN_DURATION_NANO, "Listing duration too short");
+                assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
             }
         }
 
@@ -229,13 +229,13 @@ impl MarketplaceContract {
 
         if let Some(start_timestamp) = start_timestamp {
             let duration = end_timestamp - start_timestamp;
-            assert!(duration >= MIN_DURATION_NANO, "Listing duration too short");
-            assert!(duration <= MAX_DURATION_NANO, "Listing duration too long");
+            assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
+            assert!(duration <= PRIMARY_LISTING_MAX_DURATION_NANO, "Listing duration too long");
         } else {
             let current_block_timestamp = env::block_timestamp() as i64;
             let duration = end_timestamp - current_block_timestamp;
-            assert!(duration >= MIN_DURATION_NANO, "Listing duration too short");
-            assert!(duration <= MAX_DURATION_NANO, "Listing duration too long");
+            assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
+            assert!(duration <= PRIMARY_LISTING_MAX_DURATION_NANO, "Listing duration too long");
         }
 
         let nft_contract_id = self.internal_nft_shared_contract_id();

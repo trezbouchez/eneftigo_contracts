@@ -23,7 +23,14 @@ pub enum SecondaryListingStorageKey {
 #[derive(Clone)]
 pub struct SecondaryListingId {
     pub nft_contract_id: AccountId,
-    pub nft_id: NftId,
+    pub token_id: NftId,
+}
+
+#[derive(Serialize,Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SecondaryListingIdJson {
+    pub nft_contract_id: AccountId,
+    pub token_id: NftId,
 }
 
 #[near_bindgen]
@@ -31,14 +38,13 @@ pub struct SecondaryListingId {
 pub struct SecondaryListing {
     pub id: SecondaryListingId,
     pub seller_id: AccountId,
+    pub approval_id: u64,
     pub nft_metadata: NftMetadata,
-    pub supply_total: u64,      // TODO: do we need this? probably yes
     pub buy_now_price_yocto: u128,
     pub min_proposal_price_yocto: Option<u128>, // if None then no proposals will be accepted
     pub start_timestamp: Option<i64>,           // nanoseconds since 1970-01-01
     pub end_timestamp: Option<i64>,             // nanoseconds since 1970-01-01
     pub status: ListingStatus, // will be updated when any buyer transaction is mined
-    pub supply_left: u64,
     pub proposals: Vector<Proposal>,
     pub next_proposal_id: u64,
 }

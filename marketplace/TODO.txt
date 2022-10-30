@@ -1,6 +1,10 @@
 DONE: 1. Keep track of (next)collecton ID in NFT
 DONE: 2. Only add FPO if make_collection succeeds
 DONE: 3. Should fpo include asset_url? maybe just link to the collection?
+
+nft_approve takes some deposit. should it be attached? should we call marketplace method first?
+nft_metadata issued_at is wrong at mint, at least in testnet
+
 Accept proposal - take into account that ordering of acceptable_proposals is now changed
 Delete collection on offering conclude if no NFTs have been sold
 fpo_conclude need to refund proposers for their storage and price deposits

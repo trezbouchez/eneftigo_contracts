@@ -1,8 +1,9 @@
 pub mod lib;
 pub mod seller;
 // pub mod buyer;
-// pub mod enumeration;
+pub mod enumeration;
 
+mod nft_callback;
 // mod resolve;
 mod internal;
 mod config;

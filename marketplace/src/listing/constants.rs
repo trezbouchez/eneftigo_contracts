@@ -1,4 +1,6 @@
 pub const MAX_LISTING_TITLE_LEN: usize = 128;
+
+pub const MIN_BUY_NOW_PRICE_YOCTO: u128 = 1000;
 pub const PRICE_STEP_YOCTO: u128 = 10;
 
 // we act as an escrow when placing proposals; users must deposit

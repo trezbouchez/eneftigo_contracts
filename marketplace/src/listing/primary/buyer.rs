@@ -486,9 +486,9 @@ impl PrimaryListingBuyerCallback for MarketplaceContract {
                 self.primary_listings_by_id.insert(&listing_id, &listing);
                 // get the token ID and NFT storage and update buyer storage deposit
                 let (token_id, mint_storage_bytes) =
-                    near_sdk::serde_json::from_slice::<(NftId, u64)>(&val)
+                    near_sdk::serde_json::from_slice::<(NftId, U64)>(&val)
                         .expect("NFT mint returned unexpected value.");
-                let mint_storage_cost = mint_storage_bytes as Balance * env::storage_byte_cost();
+                let mint_storage_cost = mint_storage_bytes.0 as Balance * env::storage_byte_cost();
                 let current_deposit = self.storage_deposits.get(&buyer_id).expect("Could not find buyer's storage deposit record");
                 // this should never happen. when it does to be totally correct we should revert the minting
                 // and seller payment but it's water under the bridge now. to avoid it we pessimistically

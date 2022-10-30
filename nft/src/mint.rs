@@ -1,5 +1,7 @@
 use crate::*;
 use sha2::*;
+use near_sdk::json_types::{U64};
+use chrono::{NaiveDateTime, DateTime, Utc};
 
 #[near_bindgen]
 impl NftContract {
@@ -9,9 +11,9 @@ impl NftContract {
     pub fn mint(
         &mut self,
         receiver_id: AccountId,
-        collection_id: NftCollectionId,
+        collection_id: U64,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
-    ) -> (NftId, u64) {
+    ) -> (NftId, U64) {
         assert_eq!(
             &env::predecessor_account_id(),
             &self.owner_id,
@@ -20,7 +22,7 @@ impl NftContract {
 
         let mut collection = self
             .collections_by_id
-            .get(&collection_id)
+            .get(&collection_id.0)
             .expect("Collection does not exists");
         assert!(
             !collection.is_frozen,
@@ -69,14 +71,14 @@ impl NftContract {
         }
 
         // we want to keep the NftId size fixed for predictable storage calculation
-        let new_token_id_string = format!("{}:{}", collection_id, new_token_index);
+        let new_token_id_string = format!("{}:{}", collection_id.0, new_token_index);
         let token_id_hash = Sha256::digest(new_token_id_string.as_bytes());
         let new_token_id = format!("{:01$x}", token_id_hash, 64);
 
         let new_token = Nft {
             //set the owner ID equal to the receiver ID passed into the function
             owner_id: receiver_id.clone(),
-            collection_id: collection_id,
+            collection_id: collection_id.0,
             approved_account_ids: Default::default(),
             next_approval_id: 0,
             royalty,
@@ -92,7 +94,8 @@ impl NftContract {
 
         let mut token_metadata = collection.nft_metadata.clone();
         token_metadata.copies = Some(new_token_index);
-        token_metadata.issued_at = Some(env::block_timestamp());
+        let block_datetime = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
+        token_metadata.issued_at = Some(block_datetime.to_rfc3339());
         self.token_metadata_by_id
             .insert(&new_token_id, &token_metadata);
 
@@ -104,7 +107,7 @@ impl NftContract {
         if new_token_index == collection.tokens.len() {
             collection.is_frozen = true;
         }
-        self.collections_by_id.insert(&collection_id, &collection);
+        self.collections_by_id.insert(&collection_id.0, &collection);
 
         //calculate the required storage which was the used - initial
         let storage_usage = env::storage_usage() - initial_storage_usage;
@@ -126,7 +129,7 @@ impl NftContract {
         };
         env::log_str(&nft_mint_log.to_string());
 
-        (new_token_id, storage_usage)
+        (new_token_id, U64(storage_usage))
     }
 
     /*    #[payable]
@@ -173,18 +176,19 @@ mod tests {
         testing_env!(context);
 
         let mut contract = NftContract::new_default_meta("marketplace.near".parse().unwrap());
-        let collection_id = 0u64;
+        let collection_id = U64(0);
         let title = String::from("collection_title");
         let asset_url = String::from("https://ipfs.io/ipfs/Qmef");
         let mut nft_metadata = TokenMetadata::new(&title, &asset_url);
-        nft_metadata.issued_at = Some(env::block_timestamp());
+        let block_datetime = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
+        nft_metadata.issued_at = Some(block_datetime.to_rfc3339());
         let collection = NftCollection {
             nft_metadata,
             max_supply: 10,
             is_frozen: false,
             tokens: Vector::new(
                 StorageKey::CollectionsInner {
-                    collection_id: collection_id,
+                    collection_id: collection_id.0,
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -192,10 +196,10 @@ mod tests {
         };
         contract
             .collections_by_url
-            .insert(&asset_url, &collection_id);
+            .insert(&asset_url, &collection_id.0);
         contract
             .collections_by_id
-            .insert(&collection_id, &collection);
+            .insert(&collection_id.0, &collection);
 
         let storage_before = env::storage_usage();
         let receiver_name = String::from("receiver13.near");
@@ -224,21 +228,22 @@ mod tests {
         testing_env!(context);
 
         let mut contract = NftContract::new_default_meta("marketplace.near".parse().unwrap());
-        let collection_id = 0u64;
+        let collection_id = U64(0);
         let title = String::from("abcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefgh");
         assert_eq!(title.len(), 128);
         let asset_url =
             String::from("https://ipfs.io/ipfs/Qme7ss3ARVgxv6rXqVPiikMJ8u2NLgmgszg13pYrDKEoiu");
         assert_eq!(asset_url.len(), 21 + 46);
         let mut nft_metadata = TokenMetadata::new(&title, &asset_url);
-        nft_metadata.issued_at = Some(env::block_timestamp());
+        let block_datetime = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
+        nft_metadata.issued_at = Some(block_datetime.to_rfc3339());
         let collection = NftCollection {
             nft_metadata,
             max_supply: 10,
             is_frozen: false,
             tokens: Vector::new(
                 StorageKey::CollectionsInner {
-                    collection_id: collection_id,
+                    collection_id: collection_id.0,
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -248,10 +253,10 @@ mod tests {
         let storage_before = env::storage_usage();
         contract
             .collections_by_url
-            .insert(&asset_url, &collection_id);
+            .insert(&asset_url, &collection_id.0);
         contract
             .collections_by_id
-            .insert(&collection_id, &collection);
+            .insert(&collection_id.0, &collection);
         let storage_after = env::storage_usage();
         assert!(
             storage_after - storage_before == NEW_COLLECTION_WORST_CASE_STORAGE,
