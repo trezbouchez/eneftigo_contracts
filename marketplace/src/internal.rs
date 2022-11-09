@@ -13,11 +13,11 @@ pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
 
 impl MarketplaceContract {
 
-    pub(crate) fn internal_nft_shared_contract_id(&mut self) -> AccountId {
+    pub(crate) fn internal_nft_shared_contract_id(&self) -> AccountId {
         AccountId::new_unchecked(format!("nft.{}", env::current_account_id()))
     }
 
-    pub(crate) fn fees_account_id(&mut self) -> AccountId {
+    pub(crate) fn fees_account_id(&self) -> AccountId {
         AccountId::new_unchecked(format!("fees.{}", env::current_account_id()))
     }
 }

@@ -1,5 +1,3 @@
-use crate::*;
-
 pub const TOTAL_SUPPLY_MAX: u64 = 100;
 
 // these define the allowed offering lifetime

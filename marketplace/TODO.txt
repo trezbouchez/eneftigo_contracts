@@ -4,6 +4,8 @@ DONE: 3. Should fpo include asset_url? maybe just link to the collection?
 
 nft_approve takes some deposit. should it be attached? should we call marketplace method first?
 nft_metadata issued_at is wrong at mint, at least in testnet
+how to mark a pre-owned NFT as 'on sale'? marketplace contract must add it
+revoking approval - removing offer
 
 Accept proposal - take into account that ordering of acceptable_proposals is now changed
 Delete collection on offering conclude if no NFTs have been sold

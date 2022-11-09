@@ -7,7 +7,7 @@ use crate::{
             config::*,
             lib::PrimaryListingIdJson,
         },
-        proposal::{Proposal, ProposalId},
+        proposal::{Proposal/*, ProposalId*/},
         status::ListingStatus,
     },
     *,

@@ -1,5 +1,5 @@
 pub mod lib;
-pub mod seller;
+mod seller;
 // pub mod buyer;
 pub mod enumeration;
 

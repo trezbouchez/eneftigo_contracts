@@ -9,7 +9,11 @@ use crate::{
     *,
 };
 use chrono::DateTime;
-use near_sdk::{collections::Vector, json_types::{U64,U128}, AccountId, PromiseResult};
+use near_sdk::{
+    collections::Vector,
+    json_types::{U128, U64},
+    AccountId, PromiseResult,
+};
 use url::Url;
 
 const NFT_MAKE_COLLECTION_GAS: Gas = Gas(5_000_000_000_000); // highest measured 3_920_035_683_889
@@ -21,14 +25,13 @@ mod seller_tests;
 
 #[near_bindgen]
 impl MarketplaceContract {
-    
     pub fn primary_listing_add_buy_now_only(
         &mut self,
         title: String,
         media_url: String,
         supply_total: U64,
         buy_now_price_yocto: U128,
-        start_date: Option<String>, // if missing, it's start accepting bids when this transaction is mined
+        start_date: Option<String>, // if missing, it'll start accepting bids when this transaction is mined
         end_date: Option<String>,
     ) -> Promise {
         let seller_id = env::predecessor_account_id();
@@ -36,9 +39,12 @@ impl MarketplaceContract {
         // Is deposit sufficient to cover the storage in the worst-case scenario?
         let storage_byte_cost = env::storage_byte_cost();
         let current_deposit: Balance = self.storage_deposits.get(&seller_id).unwrap_or(0);
-        let marketplace_worst_case_storage_cost = PRIMARY_LISTING_ADD_STORAGE_MAX as Balance * storage_byte_cost;
-        let nft_worst_case_storage_cost = NFT_MAKE_COLLECTION_STORAGE_MAX as Balance * storage_byte_cost;
-        let worst_case_storage_cost = marketplace_worst_case_storage_cost + nft_worst_case_storage_cost;
+        let marketplace_worst_case_storage_cost =
+            PRIMARY_LISTING_ADD_STORAGE_MAX as Balance * storage_byte_cost;
+        let nft_worst_case_storage_cost =
+            NFT_MAKE_COLLECTION_STORAGE_MAX as Balance * storage_byte_cost;
+        let worst_case_storage_cost =
+            marketplace_worst_case_storage_cost + nft_worst_case_storage_cost;
         assert!(
             current_deposit >= worst_case_storage_cost,
             "Your storage deposit is too low. Must be {} yN to process transaction. Please increase your deposit.",
@@ -113,11 +119,17 @@ impl MarketplaceContract {
         if let Some(end_timestamp) = end_timestamp {
             if let Some(start_timestamp) = start_timestamp {
                 let duration = end_timestamp - start_timestamp;
-                assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
+                assert!(
+                    duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
+                    "Listing duration too short"
+                );
             } else {
                 let current_block_timestamp = env::block_timestamp() as i64;
                 let duration = end_timestamp - current_block_timestamp;
-                assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
+                assert!(
+                    duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
+                    "Listing duration too short"
+                );
             }
         }
 
@@ -162,9 +174,12 @@ impl MarketplaceContract {
         // Is deposit sufficient to cover the storage in the worst-case scenario?
         let storage_byte_cost = env::storage_byte_cost();
         let current_deposit: Balance = self.storage_deposits.get(&seller_id).unwrap_or(0);
-        let marketplace_worst_case_storage_cost = PRIMARY_LISTING_ADD_STORAGE_MAX as Balance * storage_byte_cost;
-        let nft_worst_case_storage_cost = NFT_MAKE_COLLECTION_STORAGE_MAX as Balance * storage_byte_cost;
-        let worst_case_storage_cost = marketplace_worst_case_storage_cost + nft_worst_case_storage_cost;
+        let marketplace_worst_case_storage_cost =
+            PRIMARY_LISTING_ADD_STORAGE_MAX as Balance * storage_byte_cost;
+        let nft_worst_case_storage_cost =
+            NFT_MAKE_COLLECTION_STORAGE_MAX as Balance * storage_byte_cost;
+        let worst_case_storage_cost =
+            marketplace_worst_case_storage_cost + nft_worst_case_storage_cost;
         assert!(
             current_deposit >= worst_case_storage_cost,
             "Your storage deposit is too low. Must be {} yN to process transaction. Please increase your deposit.",
@@ -229,13 +244,25 @@ impl MarketplaceContract {
 
         if let Some(start_timestamp) = start_timestamp {
             let duration = end_timestamp - start_timestamp;
-            assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
-            assert!(duration <= PRIMARY_LISTING_MAX_DURATION_NANO, "Listing duration too long");
+            assert!(
+                duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
+                "Listing duration too short"
+            );
+            assert!(
+                duration <= PRIMARY_LISTING_MAX_DURATION_NANO,
+                "Listing duration too long"
+            );
         } else {
             let current_block_timestamp = env::block_timestamp() as i64;
             let duration = end_timestamp - current_block_timestamp;
-            assert!(duration >= PRIMARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
-            assert!(duration <= PRIMARY_LISTING_MAX_DURATION_NANO, "Listing duration too long");
+            assert!(
+                duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
+                "Listing duration too short"
+            );
+            assert!(
+                duration <= PRIMARY_LISTING_MAX_DURATION_NANO,
+                "Listing duration too long"
+            );
         }
 
         let nft_contract_id = self.internal_nft_shared_contract_id();
@@ -366,17 +393,17 @@ impl MarketplaceContract {
             .expect("Could not find NFT listing");
         listing.update_status();
 
-        // if there's an end date set, make sure the listing is not running
-        // assert!(
-        //     listing.end_timestamp.is_none() || listing.status == Unstarted || listing.status == Ended,
-        //     "Cannot conclude a time-limited listing while it's running"
-        // );
-
         // make sure it's the seller who's calling this
         assert!(
             env::predecessor_account_id() == listing.seller_id,
             "Only the seller can conclude"
         );
+
+        // if there's an end date set, make sure the listing is not running
+        // assert!(
+        //     listing.end_timestamp.is_none() || listing.status == Unstarted || listing.status == Ended,
+        //     "Cannot conclude a time-limited listing while it's running"
+        // );
 
         // reset supply and refund proposers
         listing.supply_left = 0;
@@ -388,13 +415,17 @@ impl MarketplaceContract {
         let storage_before = env::storage_usage();
 
         let removed_listing = self.internal_remove_primary_listing(&listing_id);
-        
+
         let storage_after = env::storage_usage();
         let storage_freed = storage_before - storage_after;
         let refunded_deposit = storage_freed as Balance * env::storage_byte_cost();
-        let current_deposit = self.storage_deposits.get(&removed_listing.seller_id).expect("Could not find seller's storage deposit record");
+        let current_deposit = self
+            .storage_deposits
+            .get(&removed_listing.seller_id)
+            .expect("Could not find seller's storage deposit record");
         let updated_deposit = current_deposit + refunded_deposit;
-        self.storage_deposits.insert(&removed_listing.seller_id, &(updated_deposit));
+        self.storage_deposits
+            .insert(&removed_listing.seller_id, &(updated_deposit));
 
         updated_deposit
     }
@@ -442,8 +473,12 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
     ) -> (U64, Balance) {
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
         match env::promise_result(0) {
-            PromiseResult::NotReady => { unreachable!("NFT contract unreachable") }
-            PromiseResult::Failed => { panic!("NFT make_collection failed") }
+            PromiseResult::NotReady => {
+                unreachable!("NFT contract unreachable")
+            }
+            PromiseResult::Failed => {
+                panic!("NFT make_collection failed")
+            }
             PromiseResult::Successful(val) => {
                 let (collection_id, nft_storage) =
                     near_sdk::serde_json::from_slice::<(U64, U64)>(&val)
@@ -488,11 +523,14 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
                 let marketplace_storage_cost = marketplace_storage as Balance * storage_byte_cost;
                 let nft_storage_cost = nft_storage.0 as Balance * storage_byte_cost;
                 let total_storage_cost = marketplace_storage_cost + nft_storage_cost;
-                let current_deposit = self.storage_deposits.get(&seller_id).expect("Could not find seller storage deposit record");
+                let current_deposit = self
+                    .storage_deposits
+                    .get(&seller_id)
+                    .expect("Could not find seller storage deposit record");
                 let updated_deposit = if current_deposit >= total_storage_cost {
                     current_deposit - total_storage_cost
                 } else {
-                    0       // should never happen; TODO: log warning to review storage deposit logic
+                    0 // should never happen; TODO: log warning to review storage deposit logic
                 };
                 self.storage_deposits.insert(&seller_id, &updated_deposit);
 
@@ -502,7 +540,7 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
     }
 }
 
-// 701 + 64*2 + 128 + 2048 + 8 + 8 = 
+// 701 + 64*2 + 128 + 2048 + 8 + 8 =
 #[allow(dead_code)]
 fn primary_listing_add_buy_now_only_storage(
     seller_id: &str,
@@ -536,7 +574,7 @@ fn primary_listing_add_accepting_proposals_storage(
 
 #[allow(dead_code)]
 fn nft_make_collection_storage(title: &str, media: &str) -> u64 {
-    return 152 + title.len() as u64 + 2u64 * media.len() as u64;    // 4376 max
+    return 152 + title.len() as u64 + 2u64 * media.len() as u64; // 4376 max
 }
 
 #[allow(dead_code)]
