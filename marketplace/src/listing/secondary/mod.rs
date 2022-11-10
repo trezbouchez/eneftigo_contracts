@@ -1,6 +1,6 @@
 pub mod lib;
 mod seller;
-// pub mod buyer;
+mod buyer;
 pub mod enumeration;
 
 mod nft_callback;

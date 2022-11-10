@@ -1,7 +1,7 @@
 use crate::{
     *,
     internal::{hash_account_id},
-    listing::{secondary::lib::SecondaryListingId},
+    listing::{status::ListingStatus, secondary::lib::SecondaryListingId},
 };
 
 pub(crate) fn hash_secondary_listing_id(listing_id: &SecondaryListingId) -> CryptoHash {
@@ -79,5 +79,35 @@ impl MarketplaceContract {
         // insert back
         self.secondary_listings_by_seller_id
             .insert(seller_id, &listing_set);
+    }
+}
+
+impl SecondaryListing {
+    pub(crate) fn update_status(&mut self) {
+        let block_timestamp = env::block_timestamp() as i64;
+
+        if self.status == ListingStatus::Ended {
+            return;
+        }
+
+        if let Some(end_timestamp) = self.end_timestamp {
+            if block_timestamp >= end_timestamp {
+                self.status = ListingStatus::Ended;
+                return;
+            }
+        }
+
+        if self.status == ListingStatus::Running {
+            return;
+        }
+
+        if let Some(start_timestamp) = self.start_timestamp {
+            if block_timestamp >= start_timestamp {
+                self.status = ListingStatus::Running;
+                return;
+            }
+        } else {
+            self.status = ListingStatus::Running;
+        }
     }
 }

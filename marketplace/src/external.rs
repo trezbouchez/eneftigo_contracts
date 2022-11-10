@@ -51,4 +51,12 @@ trait NFTContract {
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
     );
+
+    fn nft_transfer(
+        &mut self,
+        receiver_id: AccountId,
+        token_id: String,
+        approval_id: Option<u64>,
+        memo: Option<String>,
+    );
 }
