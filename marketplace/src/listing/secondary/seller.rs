@@ -1,6 +1,6 @@
 use crate::{
     // constants::*,
-    external::{NftMetadata},
+    external::NftMetadata,
     listing::{
         constants::*,
         secondary::{
@@ -11,7 +11,10 @@ use crate::{
     *,
 };
 use chrono::DateTime;
-use near_sdk::{collections::Vector, json_types::{U64,U128}};
+use near_sdk::{
+    collections::Vector,
+    json_types::{U128},
+};
 use url::Url;
 
 // const NFT_MAKE_COLLECTION_GAS: Gas = Gas(5_000_000_000_000); // highest measured 3_920_035_683_889
@@ -19,7 +22,6 @@ use url::Url;
 
 #[near_bindgen]
 impl MarketplaceContract {
-
     pub(crate) fn secondary_listing_add(
         &mut self,
         owner_id: AccountId,
@@ -27,12 +29,15 @@ impl MarketplaceContract {
         approval_id: u64,
         token_id: NftId,
         nft_metadata: NftMetadata,
-        buy_now_price_yocto: U128,
-        min_proposal_price_yocto: Option<U128>, // if None, only buy now is allowed
+        price_yocto: Option<U128>,
+        min_bid_yocto: Option<U128>, // if None, only buy now is allowed
         start_date: Option<String>, // if missing, it'll start accepting bids when this transaction is mined
-        end_date: Option<String>
+        end_date: Option<String>,
     ) {
-        let accepts_proposals = min_proposal_price_yocto.is_some();
+        let price_yocto = price_yocto.map(|p| p.0);
+        let min_bid_yocto = min_bid_yocto.map(|b| b.0);
+
+        let seller_id = env::predecessor_account_id();
 
         // Is deposit sufficient to cover the storage in the worst-case scenario?
         let storage_byte_cost = env::storage_byte_cost();
@@ -58,37 +63,61 @@ impl MarketplaceContract {
         let media_url = nft_metadata.media.clone().expect("Missing NFT media");
         assert!(Url::parse(&media_url).is_ok(), "NFT media URL is invalid");
 
-        // Isn't the price too low?
-        assert!(
-            buy_now_price_yocto.0 >= MIN_BUY_NOW_PRICE_YOCTO,
-            "Price cannot be lower than {} yoctoNear",
-            MIN_BUY_NOW_PRICE_YOCTO
-        );
+        // Is the price ok?
+        if let Some(price_yocto) = price_yocto {
+            assert!(
+                price_yocto >= MIN_PRICE_YOCTO,
+                "Price cannot be lower than {} yoctoNear",
+                MIN_PRICE_YOCTO
+            );
 
-        // Is the price multiple of marketplace price unit?
-        assert!(
-            buy_now_price_yocto.0 % PRICE_STEP_YOCTO == 0,
-            "Price must be integer multiple of {} yoctoNear",
-            PRICE_STEP_YOCTO
-        );
+            // Is the price multiple of marketplace price unit?
+            assert!(
+                price_yocto % PRICE_STEP_YOCTO == 0,
+                "Price must be integer multiple of {} yoctoNear",
+                PRICE_STEP_YOCTO
+            );
+        }
 
-        // start timestamp
-        let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
+        // Is min bid ok?
+        if let Some(min_bid_yocto) = min_bid_yocto {
+            assert!(
+                min_bid_yocto >= MIN_BID_YOCTO,
+                "Bid cannot be lower than {} yoctoNear",
+                MIN_BID_YOCTO
+            );
+
+            // Is the price multiple of marketplace price unit?
+            assert!(
+                min_bid_yocto % BID_STEP_YOCTO == 0,
+                "Bid must be integer multiple of {} yoctoNear",
+                BID_STEP_YOCTO
+            );
+        }
+
+        // the logic here is:
+        // - if start timestamp is missing, current block timestamp is used
+        // - for bid-accepting listings the end date must be set and the duration cannot exceed
+        //   max allowed (this is to prevent keeping bid deposits indefinitely)
+        // - for buy-now-only listings, there's no upper limit on duration
+
+        let is_accepting_bids = min_bid_yocto.is_some();
+        let current_block_timestamp = env::block_timestamp() as i64;
+
+        let start_timestamp = if let Some(start_date_str) = start_date {
             let start_datetime = DateTime::parse_from_rfc3339(&start_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
             );
             let start_timestamp = start_datetime.timestamp_nanos();
-            let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
                 start_timestamp >= current_block_timestamp,
-                "Start date is into the past"
+                "Start date into the past"
             );
-            Some(start_timestamp)
+            start_timestamp
         } else {
-            None
+            current_block_timestamp
         };
 
-        // end timestamp
         let end_timestamp: Option<i64> = if let Some(end_date_str) = end_date {
             let end_datetime = DateTime::parse_from_rfc3339(&end_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
@@ -97,7 +126,7 @@ impl MarketplaceContract {
             let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
                 end_timestamp >= current_block_timestamp,
-                "End date is into the past"
+                "End date into the past"
             );
             Some(end_timestamp)
             // let end_datetime_str = (Utc.ymd(1970, 1, 1).and_hms(0, 0, 0) + Duration::nanoseconds(end_timestamp_nanos)).to_rfc3339();
@@ -106,20 +135,24 @@ impl MarketplaceContract {
             None
         };
 
-        // check duration
-        let listing_start: i64 = if let Some(start_timestamp) = start_timestamp {
-            start_timestamp
-        } else {
-            env::block_timestamp() as i64
-        };
-        if let Some(listing_end) = end_timestamp {
-            let duration = listing_end - listing_start;
-            assert!(duration >= SECONDARY_LISTING_MIN_DURATION_NANO, "Listing duration too short");
-            if accepts_proposals {
-                assert!(duration <= SECONDARY_LISTING_MAX_DURATION_NANO, "Listing duration too long");
+        if let Some(end_timestamp) = end_timestamp {
+            // end timestamp set
+            let duration = end_timestamp - start_timestamp;
+            assert!(
+                duration >= SECONDARY_LISTING_MIN_DURATION_NANO,
+                "Listing duration too short"
+            );
+            if is_accepting_bids {
+                assert!(
+                    duration <= SECONDARY_LISTING_MAX_DURATION_NANO,
+                    "Listing duration too long"
+                );
             }
         } else {
-            assert!(!accepts_proposals, "Proposals-accepting listing must have end date");
+            assert!(
+                !is_accepting_bids,
+                "End date must be set for bid-accepting listing"
+            );
         }
 
         let listing_id = SecondaryListingId {
@@ -132,17 +165,17 @@ impl MarketplaceContract {
             seller_id: owner_id.clone(),
             approval_id,
             nft_metadata,
-            buy_now_price_yocto: buy_now_price_yocto.0,
-            min_proposal_price_yocto: None,
+            price_yocto,
+            min_bid_yocto,
             start_timestamp,
             end_timestamp,
             status: ListingStatus::Unstarted,
-            proposals: Vector::new(
-                SecondaryListingStorageKey::Proposals { listing_id_hash }
+            bids: Vector::new(
+                SecondaryListingStorageKey::Bids { listing_id_hash }
                     .try_to_vec()
                     .unwrap(),
             ),
-            next_proposal_id: 0,
+            next_bid_id: 0,
         };
 
         let marketplace_storage_before = env::storage_usage();
@@ -170,7 +203,7 @@ impl MarketplaceContract {
         &mut self,
         owner_id: AccountId,
         nft_contract_id: AccountId,
-        token_id: String, 
+        token_id: String,
     ) {
         // make sure it's the seller who's calling this
         assert!(
@@ -183,8 +216,11 @@ impl MarketplaceContract {
             token_id,
         };
 
-        let listing = self.secondary_listings_by_id.get(&listing_id).expect("Could not find this listing");
-        
+        let listing = self
+            .secondary_listings_by_id
+            .get(&listing_id)
+            .expect("Could not find this listing");
+
         let storage_before = env::storage_usage();
 
         let removed_listing = self.internal_remove_secondary_listing(&listing_id);

@@ -1,5 +1,5 @@
 mod status;
-pub mod proposal;
+pub mod bid;
 mod constants;
 
 pub mod primary;

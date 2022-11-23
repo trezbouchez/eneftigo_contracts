@@ -1,7 +1,7 @@
 use crate::*;
 use crate::external::{NftMetadata};
 use super::super::{
-    proposal::{Proposal},
+    bid::{Bid},
     status::{ListingStatus},
 };
 use std::fmt;
@@ -10,7 +10,7 @@ use near_sdk::json_types::{U64};
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum PrimaryListingStorageKey {
-    Proposals {
+    Bids {
         listing_id_hash: CryptoHash,
     },
 }
@@ -48,14 +48,14 @@ pub struct PrimaryListing {
     pub seller_id: AccountId,
     pub nft_metadata: NftMetadata,
     pub supply_total: u64,
-    pub buy_now_price_yocto: u128,
-    pub min_proposal_price_yocto: Option<u128>, // if None then no proposals will be accepted
-    pub start_timestamp: Option<i64>,           // nanoseconds since 1970-01-01
+    pub price_yocto: Option<u128>,              // if None, then it's an auction without buy now price
+    pub min_bid_yocto: Option<u128>,            // if None then no bids will be accepted
+    pub start_timestamp: i64,                   // nanoseconds since 1970-01-01
     pub end_timestamp: Option<i64>,             // nanoseconds since 1970-01-01
     pub status: ListingStatus,                  // will be updated when any buyer transaction is mined
     pub supply_left: u64,
-    pub proposals: Vector<Proposal>,
-    pub next_proposal_id: u64,
+    pub bids: Vector<Bid>,
+    pub next_bid_id: u64,
 }
 
 impl fmt::Display for PrimaryListing {

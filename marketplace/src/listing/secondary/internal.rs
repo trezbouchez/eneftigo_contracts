@@ -101,13 +101,9 @@ impl SecondaryListing {
             return;
         }
 
-        if let Some(start_timestamp) = self.start_timestamp {
-            if block_timestamp >= start_timestamp {
-                self.status = ListingStatus::Running;
-                return;
-            }
-        } else {
+        if block_timestamp >= self.start_timestamp {
             self.status = ListingStatus::Running;
+            return;
         }
     }
 }

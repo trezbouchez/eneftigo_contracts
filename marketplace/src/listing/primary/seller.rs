@@ -25,15 +25,19 @@ mod seller_tests;
 
 #[near_bindgen]
 impl MarketplaceContract {
-    pub fn primary_listing_add_buy_now_only(
+    pub fn primary_listing_add(
         &mut self,
         title: String,
         media_url: String,
         supply_total: U64,
-        buy_now_price_yocto: U128,
+        price_yocto: Option<U128>,
+        min_bid_yocto: Option<U128>,
         start_date: Option<String>, // if missing, it'll start accepting bids when this transaction is mined
         end_date: Option<String>,
     ) -> Promise {
+        let price_yocto = price_yocto.map(|p| p.0);
+        let min_bid_yocto = min_bid_yocto.map(|b| b.0);
+
         let seller_id = env::predecessor_account_id();
 
         // Is deposit sufficient to cover the storage in the worst-case scenario?
@@ -68,37 +72,61 @@ impl MarketplaceContract {
             TOTAL_SUPPLY_MAX
         );
 
-        // Isn't the price too low?
-        assert!(
-            buy_now_price_yocto.0 >= MIN_BUY_NOW_PRICE_YOCTO,
-            "Price cannot be lower than {} yoctoNear",
-            MIN_BUY_NOW_PRICE_YOCTO
-        );
+        // Is the price ok?
+        if let Some(price_yocto) = price_yocto {
+            assert!(
+                price_yocto >= MIN_PRICE_YOCTO,
+                "Price cannot be lower than {} yoctoNear",
+                MIN_PRICE_YOCTO
+            );
 
-        // Is the price multiple of marketplace price unit?
-        assert!(
-            buy_now_price_yocto.0 % PRICE_STEP_YOCTO == 0,
-            "Price must be integer multiple of {} yoctoNear",
-            PRICE_STEP_YOCTO
-        );
+            // Is the price multiple of marketplace price unit?
+            assert!(
+                price_yocto % PRICE_STEP_YOCTO == 0,
+                "Price must be integer multiple of {} yoctoNear",
+                PRICE_STEP_YOCTO
+            );
+        }
 
-        // start timestamp
-        let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
+        // Is min bid ok?
+        if let Some(min_bid_yocto) = min_bid_yocto {
+            assert!(
+                min_bid_yocto >= MIN_BID_YOCTO,
+                "Bid cannot be lower than {} yoctoNear",
+                MIN_BID_YOCTO
+            );
+
+            // Is the price multiple of marketplace price unit?
+            assert!(
+                min_bid_yocto % BID_STEP_YOCTO == 0,
+                "Bid must be integer multiple of {} yoctoNear",
+                BID_STEP_YOCTO
+            );
+        }
+
+        // the logic here is:
+        // - if start timestamp is missing, current block timestamp is used
+        // - for bid-accepting listings the end date must be set and the duration cannot exceed
+        //   max allowed (this is to prevent keeping bid deposits indefinitely)
+        // - for buy-now-only listings, there's no upper limit on duration
+
+        let is_accepting_bids = min_bid_yocto.is_some();
+        let current_block_timestamp = env::block_timestamp() as i64;
+
+        let start_timestamp = if let Some(start_date_str) = start_date {
             let start_datetime = DateTime::parse_from_rfc3339(&start_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
             );
             let start_timestamp = start_datetime.timestamp_nanos();
-            let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
                 start_timestamp >= current_block_timestamp,
-                "Start date is into the past"
+                "Start date into the past"
             );
-            Some(start_timestamp)
+            start_timestamp
         } else {
-            None
+            current_block_timestamp
         };
 
-        // end timestamp
         let end_timestamp: Option<i64> = if let Some(end_date_str) = end_date {
             let end_datetime = DateTime::parse_from_rfc3339(&end_date_str).expect(
                 "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
@@ -107,7 +135,7 @@ impl MarketplaceContract {
             let current_block_timestamp = env::block_timestamp() as i64;
             assert!(
                 end_timestamp >= current_block_timestamp,
-                "End date is into the past"
+                "End date into the past"
             );
             Some(end_timestamp)
             // let end_datetime_str = (Utc.ymd(1970, 1, 1).and_hms(0, 0, 0) + Duration::nanoseconds(end_timestamp_nanos)).to_rfc3339();
@@ -117,20 +145,23 @@ impl MarketplaceContract {
         };
 
         if let Some(end_timestamp) = end_timestamp {
-            if let Some(start_timestamp) = start_timestamp {
-                let duration = end_timestamp - start_timestamp;
+            // end timestamp set
+            let duration = end_timestamp - start_timestamp;
+            assert!(
+                duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
+                "Listing duration too short"
+            );
+            if is_accepting_bids {
                 assert!(
-                    duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
-                    "Listing duration too short"
-                );
-            } else {
-                let current_block_timestamp = env::block_timestamp() as i64;
-                let duration = end_timestamp - current_block_timestamp;
-                assert!(
-                    duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
-                    "Listing duration too short"
+                    duration <= PRIMARY_LISTING_MAX_DURATION_NANO,
+                    "Listing duration too long"
                 );
             }
+        } else {
+            assert!(
+                !is_accepting_bids,
+                "End date must be set for bid-accepting listing"
+            );
         }
 
         let nft_contract_id = self.internal_nft_shared_contract_id();
@@ -148,8 +179,8 @@ impl MarketplaceContract {
                 nft_contract_id,
                 nft_metadata,
                 supply_total,
-                buy_now_price_yocto,
-                None, // min_proposal_price_yocto
+                price_yocto.map(|p| U128(p)),
+                min_bid_yocto.map(|b| U128(b)),
                 start_timestamp,
                 end_timestamp,
                 env::current_account_id(),
@@ -159,143 +190,11 @@ impl MarketplaceContract {
         )
     }
 
-    pub fn primary_listing_add_accepting_proposals(
-        &mut self,
-        title: String,
-        media_url: String,
-        supply_total: U64,
-        buy_now_price_yocto: U128,
-        min_proposal_price_yocto: U128,
-        start_date: Option<String>, // if None, will start when block is mined
-        end_date: String,
-    ) -> Promise {
-        let seller_id = env::predecessor_account_id();
-
-        // Is deposit sufficient to cover the storage in the worst-case scenario?
-        let storage_byte_cost = env::storage_byte_cost();
-        let current_deposit: Balance = self.storage_deposits.get(&seller_id).unwrap_or(0);
-        let marketplace_worst_case_storage_cost =
-            PRIMARY_LISTING_ADD_STORAGE_MAX as Balance * storage_byte_cost;
-        let nft_worst_case_storage_cost =
-            NFT_MAKE_COLLECTION_STORAGE_MAX as Balance * storage_byte_cost;
-        let worst_case_storage_cost =
-            marketplace_worst_case_storage_cost + nft_worst_case_storage_cost;
-        assert!(
-            current_deposit >= worst_case_storage_cost,
-            "Your storage deposit is too low. Must be {} yN to process transaction. Please increase your deposit.",
-            worst_case_storage_cost
-        );
-
-        assert!(
-            title.len() <= MAX_LISTING_TITLE_LEN,
-            "Title length cannot exceed {} characters",
-            MAX_LISTING_TITLE_LEN
-        );
-        assert!(Url::parse(&media_url).is_ok(), "NFT media URL is invalid");
-
-        // ensure max supply does not exceed limit
-        assert!(
-            supply_total.0 > 0 && supply_total.0 <= TOTAL_SUPPLY_MAX,
-            "Max NFT supply must be between 1 and {}.",
-            TOTAL_SUPPLY_MAX
-        );
-
-        // price must be at least MIN_PRICE_YOCTO
-        assert!(
-            buy_now_price_yocto.0 >= MIN_BUY_NOW_PRICE_YOCTO,
-            "Price cannot be lower than {} yoctoNear",
-            MIN_BUY_NOW_PRICE_YOCTO
-        );
-
-        // prices must be multiple of PRICE_STEP_YOCTO
-        assert!(
-            buy_now_price_yocto.0 % PRICE_STEP_YOCTO == 0
-                && min_proposal_price_yocto.0 % PRICE_STEP_YOCTO == 0,
-            "Prices must be integer multiple of {} yoctoNear",
-            PRICE_STEP_YOCTO
-        );
-
-        // buy_now_price_yocto must be greater than min_proposal_price_yocto
-        assert!(
-            buy_now_price_yocto.0 > min_proposal_price_yocto.0,
-            "Min proposal price must be lower than buy now price"
-        );
-
-        // start timestamp
-        let current_block_timestamp = env::block_timestamp() as i64;
-        let start_timestamp: Option<i64> = if let Some(start_date_str) = start_date {
-            let start_datetime = DateTime::parse_from_rfc3339(&start_date_str).expect(
-                "Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)",
-            );
-            let start_timestamp = start_datetime.timestamp_nanos();
-            assert!(
-                start_timestamp >= current_block_timestamp,
-                "Start date is into the past"
-            );
-            Some(start_timestamp)
-        } else {
-            None
-        };
-
-        // end timestamp
-        let end_datetime = DateTime::parse_from_rfc3339(&end_date)
-            .expect("Wrong date format. Must be ISO8601/RFC3339 (f.ex. 2022-01-22T11:20:55+08:00)");
-        let end_timestamp = end_datetime.timestamp_nanos();
-
-        if let Some(start_timestamp) = start_timestamp {
-            let duration = end_timestamp - start_timestamp;
-            assert!(
-                duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
-                "Listing duration too short"
-            );
-            assert!(
-                duration <= PRIMARY_LISTING_MAX_DURATION_NANO,
-                "Listing duration too long"
-            );
-        } else {
-            let current_block_timestamp = env::block_timestamp() as i64;
-            let duration = end_timestamp - current_block_timestamp;
-            assert!(
-                duration >= PRIMARY_LISTING_MIN_DURATION_NANO,
-                "Listing duration too short"
-            );
-            assert!(
-                duration <= PRIMARY_LISTING_MAX_DURATION_NANO,
-                "Listing duration too long"
-            );
-        }
-
-        let nft_contract_id = self.internal_nft_shared_contract_id();
-        let nft_metadata = NftMetadata::new(&title, &media_url);
-
-        nft_contract::make_collection(
-            nft_metadata.clone(),
-            supply_total,
-            nft_contract_id.clone(),
-            nft_worst_case_storage_cost,
-            NFT_MAKE_COLLECTION_GAS,
-        )
-        .then(
-            ext_self_nft::primary_listing_add_make_collection_completion(
-                nft_contract_id,
-                nft_metadata,
-                supply_total,
-                buy_now_price_yocto,
-                Some(min_proposal_price_yocto),
-                start_timestamp,
-                Some(end_timestamp),
-                env::current_account_id(), // we are invoking this function on the current contract
-                NO_DEPOSIT,                // don't attach any deposit
-                NFT_MAKE_COLLECTION_COMPLETION_GAS, // GAS attached to the completion call
-            ),
-        )
-    }
-
-    pub fn primary_listing_accept_proposals(
+    pub fn primary_listing_accept_bids(
         &mut self,
         nft_contract_id: AccountId,
         collection_id: U64,
-        accepted_proposals_count: U64,
+        accepted_bids_count: U64,
     ) {
         let listing_id = PrimaryListingId {
             nft_contract_id,
@@ -311,19 +210,19 @@ impl MarketplaceContract {
         // make sure it's the seller who's calling this
         assert!(
             env::predecessor_account_id() == listing.seller_id,
-            "Only the seller can accept proposals"
+            "Only the seller can accept bids"
         );
 
-        // make sure there's enough proposals
-        let num_proposals = listing.proposals.len();
+        // make sure there's enough bids
+        let num_bids = listing.bids.len();
         assert!(
-            num_proposals >= accepted_proposals_count.0,
-            "There's not enough proposals ({})",
-            num_proposals
+            num_bids >= accepted_bids_count.0,
+            "There's not enough bids ({})",
+            num_bids
         );
 
-        // accept best proposals
-        let proposals_vec = listing.proposals.to_vec();
+        // accept best bids
+        let bids_vec = listing.bids.to_vec();
         // let first_accepted_proposal_index = (num_proposals - accepted_proposals_count) as usize;
 
         // let best_proposals_iter =
@@ -365,10 +264,10 @@ impl MarketplaceContract {
         // }
         // }
 
-        listing.proposals.clear();
-        listing.proposals.extend(proposals_vec);
+        listing.bids.clear();
+        listing.bids.extend(bids_vec);
 
-        listing.supply_left -= accepted_proposals_count.0; // TODO: move to resolve, one by one
+        listing.supply_left -= accepted_bids_count.0; // TODO: move to resolve, one by one
         self.primary_listings_by_id.insert(&listing_id, &listing);
     }
 
@@ -407,7 +306,7 @@ impl MarketplaceContract {
 
         // reset supply and refund proposers
         listing.supply_left = 0;
-        self.primary_listing_remove_supply_exceeding_proposals_and_refund_proposers(&mut listing);
+        self.primary_listing_remove_supply_exceeding_bids_and_refund_bidders(&mut listing);
         // self.primary_listings_by_id.insert(&listing_id, &listing);
 
         // remove listing and refund the seller
@@ -438,9 +337,9 @@ trait PrimaryListingSellerCallback {
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
         supply_total: U64,
-        buy_now_price_yocto: U128,
-        min_proposal_price_yocto: Option<U128>,
-        start_timestamp: Option<i64>,
+        price_yocto: Option<U128>,
+        min_bid_yocto: Option<U128>,
+        start_timestamp: i64,
         end_timestamp: Option<i64>,
     ) -> (U64, Balance);
 }
@@ -451,9 +350,9 @@ trait PrimaryListingSellerCallback {
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
         supply_total: U64,
-        buy_now_price_yocto: U128,
-        min_proposal_price_yocto: Option<U128>,
-        start_timestamp: Option<i64>,
+        price_yocto: Option<U128>,
+        min_bid_yocto: Option<U128>,
+        start_timestamp: i64,
         end_timestamp: Option<i64>,
     ) -> (U64, Balance);
 }
@@ -466,9 +365,9 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
         supply_total: U64,
-        buy_now_price_yocto: U128,
-        min_proposal_price_yocto: Option<U128>,
-        start_timestamp: Option<i64>,
+        price_yocto: Option<U128>,
+        min_bid_yocto: Option<U128>,
+        start_timestamp: i64,
         end_timestamp: Option<i64>,
     ) -> (U64, Balance) {
         assert_eq!(env::promise_results_count(), 1, "Too many data receipts");
@@ -494,24 +393,18 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
                     seller_id: seller_id.clone(),
                     nft_metadata,
                     supply_total: supply_total.0,
-                    buy_now_price_yocto: buy_now_price_yocto.0,
-                    min_proposal_price_yocto: if let Some(min_proposal_price_yocto) =
-                        min_proposal_price_yocto
-                    {
-                        Some(min_proposal_price_yocto.0)
-                    } else {
-                        None
-                    },
+                    price_yocto: price_yocto.map(|p| p.0),
+                    min_bid_yocto: min_bid_yocto.map(|p| p.0),
                     start_timestamp,
                     end_timestamp,
                     status: ListingStatus::Unstarted,
                     supply_left: supply_total.0,
-                    proposals: Vector::new(
-                        PrimaryListingStorageKey::Proposals { listing_id_hash }
+                    bids: Vector::new(
+                        PrimaryListingStorageKey::Bids { listing_id_hash }
                             .try_to_vec()
                             .unwrap(),
                     ),
-                    next_proposal_id: 0,
+                    next_bid_id: 0,
                 };
 
                 let marketplace_storage_before = env::storage_usage();

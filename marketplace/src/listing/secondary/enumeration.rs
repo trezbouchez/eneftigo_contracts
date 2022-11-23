@@ -1,13 +1,6 @@
-use crate::{
-    *,
-    external::{NftMetadata},
-    listing::{
-        proposal::{ProposalId},
-        // secondary::lib::{SecondaryListingIdJson},
-    }
-};
+use crate::{external::NftMetadata, *};
 
-use near_sdk::json_types::{U64,U128};
+use near_sdk::json_types::{U128, U64};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -16,24 +9,25 @@ pub struct JsonSecondaryListing {
     pub token_id: String,
     pub approval_id: U64,
     pub seller_id: AccountId,
-    pub buy_now_price_yocto: U128,
+    pub price_yocto: Option<U128>,
+    pub min_bid_yocto: Option<U128>,
     pub nft_metadata: NftMetadata,
+    pub start_timestamp: i64,
     pub end_timestamp: Option<i64>, // nanoseconds since 1970-01-01
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct JsonSecondaryListingProposal {
+pub struct JsonSecondaryListingBid {
     pub id: U64,
-    pub proposer_id: AccountId,
-    pub price_yocto: U128,
+    pub bidder_id: AccountId,
+    pub amount_yocto: U128,
 }
 
 // view-only methods
 
 #[near_bindgen]
 impl MarketplaceContract {
-
     // pub fn fpos_total_supply(
     //     &self,
     // ) -> U128 {
@@ -48,7 +42,7 @@ impl MarketplaceContract {
     //         nft_contract_id: listing_id.nft_contract_id,
     //         collection_id: listing_id.collection_id.0,
     //     };
-        
+
     //     let fpo = self.primary_listings_by_id.get(&listing_id);
     //     if let Some(fpo) = fpo {
     //         if fpo.status == ListingStatus::Running {
@@ -73,7 +67,8 @@ impl MarketplaceContract {
         let count = limit.unwrap_or(10) as usize;
 
         //iterate through the listings
-        listings.iter()
+        listings
+            .iter()
             .skip(start) //skip to the index we specified in the start variable
             .take(count) // return "limit" elements or 0 if missing
             .map(|listing| JsonSecondaryListing {
@@ -81,8 +76,10 @@ impl MarketplaceContract {
                 token_id: listing.id.token_id,
                 approval_id: U64(listing.approval_id),
                 seller_id: listing.seller_id,
-                buy_now_price_yocto: U128(listing.buy_now_price_yocto),
+                price_yocto: listing.price_yocto.map(|p| U128(p)),
+                min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
                 nft_metadata: listing.nft_metadata,
+                start_timestamp: listing.start_timestamp,
                 end_timestamp: listing.end_timestamp,
             })
             .collect()
@@ -96,26 +93,32 @@ impl MarketplaceContract {
     ) -> Vec<JsonSecondaryListing> {
         // get a vector of the listings
         if let Some(listing_ids) = self.secondary_listings_by_seller_id.get(&owner_id) {
-
             //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
             let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
             let count = limit.unwrap_or(10) as usize;
 
             //iterate through the listings
-            listing_ids.iter()
+            listing_ids
+                .iter()
                 .skip(start) //skip to the index we specified in the start variable
                 .take(count) // return "limit" elements or 0 if missing
                 .map(|listing_id| {
-                    let listing = self.secondary_listings_by_id.get(&listing_id).expect("Could not find listing");
+                    let listing = self
+                        .secondary_listings_by_id
+                        .get(&listing_id)
+                        .expect("Could not find listing");
                     JsonSecondaryListing {
-                    nft_contract_id: listing.id.nft_contract_id,
-                    token_id: listing.id.token_id,
-                    approval_id: U64(listing.approval_id),
-                    seller_id: listing.seller_id,
-                    buy_now_price_yocto: U128(listing.buy_now_price_yocto),
-                    nft_metadata: listing.nft_metadata,
-                    end_timestamp: listing.end_timestamp,
-                }})
+                        nft_contract_id: listing.id.nft_contract_id,
+                        token_id: listing.id.token_id,
+                        approval_id: U64(listing.approval_id),
+                        seller_id: listing.seller_id,
+                        price_yocto: listing.price_yocto.map(|p| U128(p)),
+                        min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
+                        nft_metadata: listing.nft_metadata,
+                        start_timestamp: listing.start_timestamp,
+                        end_timestamp: listing.end_timestamp,
+                    }
+                })
                 .collect()
         } else {
             vec![]
@@ -123,11 +126,7 @@ impl MarketplaceContract {
     }
 
     // get PrimaryListing by nft_contract_id
-    pub fn is_listed(
-        &self,
-        nft_contract_id: AccountId,
-        token_id: String
-    ) -> bool {
+    pub fn is_listed(&self, nft_contract_id: AccountId, token_id: String) -> bool {
         let listing_id = SecondaryListingId {
             nft_contract_id: nft_contract_id.clone(),
             token_id: token_id.clone(),
@@ -154,40 +153,24 @@ impl MarketplaceContract {
             token_id,
             approval_id: U64(listing.approval_id),
             seller_id: listing.seller_id,
-            buy_now_price_yocto: U128(listing.buy_now_price_yocto),
+            price_yocto: listing.price_yocto.map(|p| U128(p)),
+            min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
             nft_metadata: listing.nft_metadata,
+            start_timestamp: listing.start_timestamp,
             end_timestamp: listing.end_timestamp,
         }
     }
 
-    // get proposal by nft_contract_id and ProposalId
-    // there's no way to enumerate all proposals for given primary listing
-    pub fn secondary_listing_proposal(
+    // get bid by nft_contract_id and BidlId
+    // there's no way to enumerate all bids for given primary listing
+    pub fn secondary_listing_bid(
         &self,
         nft_contract_id: AccountId,
         token_id: String,
-        proposal_id: ProposalId,
-    ) -> Option<JsonSecondaryListingProposal> {
-        let listing_id = SecondaryListingId {
-            nft_contract_id,
-            token_id
-        };
-        let listing = self
-            .secondary_listings_by_id
-            .get(&listing_id)
-            .expect("Could not find secondary listing");
-        listing.proposal(&proposal_id)
-    }
+        bid_id: U64,
+    ) -> JsonSecondaryListingBid {
+        let bid_id = bid_id.0;
 
-    // get proposals by nft_contract_id and proposer_id, results are paginated
-    pub fn secondary_listing_proposals_by_proposer(
-        &self,
-        nft_contract_id: AccountId,
-        token_id: String,
-        proposer_id: AccountId,
-        from_index: Option<U128>,
-        limit: Option<u64>,
-    ) -> Vec<JsonSecondaryListingProposal> {
         let listing_id = SecondaryListingId {
             nft_contract_id,
             token_id,
@@ -196,29 +179,64 @@ impl MarketplaceContract {
             .secondary_listings_by_id
             .get(&listing_id)
             .expect("Could not find secondary listing");
-        let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
+
+        let bid = listing.bids.get(bid_id).expect("Bid not found");
+
+        JsonSecondaryListingBid {
+            id: U64(bid_id),
+            bidder_id: bid.bidder_id,
+            amount_yocto: U128(bid.amount_yocto),
+        }
+    }
+
+    // get bids by nft_contract_id and bidder_id, results are paginated
+    pub fn secondary_listing_bids_by_bidder(
+        &self,
+        nft_contract_id: AccountId,
+        token_id: String,
+        bidder_id: AccountId,
+        from_index: Option<U128>,
+        limit: Option<U64>,
+    ) -> Vec<JsonSecondaryListingBid> {
+        let from_index = from_index.map(|i| i.0);
+        let limit = limit.map(|l| l.0);
+
+        let listing_id = SecondaryListingId {
+            nft_contract_id,
+            token_id,
+        };
+        let listing = self
+            .secondary_listings_by_id
+            .get(&listing_id)
+            .expect("Could not find secondary listing");
+
+        let start = from_index.unwrap_or(0) as usize;
         let count = limit.unwrap_or(10) as usize;
-        listing.proposals
+        listing
+            .bids
             .iter()
-            .filter(|proposal| proposal.proposer_id == proposer_id)
+            .filter(|bid| bid.bidder_id == bidder_id)
             .skip(start)
             .take(count)
-            .map(|proposal| JsonSecondaryListingProposal {
-                id: U64(proposal.id),
-                proposer_id: proposal.proposer_id,
-                price_yocto: U128(proposal.price_yocto),
+            .map(|bid| JsonSecondaryListingBid {
+                id: U64(bid.id),
+                bidder_id: bid.bidder_id,
+                amount_yocto: U128(bid.amount_yocto),
             })
             .collect()
     }
 
     // get acceptable proposals by nft_contract_id, results are paginated
-    pub fn secondary_listing_proposals(
+    pub fn secondary_listing_bids(
         &self,
         nft_contract_id: AccountId,
         token_id: String,
         from_index: Option<U128>,
-        limit: Option<u64>,
-    ) -> Vec<JsonSecondaryListingProposal> {
+        limit: Option<U64>,
+    ) -> Vec<JsonSecondaryListingBid> {
+        let from_index = from_index.map(|i| i.0);
+        let limit = limit.map(|l| l.0);
+
         let listing_id = SecondaryListingId {
             nft_contract_id,
             token_id,
@@ -229,36 +247,34 @@ impl MarketplaceContract {
             .expect("Could not find secondary listing");
 
         // where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
-        let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
+        let start = from_index.unwrap_or(0) as usize;
         let count = limit.unwrap_or(10) as usize;
 
-        listing.proposals
+        listing
+            .bids
             .iter()
             .skip(start) //skip to the index we specified in the start variable
             .take(count) // return "limit" elements or 0 if missing
-            .map(|proposal| JsonSecondaryListingProposal {
-                id: U64(proposal.id),
-                proposer_id: proposal.proposer_id,
-                price_yocto: U128(proposal.price_yocto),
+            .map(|bid| JsonSecondaryListingBid {
+                id: U64(bid.id),
+                bidder_id: bid.bidder_id,
+                amount_yocto: U128(bid.amount_yocto),
             })
             .collect()
     }
 }
 
 impl SecondaryListing {
-    pub(crate) fn proposal(
-        &self,
-        proposal_id: &u64,
-    ) -> Option<JsonSecondaryListingProposal> {
-        if let Some(proposal) = self
-            .proposals
+    pub(crate) fn bid(&self, bid_id: &u64) -> Option<JsonSecondaryListingBid> {
+        if let Some(bid) = self
+            .bids
             .iter()
-            .find(|proposal| proposal.id == *proposal_id)
+            .find(|bid| bid.id == *bid_id)
         {
-            Some(JsonSecondaryListingProposal {
-                id: U64(proposal.id),
-                proposer_id: proposal.proposer_id,
-                price_yocto: U128(proposal.price_yocto),
+            Some(JsonSecondaryListingBid {
+                id: U64(bid.id),
+                bidder_id: bid.bidder_id,
+                amount_yocto: U128(bid.amount_yocto),
             })
         } else {
             None

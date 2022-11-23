@@ -3,21 +3,21 @@ use crate::*;
 use std::cmp::Ordering;
 use std::fmt;
 
-pub type ProposalId = u64;
+pub type BidId = u64;
 
 #[derive(BorshDeserialize, BorshSerialize, Eq)]
-pub struct Proposal {
-    pub id: ProposalId,
-    pub proposer_id: AccountId,
-    pub price_yocto: u128,
+pub struct Bid {
+    pub id: BidId,
+    pub bidder_id: AccountId,
+    pub amount_yocto: u128,
 }
 
-impl Ord for Proposal {
+impl Ord for Bid {
     // best proposal comes first
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.price_yocto < other.price_yocto {
+        if self.amount_yocto < other.amount_yocto {
             Ordering::Greater
-        } else if self.price_yocto == other.price_yocto {
+        } else if self.amount_yocto == other.amount_yocto {
             self.id.cmp(&other.id)      // earlier comes first
         } else {
             Ordering::Less
@@ -25,24 +25,24 @@ impl Ord for Proposal {
     }
 }
 
-impl PartialOrd for Proposal {
+impl PartialOrd for Bid {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl PartialEq for Proposal {
+impl PartialEq for Bid {
     fn eq(&self, other: &Self) -> bool {
-        self.price_yocto == other.price_yocto && self.id == other.id
+        self.amount_yocto == other.amount_yocto && self.id == other.id
     }
 }
 
-impl fmt::Display for Proposal {
+impl fmt::Display for Bid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{{ id: {}, proposer_id: {}, price_yocto: {} }}",
-            self.id, self.proposer_id, self.price_yocto
+            "{{ id: {}, bidder_id: {}, amount_yocto: {} }}",
+            self.id, self.bidder_id, self.amount_yocto
         )
     }
 }

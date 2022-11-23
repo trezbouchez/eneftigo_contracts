@@ -1,7 +1,7 @@
 use crate::*;
 use external::{NftMetadata};
 use super::super::{
-    proposal::{Proposal},
+    bid::{Bid},
     status::{ListingStatus},
 };
 use std::{
@@ -12,7 +12,7 @@ use near_sdk::collections::Vector;
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum SecondaryListingStorageKey {
-    Proposals {
+    Bids {
         listing_id_hash: CryptoHash,
     },
 }
@@ -40,13 +40,13 @@ pub struct SecondaryListing {
     pub seller_id: AccountId,
     pub approval_id: u64,
     pub nft_metadata: NftMetadata,
-    pub buy_now_price_yocto: u128,
-    pub min_proposal_price_yocto: Option<u128>, // if None then no proposals will be accepted
-    pub start_timestamp: Option<i64>,           // nanoseconds since 1970-01-01
+    pub price_yocto: Option<u128>,
+    pub min_bid_yocto: Option<u128>,            // if None then no bids will be accepted
+    pub start_timestamp: i64,                   // nanoseconds since 1970-01-01
     pub end_timestamp: Option<i64>,             // nanoseconds since 1970-01-01
     pub status: ListingStatus, // will be updated when any buyer transaction is mined
-    pub proposals: Vector<Proposal>,
-    pub next_proposal_id: u64,
+    pub bids: Vector<Bid>,
+    pub next_bid_id: u64,
 }
 
 impl fmt::Display for SecondaryListing {

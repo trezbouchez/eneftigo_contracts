@@ -2,17 +2,18 @@ use crate::{
     constants::*,
     external::nft_contract,
     listing::{
-        constants::*,
-        primary::{
-            // config::*,
-            lib::PrimaryListingIdJson,
-        },
-        proposal::{Proposal/*, ProposalId*/},
+        // constants::*, 
+        // primary::lib::PrimaryListingIdJson, 
+        // bid::Bid, 
         status::ListingStatus,
     },
     *,
 };
-use near_sdk::{json_types::{U64,U128}, PromiseResult, env::attached_deposit};
+use near_sdk::{
+    // env::attached_deposit,
+    json_types::{U128},
+    PromiseResult,
+};
 
 const NFT_TRANSFER_GAS: Gas = Gas(15_000_000_000_000); // TODO: measure
 const NFT_TRANSFER_COMPLETION_GAS: Gas = Gas(5_000_000_000_000); // TODO: measure
@@ -36,9 +37,17 @@ impl MarketplaceContract {
             token_id: token_id.clone(),
         };
 
-        let mut listing = self.secondary_listings_by_id.get(&listing_id).expect("Could not find NFT listing");
+        let mut listing = self
+            .secondary_listings_by_id
+            .get(&listing_id)
+            .expect("Could not find NFT listing");
         listing.update_status();
         self.secondary_listings_by_id.insert(&listing_id, &listing);
+
+        // make sure buy now is possible
+        let price_yocto = listing
+            .price_yocto
+            .expect("Buy Now is not possible for this listing");
 
         assert!(
             listing.status == ListingStatus::Running,
@@ -50,7 +59,6 @@ impl MarketplaceContract {
         assert!(buyer_id != listing.seller_id, "Cannot buy from yourself");
 
         // ensure the attached balance is sufficient to pay the price and nft_transfer 1yN required deposit
-        let price_yocto = listing.buy_now_price_yocto;
         let required_deposit = price_yocto + 1;
         let attached_deposit = env::attached_deposit();
         assert!(
@@ -77,11 +85,10 @@ impl MarketplaceContract {
             U128(price_yocto),
             env::current_account_id(), // we are invoking this function on the current contract
             NO_DEPOSIT,                // don't attach any deposit
-            NFT_TRANSFER_COMPLETION_GAS,   // GAS attached to the completion call
+            NFT_TRANSFER_COMPLETION_GAS, // GAS attached to the completion call
         ))
     }
 }
-
 
 #[ext_contract(ext_self_nft)]
 trait SecondaryListingBuyerCallback {
@@ -139,7 +146,7 @@ impl SecondaryListingBuyerCallback for MarketplaceContract {
             }
             PromiseResult::Successful(val) => {
                 let buyer_id = env::signer_account_id();
-                
+
                 // transfer price to the seller
                 Promise::new(seller_id.clone()).transfer(price_yocto);
 
@@ -151,18 +158,22 @@ impl SecondaryListingBuyerCallback for MarketplaceContract {
                     .expect("Could not remove listing: Could not find listing");
                 let storage_after = env::storage_usage();
                 let storage_byte_cost: Balance = env::storage_byte_cost();
-                let deposit_refund = (storage_before - storage_after) as Balance * storage_byte_cost;
+                let deposit_refund =
+                    (storage_before - storage_after) as Balance * storage_byte_cost;
                 if deposit_refund > 0 {
-                    let current_deposit = self.storage_deposits.get(&seller_id).expect("Could not find seller's storage deposit record");
+                    let current_deposit = self
+                        .storage_deposits
+                        .get(&seller_id)
+                        .expect("Could not find seller's storage deposit record");
                     let updated_deposit = current_deposit + deposit_refund;
                     self.storage_deposits.insert(&seller_id, &updated_deposit);
                 }
-                
+
                 // TODO: refund proposals (if any) and remove listing
-                // self.secondary_listing_remove_supply_exceeding_proposals_and_refund_proposers(&mut removed_listing); 
-                
+                // self.secondary_listing_remove_supply_exceeding_proposals_and_refund_proposers(&mut removed_listing);
+
                 // return excess attached deposit
-                let required_deposit = price_yocto + 1;         // 1yN required by nft_transfer
+                let required_deposit = price_yocto + 1; // 1yN required by nft_transfer
                 if attached_deposit > required_deposit {
                     Promise::new(buyer_id).transfer(attached_deposit - required_deposit);
                 }
