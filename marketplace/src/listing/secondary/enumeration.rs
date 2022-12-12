@@ -1,4 +1,4 @@
-use crate::{external::NftMetadata, *};
+use crate::{external::NftMetadata, *, listing::status::ListingStatus};
 
 use near_sdk::json_types::{U128, U64};
 
@@ -14,6 +14,7 @@ pub struct JsonSecondaryListing {
     pub nft_metadata: NftMetadata,
     pub start_timestamp: i64,
     pub end_timestamp: Option<i64>, // nanoseconds since 1970-01-01
+    pub status: ListingStatus,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -81,18 +82,19 @@ impl MarketplaceContract {
                 nft_metadata: listing.nft_metadata,
                 start_timestamp: listing.start_timestamp,
                 end_timestamp: listing.end_timestamp,
+                status: listing.status,
             })
             .collect()
     }
 
-    pub fn secondary_listings_for_owner(
+    pub fn secondary_listings_by_seller(
         &self,
-        owner_id: AccountId,
+        seller_account_id: AccountId,
         from_index: Option<U128>,
         limit: Option<u64>,
     ) -> Vec<JsonSecondaryListing> {
         // get a vector of the listings
-        if let Some(listing_ids) = self.secondary_listings_by_seller_id.get(&owner_id) {
+        if let Some(listing_ids) = self.secondary_listings_by_seller_id.get(&seller_account_id) {
             //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
             let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
             let count = limit.unwrap_or(10) as usize;
@@ -117,6 +119,7 @@ impl MarketplaceContract {
                         nft_metadata: listing.nft_metadata,
                         start_timestamp: listing.start_timestamp,
                         end_timestamp: listing.end_timestamp,
+                        status: listing.status,
                     }
                 })
                 .collect()
@@ -158,6 +161,7 @@ impl MarketplaceContract {
             nft_metadata: listing.nft_metadata,
             start_timestamp: listing.start_timestamp,
             end_timestamp: listing.end_timestamp,
+            status: listing.status,
         }
     }
 

@@ -1,6 +1,8 @@
 use crate::*;
 
 #[derive(BorshDeserialize, BorshSerialize, PartialEq)]
+#[derive(Serialize,Deserialize)]
+#[serde(crate = "near_sdk::serde")]
 pub enum ListingStatus {
     Unstarted,
     Running,

@@ -1,4 +1,4 @@
-use crate::{external::NftMetadata, *};
+use crate::{external::NftMetadata, *, listing::status::ListingStatus};
 
 use near_sdk::json_types::{U128, U64};
 
@@ -11,9 +11,11 @@ pub struct JsonPrimaryListing {
     pub supply_total: U64,
     pub price_yocto: Option<U128>,
     pub min_bid_yocto: Option<U128>,
+    pub acceptable_bid_yocto: Option<U128>,
     pub nft_metadata: NftMetadata,
     pub end_timestamp: Option<i64>, // nanoseconds since 1970-01-01
     pub supply_left: U64,
+    pub status: ListingStatus,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -71,16 +73,73 @@ impl MarketplaceContract {
             .iter()
             .skip(start) //skip to the index we specified in the start variable
             .take(count) // return "limit" elements or 0 if missing
-            .map(|listing| JsonPrimaryListing {
-                nft_contract_id: listing.id.nft_contract_id,
-                collection_id: U64(listing.id.collection_id),
-                seller_id: listing.seller_id,
-                supply_total: U64(listing.supply_total),
-                price_yocto: listing.price_yocto.map(|p| U128(p)),
-                min_bid_yocto: listing.min_bid_yocto.map(|p| U128(p)),
-                nft_metadata: listing.nft_metadata,
-                end_timestamp: listing.end_timestamp,
-                supply_left: U64(listing.supply_left),
+            .map(|listing| {
+                let acceptable_bid_yocto: Option<u128> = if listing.min_bid_yocto.is_some() {
+                    Some(listing.acceptable_bid_yocto())
+                } else {
+                    None
+                };
+                JsonPrimaryListing {
+                    nft_contract_id: listing.id.nft_contract_id,
+                    collection_id: U64(listing.id.collection_id),
+                    seller_id: listing.seller_id,
+                    supply_total: U64(listing.supply_total),
+                    price_yocto: listing.price_yocto.map(|p| U128(p)),
+                    min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
+                    acceptable_bid_yocto: acceptable_bid_yocto.map(|b| U128(b)),
+                    nft_metadata: listing.nft_metadata,
+                    end_timestamp: listing.end_timestamp,
+                    supply_left: U64(listing.supply_left),
+                    status: listing.status,
+                }
+            })
+            .collect()
+    }
+
+    pub fn primary_listings_by_seller(
+        &self,
+        seller_account_id: AccountId,
+        from_index: Option<U128>,
+        limit: Option<u64>,
+    ) -> Vec<JsonPrimaryListing> {
+        // get a vector of the listings
+        let listing_ids = self.primary_listings_by_seller_id.get(&seller_account_id);
+        if listing_ids.is_none() {
+            return vec![];
+        }
+        let listing_ids = listing_ids.unwrap();
+
+        //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
+        let start = u128::from(from_index.unwrap_or(U128(0))) as usize;
+        let count = limit.unwrap_or(10) as usize;
+
+        listing_ids
+            .iter()
+            .skip(start) //skip to the index we specified in the start variable
+            .take(count) // return "limit" elements or 0 if missing
+            .map(|listing_id| {
+                let listing = self
+                    .primary_listings_by_id
+                    .get(&listing_id)
+                    .expect("Listing record does not exist");
+                let acceptable_bid_yocto: Option<u128> = if listing.min_bid_yocto.is_some() {
+                    Some(listing.acceptable_bid_yocto())
+                } else {
+                    None
+                };
+                JsonPrimaryListing {
+                    nft_contract_id: listing.id.nft_contract_id,
+                    collection_id: U64(listing.id.collection_id),
+                    seller_id: listing.seller_id,
+                    supply_total: U64(listing.supply_total),
+                    price_yocto: listing.price_yocto.map(|p| U128(p)),
+                    min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
+                    acceptable_bid_yocto: acceptable_bid_yocto.map(|b| U128(b)),
+                    nft_metadata: listing.nft_metadata,
+                    end_timestamp: listing.end_timestamp,
+                    supply_left: U64(listing.supply_left),
+                    status: listing.status,
+                }
             })
             .collect()
     }
@@ -99,7 +158,11 @@ impl MarketplaceContract {
             .primary_listings_by_id
             .get(&listing_id)
             .expect("Could not find primary listing");
-
+        let acceptable_bid_yocto: Option<u128> = if listing.min_bid_yocto.is_some() {
+            Some(listing.acceptable_bid_yocto())
+        } else {
+            None
+        };
         JsonPrimaryListing {
             nft_contract_id: nft_contract_id,
             collection_id: collection_id,
@@ -107,14 +170,15 @@ impl MarketplaceContract {
             supply_total: U64(listing.supply_total),
             price_yocto: listing.price_yocto.map(|p| U128(p)),
             min_bid_yocto: listing.min_bid_yocto.map(|p| U128(p)),
+            acceptable_bid_yocto: acceptable_bid_yocto.map(|b| U128(b)),
             nft_metadata: listing.nft_metadata,
             end_timestamp: listing.end_timestamp,
             supply_left: U64(listing.supply_left),
+            status: listing.status,
         }
     }
 
     // get bid by nft_contract_id and BidId
-    // there's no way to enumerate all bids for given primary listing
     pub fn primary_listing_bid(
         &self,
         nft_contract_id: AccountId,
@@ -220,11 +284,7 @@ impl MarketplaceContract {
 
 impl PrimaryListing {
     pub(crate) fn bid(&self, bid_id: &u64) -> Option<JsonPrimaryListingBid> {
-        if let Some(bid) = self
-            .bids
-            .iter()
-            .find(|bid| bid.id == *bid_id)
-        {
+        if let Some(bid) = self.bids.iter().find(|bid| bid.id == *bid_id) {
             Some(JsonPrimaryListingBid {
                 id: U64(bid.id),
                 bidder_id: bid.bidder_id,

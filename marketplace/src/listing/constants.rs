@@ -1,10 +1,10 @@
 pub const MAX_LISTING_TITLE_LEN: usize = 128;
 
-pub const MIN_PRICE_YOCTO: u128 = 1000;
-pub const PRICE_STEP_YOCTO: u128 = 1000;
+pub const MIN_PRICE_YOCTO: u128 = 100_000_000_000_000_000_000_000;  // 0.1 Near
+pub const PRICE_STEP_YOCTO: u128 = 100_000_000_000_000_000_000_000; // 0.1 Near
 
-pub const MIN_BID_YOCTO: u128 = 1000;
-pub const BID_STEP_YOCTO: u128 = 1000;
+pub const MIN_BID_YOCTO: u128 = 100_000_000_000_000_000_000_000;    // 0.1 Near
+pub const BID_STEP_YOCTO: u128 = 100_000_000_000_000_000_000_000;   // 0.1 Near
 
 // we act as an escrow when placing proposals; users must deposit
 // the full price of the proposal must be deposited in order to be 

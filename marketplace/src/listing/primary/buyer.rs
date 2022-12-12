@@ -110,6 +110,11 @@ impl MarketplaceContract {
     }
 
     // place bid
+    // we only expect the deposit equal to the bid amount
+    // the extra storage gets paid either by the marketplace (currently)
+    // or the seller (TODO, probably safer but we need to block extra amount when
+    // the listing is added)
+
     #[payable]
     pub fn primary_listing_place_bid(
         &mut self,
@@ -206,11 +211,13 @@ impl MarketplaceContract {
 
         // sort acceptable bids
         listing.sort_bids();
+
+        // TODO: deduct storage from seller deposit?
         // check if attached deposit is sufficient and compute proposer refund (if any)
-        let storage_usage_after = env::storage_usage();
-        let storage_usage_added = storage_usage_after - storage_usage_before;
-        let storage_cost_added = storage_usage_added as Balance * storage_byte_cost;
-        let required_deposit = amount_yocto + storage_cost_added;
+        // let storage_usage_after = env::storage_usage();
+        // let storage_usage_added = storage_usage_after - storage_usage_before;
+        // let storage_cost_added = storage_usage_added as Balance * storage_byte_cost;
+        let required_deposit = amount_yocto;// + storage_cost_added;
         assert!(
             attached_deposit >= required_deposit,
             "Insufficient storage deposit. Please attach at least {}",
