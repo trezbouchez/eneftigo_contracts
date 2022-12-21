@@ -1,5 +1,5 @@
 use crate::*;
-use crate::external::{NftMetadata};
+use crate::external::{NftMetadata, NftMutableMetadata};
 use super::super::{
     bid::{Bid},
     status::{ListingStatus},
@@ -47,6 +47,7 @@ pub struct PrimaryListing {
     pub id: PrimaryListingId,
     pub seller_id: AccountId,
     pub nft_metadata: NftMetadata,
+    pub nft_mutable_metadata: NftMutableMetadata,
     pub supply_total: u64,
     pub price_yocto: Option<u128>,              // if None, then it's an auction without buy now price
     pub min_bid_yocto: Option<u128>,            // if None then no bids will be accepted

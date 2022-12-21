@@ -1,6 +1,6 @@
 use crate::{
     // constants::*,
-    external::NftMetadata,
+    external::{NftMetadata, NftMutableMetadata},
     listing::{
         constants::*,
         secondary::{
@@ -29,6 +29,7 @@ impl MarketplaceContract {
         approval_id: u64,
         token_id: NftId,
         nft_metadata: NftMetadata,
+        nft_mutable_metadata: NftMutableMetadata,
         price_yocto: Option<U128>,
         min_bid_yocto: Option<U128>, // if None, only buy now is allowed
         start_date: Option<String>, // if missing, it'll start accepting bids when this transaction is mined
@@ -165,6 +166,7 @@ impl MarketplaceContract {
             seller_id: owner_id.clone(),
             approval_id,
             nft_metadata,
+            nft_mutable_metadata,
             price_yocto,
             min_bid_yocto,
             start_timestamp,

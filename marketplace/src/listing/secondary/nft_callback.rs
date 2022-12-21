@@ -1,5 +1,5 @@
 use crate::{
-    external::{NftMetadata},
+    external::{NftMetadata, NftMutableMetadata},
     *,
 };
 
@@ -13,6 +13,7 @@ use near_sdk::{
 struct SecondaryListingNftApprovalMsg {
     pub action: String,
     pub token_metadata: NftMetadata,
+    pub token_mutable_metadata: NftMutableMetadata,
     pub price_yocto: Option<U128>,
     pub min_bid_yocto: Option<U128>,       // if None then no proposals will be accepted
     pub start_date: Option<String>,        // nanoseconds since 1970-01-01
@@ -61,6 +62,7 @@ impl NonFungibleTokenApprovalsReceiver for MarketplaceContract {
                 approval_id,
                 token_id,
                 msg.token_metadata,
+                msg.token_mutable_metadata,
                 msg.price_yocto,
                 msg.min_bid_yocto,
                 msg.start_date,

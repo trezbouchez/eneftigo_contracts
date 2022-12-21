@@ -1,7 +1,7 @@
 use crate::*;
+use chrono::{DateTime, NaiveDateTime, Utc};
+use near_sdk::json_types::U64;
 use sha2::*;
-use near_sdk::json_types::{U64};
-use chrono::{NaiveDateTime, DateTime, Utc};
 
 #[near_bindgen]
 impl NftContract {
@@ -17,7 +17,7 @@ impl NftContract {
         assert_eq!(
             &env::predecessor_account_id(),
             &self.owner_id,
-            "Only contract owner (Eneftigo Marketplace) can mint."
+            "Only the contract owner (Eneftigo Marketplace) can call this."
         );
 
         let mut collection = self
@@ -77,6 +77,7 @@ impl NftContract {
 
         let new_token = Nft {
             //set the owner ID equal to the receiver ID passed into the function
+            minter_id: env::signer_account_id(),
             owner_id: receiver_id.clone(),
             collection_id: collection_id.0,
             approved_account_ids: Default::default(),
@@ -98,6 +99,10 @@ impl NftContract {
         token_metadata.issued_at = Some(block_datetime.to_rfc3339());
         self.token_metadata_by_id
             .insert(&new_token_id, &token_metadata);
+
+        let token_mutable_metadata = collection.nft_mutable_metadata.clone();
+        self.token_mutable_metadata_by_id
+            .insert(&new_token_id, &token_mutable_metadata);
 
         // call the internal method for adding the token to the owner
         self.internal_add_token_to_owner(&new_token.owner_id, &new_token_id);

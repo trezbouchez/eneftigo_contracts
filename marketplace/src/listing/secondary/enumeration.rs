@@ -1,4 +1,4 @@
-use crate::{external::NftMetadata, *, listing::status::ListingStatus};
+use crate::{external::{NftMetadata, NftMutableMetadata}, *, listing::status::ListingStatus};
 
 use near_sdk::json_types::{U128, U64};
 
@@ -12,6 +12,7 @@ pub struct JsonSecondaryListing {
     pub price_yocto: Option<U128>,
     pub min_bid_yocto: Option<U128>,
     pub nft_metadata: NftMetadata,
+    pub nft_mutable_metadata: NftMutableMetadata,
     pub start_timestamp: i64,
     pub end_timestamp: Option<i64>, // nanoseconds since 1970-01-01
     pub status: ListingStatus,
@@ -80,6 +81,7 @@ impl MarketplaceContract {
                 price_yocto: listing.price_yocto.map(|p| U128(p)),
                 min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
                 nft_metadata: listing.nft_metadata,
+                nft_mutable_metadata: listing.nft_mutable_metadata,
                 start_timestamp: listing.start_timestamp,
                 end_timestamp: listing.end_timestamp,
                 status: listing.status,
@@ -117,6 +119,7 @@ impl MarketplaceContract {
                         price_yocto: listing.price_yocto.map(|p| U128(p)),
                         min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
                         nft_metadata: listing.nft_metadata,
+                        nft_mutable_metadata: listing.nft_mutable_metadata,
                         start_timestamp: listing.start_timestamp,
                         end_timestamp: listing.end_timestamp,
                         status: listing.status,
@@ -159,6 +162,7 @@ impl MarketplaceContract {
             price_yocto: listing.price_yocto.map(|p| U128(p)),
             min_bid_yocto: listing.min_bid_yocto.map(|b| U128(b)),
             nft_metadata: listing.nft_metadata,
+            nft_mutable_metadata: listing.nft_mutable_metadata,
             start_timestamp: listing.start_timestamp,
             end_timestamp: listing.end_timestamp,
             status: listing.status,

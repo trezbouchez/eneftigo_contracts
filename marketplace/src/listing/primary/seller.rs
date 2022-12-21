@@ -1,6 +1,6 @@
 use crate::{
     constants::*,
-    external::{nft_contract, NftMetadata},
+    external::{nft_contract, NftMetadata, NftMutableMetadata},
     listing::{
         constants::*,
         primary::{config::*, internal::hash_primary_listing_id, lib::PrimaryListingStorageKey},
@@ -28,7 +28,8 @@ impl MarketplaceContract {
     pub fn primary_listing_add(
         &mut self,
         title: String,
-        media_url: String,
+        image_url: String,
+        aux_audio_url: Option<String>,
         supply_total: U64,
         price_yocto: Option<U128>,
         min_bid_yocto: Option<U128>,
@@ -63,7 +64,7 @@ impl MarketplaceContract {
         );
 
         // Is URL valid?
-        assert!(Url::parse(&media_url).is_ok(), "NFT media URL is invalid");
+        assert!(Url::parse(&image_url).is_ok(), "NFT media URL is invalid");
 
         // Is max_supply within limit?
         assert!(
@@ -165,10 +166,14 @@ impl MarketplaceContract {
         }
 
         let nft_contract_id = self.internal_nft_shared_contract_id();
-        let nft_metadata = NftMetadata::new(&title, &media_url);
-
+        let nft_metadata = NftMetadata::new(&title, &image_url);
+        let nft_mutable_metadata = NftMutableMetadata{
+            aux_audio_url,
+        };
+        
         nft_contract::make_collection(
             nft_metadata.clone(),
+            nft_mutable_metadata.clone(),
             supply_total,
             nft_contract_id.clone(),
             nft_worst_case_storage_cost,
@@ -178,6 +183,7 @@ impl MarketplaceContract {
             ext_self_nft::primary_listing_add_make_collection_completion(
                 nft_contract_id,
                 nft_metadata,
+                nft_mutable_metadata,
                 supply_total,
                 price_yocto.map(|p| U128(p)),
                 min_bid_yocto.map(|b| U128(b)),
@@ -336,6 +342,7 @@ trait PrimaryListingSellerCallback {
         &mut self,
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
+        nft_mutable_metadata: NftMutableMetadata,
         supply_total: U64,
         price_yocto: Option<U128>,
         min_bid_yocto: Option<U128>,
@@ -349,6 +356,7 @@ trait PrimaryListingSellerCallback {
         &mut self,
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
+        nft_mutable_metadata: NftMutableMetadata,
         supply_total: U64,
         price_yocto: Option<U128>,
         min_bid_yocto: Option<U128>,
@@ -364,6 +372,7 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
         &mut self,
         nft_account_id: AccountId,
         nft_metadata: NftMetadata,
+        nft_mutable_metadata: NftMutableMetadata,
         supply_total: U64,
         price_yocto: Option<U128>,
         min_bid_yocto: Option<U128>,
@@ -392,6 +401,7 @@ impl PrimaryListingSellerCallback for MarketplaceContract {
                     id: listing_id,
                     seller_id: seller_id.clone(),
                     nft_metadata,
+                    nft_mutable_metadata,
                     supply_total: supply_total.0,
                     price_yocto: price_yocto.map(|p| p.0),
                     min_bid_yocto: min_bid_yocto.map(|p| p.0),

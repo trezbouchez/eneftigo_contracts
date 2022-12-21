@@ -39,6 +39,13 @@ pub struct TokenMetadata {
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TokenMutableMetadata {
+    pub aux_audio_url: Option<String>,
+}
+
 impl TokenMetadata {
 
     #[allow(dead_code)]
@@ -62,6 +69,8 @@ impl TokenMetadata {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Nft {
+    // minter of the token
+    pub minter_id: AccountId,
     // owner of the token
     pub owner_id: AccountId,
     // collection id
@@ -78,17 +87,13 @@ pub struct Nft {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonNft {
-    //token ID
     pub token_id: NftId,
-    //owner of the token
+    pub minter_id: AccountId,
     pub owner_id: AccountId,
-    //collection_id
     pub collection_id: NftCollectionId,
-    //token metadata
     pub metadata: TokenMetadata,
-    //list of approved accounts and their approval IDs
+    pub mutable_metadata: TokenMutableMetadata,
     pub approved_account_ids: HashMap<AccountId, u64>,
-    // this is for the standard (perpetual) royalties (as opposed to Music Rights royalties)
     pub royalty: HashMap<AccountId, u32>,
 }
 

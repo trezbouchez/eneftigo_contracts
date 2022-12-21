@@ -1,22 +1,26 @@
 use crate::*;
-use near_sdk::{CryptoHash};
+use near_sdk::CryptoHash;
 use std::mem::size_of;
 
 // used to make sure the user attached exactly 1 yoctoNEAR
 pub(crate) fn assert_one_yocto() {
-    assert_eq!(
-        env::attached_deposit(),
-        1,
-        "Requires attached deposit of exactly 1 yoctoNEAR",
-    )
+    unsafe {
+        assert_eq!(
+            env::attached_deposit(),
+            1,
+            "Requires attached deposit of exactly 1 yoctoNEAR",
+        )
+    }
 }
 
 // used to make sure the user has attached at least 1 yoctoNEAR (for security reasons and to pay for storage)
 pub(crate) fn assert_at_least_one_yocto() {
-    assert!(
-        env::attached_deposit() >= 1,
-        "Requires attached deposit of at least 1 yoctoNEAR",
-    )
+    unsafe {
+        assert!(
+            env::attached_deposit() >= 1,
+            "Requires attached deposit of at least 1 yoctoNEAR",
+        )
+    }
 }
 
 //used to generate a unique prefix in our storage collections (this is to avoid data collisions)
@@ -36,16 +40,22 @@ pub(crate) fn refund_excess_deposit(storage_used: u64) {
     let attached_deposit = env::attached_deposit();
 
     //make sure that the attached deposit is greater than or equal to the required cost
-    assert!(
-        required_cost <= attached_deposit,
-        "Must attach {} yoctoNEAR to cover storage",
-        required_cost,
-    );
+    unsafe {
+        assert!(
+            required_cost <= attached_deposit,
+            "Must attach {} yoctoNEAR to cover storage",
+            required_cost,
+        );
+    }
 
     //get the refund amount from the attached deposit - required cost
     let refund = attached_deposit - required_cost;
 
-    let refund_str = format!("NFT refund storage deposit of {} to {}", refund, env::predecessor_account_id());
+    let refund_str = format!(
+        "NFT refund storage deposit of {} to {}",
+        refund,
+        env::predecessor_account_id()
+    );
     env::log_str(&refund_str);
 
     //if the refund is greater than 1 yocto NEAR, we refund the predecessor that amount
@@ -67,15 +77,18 @@ pub(crate) fn bytes_for_approved_account_id(account_id: &AccountId) -> u64 {
     account_id.as_str().len() as u64 + 4 + size_of::<u64>() as u64
 }
 
-// refund the storage taken by approved account IDs and send the funds to the passed in account ID. 
+// refund the storage taken by approved account IDs and send the funds to the passed in account ID.
 pub(crate) fn refund_approved_account_ids_iter<'a, I>(
     account_id: AccountId,
     approved_account_ids: I, // the approved account IDs must be passed in as an iterator
 ) -> Promise
-where I: Iterator<Item = &'a AccountId>,
+where
+    I: Iterator<Item = &'a AccountId>,
 {
     // get the storage total by going through and summing all the bytes for each approved account IDs
-    let storage_released: u64 = approved_account_ids.map(bytes_for_approved_account_id).sum();
+    let storage_released: u64 = approved_account_ids
+        .map(bytes_for_approved_account_id)
+        .sum();
 
     // transfer the account the storage that is released
     Promise::new(account_id).transfer(Balance::from(storage_released) * env::storage_byte_cost())
@@ -96,7 +109,6 @@ pub(crate) fn royalty_to_payout(royalty_percentage: u32, amount_to_pay: Balance)
 }
 
 impl NftContract {
-
     //transfers the NFT to the receiver_id (internal method and can't be called directly via CLI).
     pub(crate) fn internal_transfer(
         &mut self,
@@ -114,7 +126,7 @@ impl NftContract {
             if !token.approved_account_ids.contains_key(sender_id) {
                 env::panic_str("Unauthorized");
             }
-    
+
             // check if the sender's actual approval_id is the same as the one included
             if let Some(enforced_approval_id) = approval_id {
                 // get the actual approval ID
@@ -122,41 +134,46 @@ impl NftContract {
                     .approved_account_ids
                     .get(sender_id)
                     .expect("Sender is not approved to transfer");
-    
-                    //make sure that the actual approval ID is the same as the one provided
-                assert_eq!(
-                    actual_approval_id, &enforced_approval_id,
-                    "The actual approval_id {} is different from the given approval_id {}",
-                    actual_approval_id, enforced_approval_id,
-                );
+
+                //make sure that the actual approval ID is the same as the one provided
+                unsafe {
+                    assert_eq!(
+                        actual_approval_id, &enforced_approval_id,
+                        "The actual approval_id {} is different from the given approval_id {}",
+                        actual_approval_id, enforced_approval_id,
+                    )
+                };
             }
         }
-    
+
         //we make sure that the sender isn't sending the token to themselves
-        assert_ne!(
-            &token.owner_id, receiver_id,
-            "Cannot send a token to yourself"
-        );
+        unsafe {
+            assert_ne!(
+                &token.owner_id, receiver_id,
+                "Cannot send a token to yourself"
+            );
+        }
 
         // remove the token from it's current owner's set
         self.internal_remove_token_from_owner(&token.owner_id, token_id);
-    
+
         // add the token to the receiver_id's set
         self.internal_add_token_to_owner(receiver_id, token_id);
 
-        // create a new token struct 
+        // create a new token struct
         let updated_token = Nft {
+            minter_id: token.minter_id.clone(),
             owner_id: receiver_id.clone(),
             collection_id: token.collection_id,
-            approved_account_ids: Default::default(),   // reset approvals, new owner doesn't want them to be there
+            approved_account_ids: Default::default(), // reset approvals, new owner doesn't want them to be there
             next_approval_id: token.next_approval_id,
             royalty: token.royalty.clone(),
         };
-    
-        // insert that new token into the tokens_by_id, replacing the old entry 
+
+        // insert that new token into the tokens_by_id, replacing the old entry
         self.tokens_by_id.insert(token_id, &updated_token);
 
-        // if there was some memo attached, we log it. 
+        // if there was some memo attached, we log it.
         if let Some(memo) = memo.as_ref() {
             env::log_str(&format!("Memo: {}", memo).to_string());
         }
@@ -172,11 +189,11 @@ impl NftContract {
             standard: NFT_STANDARD_NAME.to_string(),
             version: NFT_METADATA_SPEC.to_string(),
             event: EventLogVariant::NftTransfer(vec![NftTransferLog {
-                authorized_id,  // optional authorized account ID to transfer the token on behalf of the old owner
-                old_owner_id: token.owner_id.to_string(),   // the old owner's account ID
-                new_owner_id: receiver_id.to_string(),      // account ID of the new owner of the token
-                token_ids: vec![token_id.to_string()],      // vector of token IDs
-                memo,                                       // memo (optional)
+                authorized_id, // optional authorized account ID to transfer the token on behalf of the old owner
+                old_owner_id: token.owner_id.to_string(), // the old owner's account ID
+                new_owner_id: receiver_id.to_string(), // account ID of the new owner of the token
+                token_ids: vec![token_id.to_string()], // vector of token IDs
+                memo,          // memo (optional)
             }]),
         };
 
@@ -186,13 +203,9 @@ impl NftContract {
         //return previous token object that was transferred.
         token
     }
-    
+
     //add a token to the set of tokens an owner has
-    pub(crate) fn internal_add_token_to_owner(
-        &mut self,
-        account_id: &AccountId,
-        token_id: &NftId,
-    ) {
+    pub(crate) fn internal_add_token_to_owner(&mut self, account_id: &AccountId, token_id: &NftId) {
         //get the set of tokens for the given account
         let mut tokens_set = self.tokens_per_owner.get(account_id).unwrap_or_else(|| {
             //if the account doesn't have any tokens, we create a new unordered set
@@ -209,7 +222,7 @@ impl NftContract {
         //we insert the token ID into the set
         tokens_set.insert(token_id);
 
-        //we insert that set for the given account ID. 
+        //we insert that set for the given account ID.
         self.tokens_per_owner.insert(account_id, &tokens_set);
     }
 
@@ -228,10 +241,10 @@ impl NftContract {
         } else {
             // this is crucial line; our token_set needs to be re-inserted
             // into the tokens_per_owner (overwriting previous UnorderedSet)
-            // this will update (increment) the tokens_per_owner (LookupMap) 
-            // prefix - otherwise we'd have ended up in a 'collection is in an 
+            // this will update (increment) the tokens_per_owner (LookupMap)
+            // prefix - otherwise we'd have ended up in a 'collection is in an
             // inconsistent state'
             self.tokens_per_owner.insert(account_id, &tokens_set);
         }
     }
-} 
+}

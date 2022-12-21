@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::json_types::{U64};
+use near_sdk::json_types::U64;
 use url::Url;
 
 const MAX_TITLE_LEN: usize = 128;
@@ -16,6 +16,7 @@ impl NftContract {
     pub fn make_collection(
         &mut self,
         nft_metadata: TokenMetadata,
+        nft_mutable_metadata: TokenMutableMetadata,
         max_supply: U64,
     ) -> (U64, U64) {
         // assert_eq!(
@@ -29,27 +30,31 @@ impl NftContract {
             .clone()
             .expect("NFT metadata must include title");
         // this is because the storage usage is (pesimistacally) computed for this max title length
-        assert!(
-            title.len() <= MAX_TITLE_LEN,
-            "Title length cannot exceed {} characters",
-            MAX_TITLE_LEN
-        );
+        unsafe {
+            assert!(
+                title.len() <= MAX_TITLE_LEN,
+                "Title length cannot exceed {} characters",
+                MAX_TITLE_LEN
+            );
+        }
 
         let media_url = nft_metadata
             .media
             .clone()
             .expect("NFT metadata must include media (URL)");
-        assert!(Url::parse(&media_url).is_ok(), "NFT asset URL is invalid");
+        unsafe {
+            assert!(Url::parse(&media_url).is_ok(), "NFT asset URL is invalid");
+        }
 
-        let storage_byte_cost = env::storage_byte_cost();
-        let anticipated_storage_usage = make_collection_storage(&title, &media_url);
-        let anticipated_storage_cost = anticipated_storage_usage as Balance * storage_byte_cost;
-        let attached_deposit = env::attached_deposit();
-        assert!(
-            attached_deposit >= anticipated_storage_cost,
-            "Attach at least {} yN to cover storage cost",
-            anticipated_storage_cost
-        );
+        // let storage_byte_cost = env::storage_byte_cost();
+        // let anticipated_storage_usage = make_collection_storage(&title, &media_url);
+        // let anticipated_storage_cost = anticipated_storage_usage as Balance * storage_byte_cost;
+        // let attached_deposit = env::attached_deposit();
+        // assert!(
+        //     attached_deposit >= anticipated_storage_cost,
+        //     "Attach at least {} yN to cover storage cost",
+        //     anticipated_storage_cost
+        // );
 
         let initial_storage_usage = env::storage_usage();
 
@@ -57,14 +62,17 @@ impl NftContract {
         self.next_collection_id += 1;
 
         let previous_collection = self.collections_by_url.insert(&media_url, &collection_id);
-        assert!(
-            previous_collection.is_none(),
-            "Collection exists for media at {}",
-            media_url,
-        );
+        unsafe {
+            assert!(
+                previous_collection.is_none(),
+                "Collection exists for media at {}",
+                media_url,
+            );
+        }
 
         let new_collection = NftCollection {
             nft_metadata,
+            nft_mutable_metadata,
             max_supply: max_supply.0,
             is_frozen: false,
             tokens: Vector::new(
@@ -79,61 +87,66 @@ impl NftContract {
         let previous_collection = self
             .collections_by_id
             .insert(&collection_id, &new_collection);
-        assert!(
-            previous_collection.is_none(),
-            "Collection with id {} already exists",
-            collection_id
-        );
+        unsafe {
+            assert!(
+                previous_collection.is_none(),
+                "Collection with id {} already exists",
+                collection_id
+            );
+        }
 
         // refund excess storage deposit
-        let actual_storage_usage = env::storage_usage() - initial_storage_usage;
-        assert_eq!(
-            actual_storage_usage, anticipated_storage_usage,
-            "Anticipated storage usage of {} differs from actual {}",
-            anticipated_storage_usage, actual_storage_usage
+        let attached_deposit = env::attached_deposit();
+        let storage_usage = env::storage_usage() - initial_storage_usage;
+        let storage_cost = storage_usage as Balance * env::storage_byte_cost();
+        unsafe {
+            assert!(
+            attached_deposit >= storage_cost,
+            "The attached deposit of {} yN is insufficient to cover the storage costs of {} yN.",
+            attached_deposit,
+            storage_cost
         );
-        let actual_storage_cost = anticipated_storage_cost;
+        }
 
-        // assert!(
-        //     attached_deposit >= storage_cost,
-        //     "The attached deposit of {} yN is insufficient to cover the storage costs of {} yN.",
-        //     attached_deposit,
-        //     storage_cost
-        // );
-
-        let refund_amount = attached_deposit - actual_storage_cost;
+        let refund_amount = attached_deposit - storage_cost;
         if refund_amount > 0 {
             Promise::new(env::predecessor_account_id()).transfer(refund_amount);
         }
 
-        (U64(collection_id), U64(actual_storage_usage))
+        (U64(collection_id), U64(storage_usage))
     }
 
     pub fn freeze_collection(&mut self, collection_id: U64) {
-        assert_eq!(
-            &env::predecessor_account_id(),
-            &self.owner_id,
-            "Only contract owner (Eneftigo Marketplace) can freeze collections"
-        );
+        unsafe {
+            assert_eq!(
+                &env::predecessor_account_id(),
+                &self.owner_id,
+                "Only contract owner (Eneftigo Marketplace) can freeze collections"
+            );
+        }
 
         let mut collection = self
             .collections_by_id
             .get(&collection_id.0)
             .expect("Collection does not exist");
-        assert!(
-            !collection.tokens.is_empty(),
-            "Cannot freeze an empty collection"
-        );
+        unsafe {
+            assert!(
+                !collection.tokens.is_empty(),
+                "Cannot freeze an empty collection"
+            );
+        }
         collection.is_frozen = true;
         self.collections_by_id.insert(&collection_id.0, &collection);
     }
 
     pub fn delete_collection(&mut self, collection_id: U64) {
-        assert_eq!(
-            &env::predecessor_account_id(),
-            &self.owner_id,
-            "Only contract owner (Eneftigo Marketplace) can delete collections"
-        );
+        unsafe {
+            assert_eq!(
+                &env::predecessor_account_id(),
+                &self.owner_id,
+                "Only contract owner (Eneftigo Marketplace) can delete collections"
+            );
+        }
 
         // measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
@@ -142,10 +155,12 @@ impl NftContract {
             .collections_by_id
             .get(&collection_id.0)
             .expect("Collection does not exist");
-        assert!(
-            collection.tokens.is_empty(),
-            "Can only delete a collection if not tokens have been minted"
-        );
+        unsafe {
+            assert!(
+                collection.tokens.is_empty(),
+                "Can only delete a collection if not tokens have been minted"
+            );
+        }
         self.collections_by_id
             .remove(&collection_id.0)
             .expect("Could not remove collection from collections_by_id");

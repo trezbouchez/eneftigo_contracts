@@ -20,6 +20,13 @@ pub struct NftMetadata {
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct NftMutableMetadata {
+    pub aux_audio_url: Option<String>,
+}
+
 impl NftMetadata {
     pub(crate) fn new(title: &str, media: &str) -> NftMetadata {
         NftMetadata { 
@@ -41,7 +48,12 @@ impl NftMetadata {
 
 #[ext_contract(nft_contract)]
 trait NFTContract {
-    fn make_collection(&mut self, nft_metadata: NftMetadata, max_supply: U64) -> (U64,U64);
+    fn make_collection(
+        &mut self, 
+        nft_metadata: NftMetadata,
+        nft_mutable_metadata: NftMutableMetadata,
+        max_supply: U64
+    ) -> (U64,U64);
     fn freeze_collection(&mut self, collection_id: U64);
     fn delete_colleciton(&mut self, collection_id: U64);
 

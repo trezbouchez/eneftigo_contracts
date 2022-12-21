@@ -1,5 +1,5 @@
 use crate::*;
-use external::{NftMetadata};
+use external::{NftMetadata, NftMutableMetadata};
 use super::super::{
     bid::{Bid},
     status::{ListingStatus},
@@ -40,6 +40,7 @@ pub struct SecondaryListing {
     pub seller_id: AccountId,
     pub approval_id: u64,
     pub nft_metadata: NftMetadata,
+    pub nft_mutable_metadata: NftMutableMetadata,
     pub price_yocto: Option<u128>,
     pub min_bid_yocto: Option<u128>,            // if None then no bids will be accepted
     pub start_timestamp: i64,                   // nanoseconds since 1970-01-01

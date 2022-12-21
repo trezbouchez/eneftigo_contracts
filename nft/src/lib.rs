@@ -35,6 +35,7 @@ pub const NFT_STANDARD_NAME: &str = "nep171";
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct NftCollection {
     pub nft_metadata: TokenMetadata,
+    pub nft_mutable_metadata: TokenMutableMetadata,
     pub max_supply: u64,
     pub is_frozen: bool,        // if frozen, no more minting is allowed
     pub tokens: Vector<NftId>,
@@ -62,6 +63,9 @@ pub struct NftContract {
 
     //keeps track of the token metadata for a given token ID
     pub token_metadata_by_id: UnorderedMap<NftId, TokenMetadata>,
+
+    //keeps track of the token mutable metadata for a given token ID
+    pub token_mutable_metadata_by_id: UnorderedMap<NftId, TokenMutableMetadata>,
 }
 
 /// Helper structure for keys of the persistent collections.
@@ -74,6 +78,7 @@ pub enum StorageKey {
     CollectionsInner { collection_id: u64 },
     TokensById,
     TokenMetadataById,
+    TokenMutableMetadataById,
     NFTContractMetadata,
     TokensPerType,
     TokensPerTypeInner { token_type_hash: CryptoHash },
@@ -119,6 +124,7 @@ impl NftContract {
             collections_by_url: LookupMap::new(StorageKey::CollectionsByUrl.try_to_vec().unwrap()),
             next_collection_id: 0u64,
             token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
+            token_mutable_metadata_by_id: UnorderedMap::new(StorageKey::TokenMutableMetadataById.try_to_vec().unwrap()),
             owner_id,
             metadata: LazyOption::new(StorageKey::NFTContractMetadata.try_to_vec().unwrap(), Some(&metadata)),
         };

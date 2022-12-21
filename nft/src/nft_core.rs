@@ -191,12 +191,15 @@ impl NonFungibleTokenCore for NftContract {
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
             let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
+            let mutable_metadata = self.token_mutable_metadata_by_id.get(&token_id).unwrap();
             //we return the JsonNft (wrapped by Some since we return an option)
             Some(JsonNft {
+                minter_id: token.minter_id,
                 token_id,
                 owner_id: token.owner_id,
                 collection_id: token.collection_id,
                 metadata,
+                mutable_metadata,
                 approved_account_ids: token.approved_account_ids,
                 royalty: token.royalty,
             })
